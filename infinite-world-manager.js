@@ -329,10 +329,9 @@ class InfiniteWorldManager {
         radius: size / 2, // Add radius for convenience
         color: this.config.stationColor, // Could vary based on type later
         stationType: stationType, // e.g., 'coriolis'
-        angle: this.prng.random() * Math.PI * 2, // Give it a starting rotation
+        initialAngle: this.prng.random() * Math.PI * 2, // Give it a starting rotation
         rotationSpeed:
-          this.prng.randomFloat(0.001, 0.006) *
-          (this.prng.random() < 0.5 ? 1 : -1), // Add random rotation speed/direction
+          this.prng.randomFloat(0.1, 1.6) * (this.prng.random() < 0.5 ? 1 : -1), // Add random rotation speed/direction
       };
     }
 

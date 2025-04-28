@@ -236,24 +236,38 @@
         }
       }
 
-      // --- Game Logic (unchanged) ---
+      // --- Game Logic ---
       function update() {
-        const now = Date.now();
+        const now = Date.now(); // Get current time once per frame
+
         if (touchState.shoot.active) player.shoot();
         player.update();
         camera.x = player.x - GAME_WIDTH / 2;
         camera.y = player.y - GAME_VIEW_HEIGHT / 2;
+
+        // Get visible objects
         visibleBackgroundObjects = worldManager.getObjectsInView(
           camera.x,
           camera.y,
           GAME_WIDTH,
           GAME_VIEW_HEIGHT
         );
+
+        // --- === UPDATED: Time-Based Station Rotation === ---
+        const currentTimeSeconds = now / 1000.0;
+
         visibleBackgroundObjects.forEach((obj) => {
-          if (obj.type === "station" && typeof obj.rotationSpeed === "number") {
-            obj.angle = (obj.angle + obj.rotationSpeed) % (Math.PI * 2);
+          if (obj.type === "station") {
+            obj.angle =
+              (obj.initialAngle + currentTimeSeconds * obj.rotationSpeed) %
+              (Math.PI * 2);
+            if (obj.angle < 0) {
+              obj.angle += Math.PI * 2;
+            }
           }
         });
+        // --- === END: Time-Based Station Rotation === ---
+
         projectiles = projectiles.filter((p) => {
           p.update();
           return !p.isOutOfBounds(
