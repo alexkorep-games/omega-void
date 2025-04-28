@@ -29,9 +29,23 @@
         image-rendering: -moz-crisp-edges;
         image-rendering: crisp-edges;
       }
+      /* Added style for coordinates - optional but good practice */
+      #coordinates {
+        position: absolute;
+        top: 5px;
+        left: 5px;
+        color: #00ffff; /* HUD Color */
+        font-family: monospace;
+        font-size: 12px;
+        background-color: rgba(0, 0, 0, 0.5); /* Optional background */
+        padding: 2px 5px;
+        z-index: 10; /* Ensure it's above the canvas */
+        pointer-events: none; /* Make sure it doesn't block canvas interactions */
+      }
     </style>
   </head>
   <body>
+    <div id="coordinates">X: 0, Y: 0</div>
     <canvas id="gameCanvas"></canvas>
 
     <!-- Ensure infinite-world-manager.js contains the updated InfiniteWorldManager -->
@@ -41,6 +55,8 @@
     <script>
       const canvas = document.getElementById("gameCanvas");
       const ctx = canvas.getContext("2d");
+      // NEW: Get the coordinates display element
+      const coordinatesDisplay = document.getElementById("coordinates");
 
       // --- Configuration ---
       const GAME_WIDTH = 360;
@@ -64,6 +80,9 @@
       const MAX_ENEMIES = 8;
       const ENEMY_SPAWN_INTERVAL = 2000;
       const SHOOT_COOLDOWN = 200;
+      // NEW: Configuration for saving
+      const SAVE_COORDS_INTERVAL = 5000; // Save every 5 seconds (5000ms)
+      const LOCAL_STORAGE_COORDS_KEY = "eliteShooterPlayerCoords";
 
       // --- Game State ---
       let player;
@@ -91,6 +110,8 @@
         },
       };
       let enemyIdCounter = 0;
+      // NEW: Variable to hold the save interval ID
+      let saveIntervalId = null;
 
       // --- Utility Functions ---
       function distance(x1, y1, x2, y2) {
@@ -140,6 +161,9 @@
           }
           this.x += this.vx;
           this.y += this.vy;
+
+          // NEW: Update coordinates display continuously
+          updateCoordinatesDisplay();
         }
         draw(offsetX, offsetY) {
           const screenX = this.x - offsetX;
@@ -258,9 +282,7 @@
           GAME_VIEW_HEIGHT
         );
 
-        // --- === UPDATED: Time-Based Station Rotation === ---
         const currentTimeSeconds = now / 1000.0;
-
         visibleBackgroundObjects.forEach((obj) => {
           if (obj.type === "station") {
             obj.angle =
@@ -303,7 +325,6 @@
       }
 
       function handleCollisions() {
-        // Unchanged
         // Projectile vs Enemy/Station
         for (let i = projectiles.length - 1; i >= 0; i--) {
           let proj = projectiles[i];
@@ -364,7 +385,6 @@
       }
 
       function spawnEnemyNearPlayer() {
-        // Unchanged
         const spawnDist = GAME_WIDTH * 0.8;
         const angle = Math.random() * Math.PI * 2;
         const spawnX = player.x + Math.cos(angle) * spawnDist;
@@ -374,7 +394,6 @@
 
       // --- Drawing ---
       function draw() {
-        // Mostly unchanged, calls updated drawStation
         ctx.fillStyle = "#000000";
         ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
         ctx.save();
@@ -389,7 +408,6 @@
           const screenX = obj.x - offsetX;
           const screenY = obj.y - offsetY;
           const size = obj.size || 1;
-          // Basic culling check (remains useful)
           if (
             screenX > -size - 100 &&
             screenX < GAME_WIDTH + 100 &&
@@ -400,7 +418,7 @@
               drawStar(obj, screenX, screenY);
             } else if (obj.type === "station") {
               drawStation(obj, screenX, screenY);
-            } // Calls the updated function
+            }
           }
         });
 
@@ -415,7 +433,6 @@
 
       // --- Drawing Helper Functions ---
       function drawStar(starData, screenX, screenY) {
-        // Unchanged
         ctx.fillStyle = starData.color || "#FFFFFF";
         ctx.fillRect(
           Math.floor(screenX),
@@ -424,8 +441,6 @@
           Math.ceil(starData.size)
         );
       }
-
-      // ===== UPDATED drawStation function =====
       function drawStation(stationData, screenX, screenY) {
         const r = stationData.radius || stationData.size / 2;
         const angle = stationData.angle || 0;
@@ -508,10 +523,7 @@
         }
         // --- End Station Name ---
       }
-      // ===== End UPDATED drawStation function =====
-
       function drawHUD() {
-        /* ... HUD drawing logic remains the same ... */
         const hudY = GAME_VIEW_HEIGHT;
         const padding = 5;
         const sectionWidth = GAME_WIDTH / 3 - padding * 1.5;
@@ -661,7 +673,6 @@
         ctx.lineTo(barIndicatorX + 5, barIndicatorY + barIndicatorH + 5);
         ctx.stroke();
       }
-
       function drawTouchControls() {
         // --- Movement Joystick Drawing (remains the same) ---
         if (touchState.move.active) {
@@ -727,7 +738,69 @@
         }
       }
 
+      // NEW: Function to update the coordinates display element
+      function updateCoordinatesDisplay() {
+        if (player && coordinatesDisplay) {
+          const x = Math.floor(player.x);
+          const y = Math.floor(player.y);
+          coordinatesDisplay.textContent = `X: ${x}, Y: ${y}`;
+        }
+      }
+
+      // NEW: Function to save player coordinates
+      function savePlayerPosition() {
+        if (player) {
+          try {
+            const coordsToSave = { x: player.x, y: player.y };
+            localStorage.setItem(
+              LOCAL_STORAGE_COORDS_KEY,
+              JSON.stringify(coordsToSave)
+            );
+            // console.log('Player position saved:', coordsToSave); // Optional: for debugging
+          } catch (error) {
+            console.error("Failed to save player position:", error);
+          }
+        }
+      }
+
+      // NEW: Function to load player coordinates
+      function loadPlayerPosition() {
+        let startX = 0;
+        let startY = 0;
+        try {
+          const savedCoordsString = localStorage.getItem(
+            LOCAL_STORAGE_COORDS_KEY
+          );
+          if (savedCoordsString) {
+            const savedCoords = JSON.parse(savedCoordsString);
+            // Basic validation
+            if (
+              typeof savedCoords.x === "number" &&
+              typeof savedCoords.y === "number"
+            ) {
+              startX = savedCoords.x;
+              startY = savedCoords.y;
+              console.log(`Loaded saved position: X=${startX}, Y=${startY}`);
+            } else {
+              console.warn(
+                "Invalid coordinate format in localStorage. Using default position."
+              );
+            }
+          } else {
+            console.log(
+              "No saved position found. Starting at default position."
+            );
+          }
+        } catch (error) {
+          console.error("Error loading or parsing saved position:", error);
+          // Fallback to default if there's an error
+        }
+        return { x: startX, y: startY };
+      }
+
+      // --- Touch Handlers ---
       function handleTouchStart(event) {
+        /* ... Unchanged ... */
         event.preventDefault();
         const touches = event.changedTouches;
         const rect = canvas.getBoundingClientRect();
@@ -764,7 +837,6 @@
           }
         }
       }
-
       function handleTouchMove(event) {
         event.preventDefault();
         const touches = event.changedTouches;
@@ -801,9 +873,7 @@
           }
         }
       }
-
       function handleTouchEnd(event) {
-        /* ... same ... */
         event.preventDefault();
         const touches = event.changedTouches;
         for (let i = 0; i < touches.length; i++) {
@@ -827,7 +897,7 @@
         }
       }
 
-      // --- Game Loop (unchanged) ---
+      // --- Game Loop ---
       let lastTime = 0;
       function gameLoop(timestamp) {
         lastTime = timestamp;
@@ -836,7 +906,7 @@
         requestAnimationFrame(gameLoop);
       }
 
-      // --- Initialization (unchanged) ---
+      // --- Initialization ---
       function init() {
         canvas.width = GAME_WIDTH;
         canvas.height = GAME_HEIGHT;
@@ -849,10 +919,22 @@
           minStationSize: 45,
           maxStationSize: 90,
         });
-        player = new Player(0, 0);
+
+        // --- Load Position ---
+        const initialPosition = loadPlayerPosition();
+
+        // --- Create Player ---
+        player = new Player(initialPosition.x, initialPosition.y);
+
+        // --- Initial Coordinate Display ---
+        updateCoordinatesDisplay(); // Show initial coords immediately
+
+        // --- Spawn initial enemies ---
         for (let i = 0; i < 3; i++) {
           spawnEnemyNearPlayer();
         }
+
+        // --- Setup Event Listeners ---
         canvas.addEventListener("touchstart", handleTouchStart, {
           passive: false,
         });
@@ -863,6 +945,15 @@
         canvas.addEventListener("touchcancel", handleTouchEnd, {
           passive: false,
         });
+
+        // --- Setup Periodic Saving ---
+        // Clear any previous interval (good practice if init could be called multiple times)
+        if (saveIntervalId) {
+          clearInterval(saveIntervalId);
+        }
+        saveIntervalId = setInterval(savePlayerPosition, SAVE_COORDS_INTERVAL);
+
+        // --- Start Game Loop ---
         lastTime = performance.now();
         requestAnimationFrame(gameLoop);
       }
