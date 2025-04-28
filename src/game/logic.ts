@@ -61,11 +61,12 @@ function shootProjectile(state: IGameState): IGameState {
 
 /**
  * Handles collisions between different game entities.
+ * Returns a new state object with updated entities.
  */
 function handleCollisions(state: IGameState): IGameState {
-  let newProjectiles = [...state.projectiles];
-  let newEnemies = [...state.enemies];
-  let newPlayer = { ...state.player }; // Copy player state for potential modification
+  const newProjectiles = [...state.projectiles];
+  const newEnemies = [...state.enemies];
+  const playerInstance = state.player;
 
   // Projectile vs Enemy/Station
   for (let i = newProjectiles.length - 1; i >= 0; i--) {
@@ -82,6 +83,7 @@ function handleCollisions(state: IGameState): IGameState {
         newProjectiles.splice(i, 1);
         newEnemies.splice(j, 1);
         projHit = true;
+        // TODO: Add score, explosion effect etc.
         break; // Projectile can only hit one thing
       }
     }
@@ -107,8 +109,8 @@ function handleCollisions(state: IGameState): IGameState {
   for (let i = newEnemies.length - 1; i >= 0; i--) {
     const enemy = newEnemies[i];
     if (
-      distance(newPlayer.x, newPlayer.y, enemy.x, enemy.y) <
-      newPlayer.radius + enemy.radius
+      distance(playerInstance.x, playerInstance.y, enemy.x, enemy.y) < // Use playerInstance
+      playerInstance.radius + enemy.radius
     ) {
       newEnemies.splice(i, 1);
       console.log("Collision with enemy!");
@@ -116,31 +118,41 @@ function handleCollisions(state: IGameState): IGameState {
     }
   }
 
-  // Player vs Station (Pushback)
+  // Player vs Station (Pushback - MODIFY THE INSTANCE DIRECTLY)
   for (const bgObj of state.visibleBackgroundObjects) {
     if (bgObj.type === "station") {
-      const dist = distance(newPlayer.x, newPlayer.y, bgObj.x, bgObj.y);
-      if (dist < newPlayer.radius + bgObj.radius) {
-        const angle = Math.atan2(newPlayer.y - bgObj.y, newPlayer.x - bgObj.x);
-        const overlap = newPlayer.radius + bgObj.radius - dist;
+      const dist = distance(
+        playerInstance.x,
+        playerInstance.y,
+        bgObj.x,
+        bgObj.y
+      ); // Use playerInstance
+      if (dist < playerInstance.radius + bgObj.radius) {
+        const angle = Math.atan2(
+          playerInstance.y - bgObj.y,
+          playerInstance.x - bgObj.x
+        );
+        const overlap = playerInstance.radius + bgObj.radius - dist;
         // Apply pushback slightly larger than overlap to prevent sticking
-        newPlayer.x += Math.cos(angle) * (overlap + 1);
-        newPlayer.y += Math.sin(angle) * (overlap + 1);
+        // Modify the instance directly
+        playerInstance.x += Math.cos(angle) * (overlap + 1);
+        playerInstance.y += Math.sin(angle) * (overlap + 1);
         // Stop player movement after collision
-        newPlayer.vx = 0;
-        newPlayer.vy = 0;
+        playerInstance.vx = 0;
+        playerInstance.vy = 0;
         console.log("Collision with station!");
-        // Note: If multiple station collisions happen in one frame, the last one wins.
-        // More robust physics might be needed for complex scenarios.
+        // Note: If multiple station collisions happen in one frame, the last one wins or accumulates.
+        // break; // Consider if break is needed after first station collision
       }
     }
   }
 
+  // Return new state with the (potentially mutated) player instance
   return {
-    ...state,
-    player: newPlayer,
-    enemies: newEnemies,
-    projectiles: newProjectiles,
+    ...state, // Copy other properties from the original state
+    player: playerInstance, // Assign the instance back
+    enemies: newEnemies, // Assign the new array
+    projectiles: newProjectiles, // Assign the new array
   };
 }
 
@@ -156,23 +168,31 @@ export function updateGameState(
   deltaTime: number, // Can be used for frame-rate independent movement if needed
   now: number
 ): IGameState {
-  let newState = { ...currentState };
+  // Ensure player is an instance (Defensive check, shouldn't be needed after fix)
+  // If the player somehow isn't an instance at the start, this is a different bug.
+  // if (!(currentState.player instanceof Player)) {
+  //     console.error("Initial player state is not a Player instance!", currentState.player);
+  //     // Attempt recovery? Or let it fail clearly.
+  //     // For now, assume it starts correctly due to createPlayer.
+  // }
+
+  let newState = { ...currentState }; // Initial shallow copy
 
   // 1. Handle Input & Player Update
   if (touchState.shoot.active) {
-    newState = shootProjectile(newState);
+    newState = shootProjectile(newState); // shootProjectile returns a new state object
   }
   // Player class handles its own movement based on touchState
-  (newState.player as Player).update(touchState); // Need to cast to call class method
+  // newState.player should still be the instance here
+  (newState.player as Player).update(touchState); // This modifies the player instance within newState
 
-  // 2. Update Camera based on new player position
+  // 2. Update Camera based on new player position (after input update)
   newState.camera = {
     x: newState.player.x - C.GAME_WIDTH / 2,
     y: newState.player.y - C.GAME_VIEW_HEIGHT / 2,
   };
 
   // 3. Update World Objects (get visible stars/stations)
-  // This also updates station rotation inside the manager based on current time
   newState.visibleBackgroundObjects = worldManager.getObjectsInView(
     newState.camera.x,
     newState.camera.y,
@@ -181,16 +201,25 @@ export function updateGameState(
   );
 
   // 4. Update Projectiles & Filter out-of-bounds/dead ones
-  newState.projectiles = newState.projectiles.filter((p) => {
-    (p as Projectile).update(); // Cast to call method
-    return !(p as Projectile).isOutOfBounds(
-      newState.player.x,
-      newState.player.y
+  // Make sure to return a new array for projectiles
+  newState.projectiles = newState.projectiles
+    .map((p) => {
+      // If Projectile is a class, ensure its update doesn't suffer the same issue.
+      // Assuming Projectile instances are preserved correctly.
+      (p as Projectile).update(); // Update in place
+      return p;
+    })
+    .filter(
+      (p) =>
+        !(p as Projectile).isOutOfBounds(newState.player.x, newState.player.y)
     );
-  });
 
   // 5. Update Enemies
-  newState.enemies.forEach((enemy) => (enemy as Enemy).update(newState.player)); // Cast to call method
+  // Make sure to return a new array for enemies
+  newState.enemies = newState.enemies.map((enemy) => {
+    (enemy as Enemy).update(newState.player); // Update in place
+    return enemy;
+  });
 
   // 6. Despawn Far Enemies
   const enemyIdsToDespawn = worldManager.getEnemiesToDespawn(
@@ -201,6 +230,7 @@ export function updateGameState(
   );
   if (enemyIdsToDespawn.length > 0) {
     const idsSet = new Set(enemyIdsToDespawn);
+    // Filter returns a new array
     newState.enemies = newState.enemies.filter(
       (enemy) => !idsSet.has(enemy.id)
     );
@@ -211,11 +241,20 @@ export function updateGameState(
     now - newState.lastEnemySpawnTime > C.ENEMY_SPAWN_INTERVAL &&
     newState.enemies.length < C.MAX_ENEMIES
   ) {
+    // spawnEnemyNearPlayer returns a new state object
     newState = spawnEnemyNearPlayer(newState);
   }
 
   // 8. Handle Collisions
+  // handleCollisions now correctly returns a new state object
+  // where the player is still an instance (potentially mutated)
   newState = handleCollisions(newState);
+
+  // Camera update might be needed again if collisions moved the player significantly
+  newState.camera = {
+    x: newState.player.x - C.GAME_WIDTH / 2,
+    y: newState.player.y - C.GAME_VIEW_HEIGHT / 2,
+  };
 
   // Return the fully updated state
   return newState;
