@@ -113,7 +113,6 @@ function drawStation(
 
   ctx.strokeStyle = station.color;
   ctx.lineWidth = 2;
-  // Coriolis Style Drawing (octagon)
   const points = [
     { x: -r, y: -r * 0.5 },
     { x: -r * 0.5, y: -r },
@@ -131,37 +130,56 @@ function drawStation(
   }
   ctx.closePath();
   ctx.stroke();
-
-  // Inner structure details (simplified from original)
+  // Inner structure
+  const innerScale = 0.4;
   ctx.lineWidth = 1;
   ctx.beginPath();
-  const innerScale = 0.4;
-  const detailScale = 0.7;
+  ctx.moveTo(points[3].x * innerScale, points[3].y * innerScale);
+  ctx.lineTo(points[3].x, points[3].y);
+  ctx.moveTo(points[4].x * innerScale, points[4].y * innerScale);
+  ctx.lineTo(points[4].x, points[4].y);
   ctx.rect(
-    -r * innerScale,
-    -r * innerScale,
-    r * 2 * innerScale,
-    r * 2 * innerScale
-  ); // Inner square
-  // Radiating lines (example)
-  for (let i = 0; i < points.length; i += 2) {
-    ctx.moveTo(points[i].x * detailScale, points[i].y * detailScale);
-    ctx.lineTo(points[i].x, points[i].y);
-  }
+    points[3].x * innerScale,
+    points[3].y * innerScale,
+    (points[4].x - points[3].x) * innerScale,
+    (points[4].y - points[3].y) * innerScale
+  );
+  const detailScale = 0.7;
+  ctx.moveTo(points[1].x * detailScale, points[1].y * detailScale);
+  ctx.lineTo(points[1].x, points[1].y);
+  ctx.moveTo(points[2].x * detailScale, points[2].y * detailScale);
+  ctx.lineTo(points[2].x, points[2].y);
+  ctx.moveTo(points[5].x * detailScale, points[5].y * detailScale);
+  ctx.lineTo(points[5].x, points[5].y);
+  ctx.moveTo(points[6].x * detailScale, points[6].y * detailScale);
+  ctx.lineTo(points[6].x, points[6].y);
   ctx.stroke();
-  ctx.restore(); // Restore context state AFTER station transform
 
-  // --- Draw Station Name (Unrotated, Above) ---
+  ctx.restore(); // Restore context state AFTER station transform (removes rotation)
+  // --- End Station Geometry ---
+
+  // --- Draw Station Name (Unrotated, Above, No Scaling) ---
   if (station.name && r > 5) {
-    const fontSize = 10;
-    const paddingAbove = 8;
-    ctx.save();
+    // Check if name exists and station is minimally visible
+    const fontSize = 10; // Fixed font size
+    const paddingAbove = 8; // Pixels above station top
+
+    ctx.save(); // Isolate text transformations/settings
+
+    // Calculate position for the bottom-center of the text
+    const textX = screenX; // Center horizontally with station
+    const textY = screenY - r - paddingAbove; // Position above station
+
+    // Set drawing properties
     ctx.font = `${fontSize}px monospace`;
     ctx.textAlign = "center";
     ctx.textBaseline = "bottom";
     ctx.fillStyle = station.color;
-    ctx.fillText(station.name, screenX, screenY - r - paddingAbove);
-    ctx.restore();
+
+    // Draw the text at the calculated position
+    ctx.fillText(station.name, textX, textY);
+
+    ctx.restore(); // Restore context state
   }
 }
 
