@@ -1,7 +1,7 @@
 // src/hooks/useGameState.ts
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
-import { IGameState, UpdateCallback } from "../game/types";
-import { initialGameState, updateCamera } from "../game/state";
+import { IGameState } from "../game/types";
+import { initialGameState } from "../game/state";
 import { updateGameState, createPlayer } from "../game/logic";
 import { InfiniteWorldManager } from "../game/world/InfiniteWorldManager";
 import { loadPlayerPosition, savePlayerPosition } from "../utils/storage";
@@ -21,7 +21,7 @@ export function useGameState() {
       }),
     []
   );
-  const saveIntervalId = useRef<NodeJS.Timeout | null>(null);
+  const saveIntervalId = useRef<number | null>(null);
 
   // Initialize player position and start saving interval
   useEffect(() => {

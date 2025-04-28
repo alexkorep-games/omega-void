@@ -1,7 +1,7 @@
 // src/game/state.ts
 import { IGameState, IPlayer, ITouchState } from "./types";
 import { Player } from "./entities/Player";
-import { GAME_WIDTH, GAME_HEIGHT, GAME_VIEW_HEIGHT } from "./config";
+import { GAME_WIDTH, GAME_VIEW_HEIGHT } from "./config";
 
 export const initialPlayerState: IPlayer = new Player(0, 0); // Position will be loaded
 

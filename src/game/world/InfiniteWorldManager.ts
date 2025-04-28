@@ -1,12 +1,6 @@
 // src/game/world/InfiniteWorldManager.ts
 import { SeedablePRNG } from "./SeedablePRNG";
-import {
-  IWorldManagerConfig,
-  BackgroundObject,
-  IStar,
-  IStation,
-  IEnemy,
-} from "../types";
+import { IWorldManagerConfig, BackgroundObject, IEnemy } from "../types";
 import {
   WORLD_CELL_SIZE,
   STAR_BASE_DENSITY,

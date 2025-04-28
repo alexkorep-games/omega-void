@@ -1,12 +1,5 @@
 // src/game/logic.ts
-import {
-  IGameState,
-  ITouchState,
-  IPlayer,
-  IEnemy,
-  IProjectile,
-  BackgroundObject,
-} from "./types";
+import { IGameState, ITouchState, IPlayer } from "./types";
 import { Player } from "./entities/Player";
 import { Enemy } from "./entities/Enemy";
 import { Projectile } from "./entities/Projectile";
@@ -165,7 +158,7 @@ export function updateGameState(
   currentState: IGameState,
   touchState: ITouchState,
   worldManager: InfiniteWorldManager,
-  deltaTime: number, // Can be used for frame-rate independent movement if needed
+  _deltaTime: number, // Can be used for frame-rate independent movement if needed
   now: number
 ): IGameState {
   // Ensure player is an instance (Defensive check, shouldn't be needed after fix)

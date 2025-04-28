@@ -4,7 +4,6 @@ import {
   IPlayer,
   IEnemy,
   IProjectile,
-  BackgroundObject,
   IStar,
   IStation,
   ITouchState,
