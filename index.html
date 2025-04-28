@@ -83,7 +83,12 @@
           currentX: 0,
           currentY: 0,
         },
-        shoot: { active: false, id: null },
+        shoot: {
+          active: false,
+          id: null,
+          x: 0,
+          y: 0,
+        },
       };
       let enemyIdCounter = 0;
 
@@ -658,43 +663,71 @@
       }
 
       function drawTouchControls() {
-        /* ... Touch control drawing remains the same ... */
+        // --- Movement Joystick Drawing (remains the same) ---
         if (touchState.move.active) {
           ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
           ctx.lineWidth = 2;
+          // Outer ring
           ctx.beginPath();
           ctx.arc(
             touchState.move.startX,
             touchState.move.startY,
-            40,
+            40, // Outer radius
             0,
             Math.PI * 2
           );
           ctx.stroke();
+
+          // Inner stick position calculation
           const dx = touchState.move.currentX - touchState.move.startX;
           const dy = touchState.move.currentY - touchState.move.startY;
           const dist = Math.sqrt(dx * dx + dy * dy);
-          const maxDist = 40;
+          const maxDist = 40; // Limit stick travel to outer radius
           const clampedDist = Math.min(dist, maxDist);
-          const angle = Math.atan2(dy, dx);
+          const angle = dist > 0 ? Math.atan2(dy, dx) : 0; // Avoid NaN for atan2(0,0)
           const stickX = touchState.move.startX + Math.cos(angle) * clampedDist;
           const stickY = touchState.move.startY + Math.sin(angle) * clampedDist;
+
+          // Inner stick drawing
           ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
           ctx.beginPath();
-          ctx.arc(stickX, stickY, 25, 0, Math.PI * 2);
+          ctx.arc(stickX, stickY, 25, 0, Math.PI * 2); // Inner radius
           ctx.fill();
         }
+
+        // --- Shooting Indicator Drawing (MODIFIED) ---
         if (touchState.shoot.active) {
-          ctx.fillStyle = "rgba(255, 0, 255, 0.2)";
+          const indicatorRadius = 35; // Adjust size as needed
+          const innerDotRadius = 8;
+
+          // Draw outer semi-transparent circle at touch location
+          ctx.fillStyle = "rgba(255, 0, 255, 0.2)"; // Magenta, semi-transparent
           ctx.beginPath();
-          ctx.arc(GAME_WIDTH * 0.75, GAME_VIEW_HEIGHT / 2, 50, 0, Math.PI * 2);
+          // Use the stored touch coordinates
+          ctx.arc(
+            touchState.shoot.x, // Use stored X
+            touchState.shoot.y, // Use stored Y
+            indicatorRadius,
+            0,
+            Math.PI * 2
+          );
+          ctx.fill();
+
+          // Draw a smaller, more opaque inner dot for clarity
+          ctx.fillStyle = "rgba(255, 0, 255, 0.5)"; // Magenta, less transparent
+          ctx.beginPath();
+          ctx.arc(
+            touchState.shoot.x, // Use stored X
+            touchState.shoot.y, // Use stored Y
+            innerDotRadius,
+            0,
+            Math.PI * 2
+          );
           ctx.fill();
         }
       }
 
-      // --- Input Handling (unchanged) ---
       function handleTouchStart(event) {
-        /* ... same ... */
         event.preventDefault();
         const touches = event.changedTouches;
         const rect = canvas.getBoundingClientRect();
@@ -704,9 +737,11 @@
             (touch.clientX - rect.left) * (canvas.width / rect.width);
           const touchY =
             (touch.clientY - rect.top) * (canvas.height / rect.height);
+
+          // Movement touch (left side, below HUD)
           if (
             touchX < GAME_WIDTH / 2 &&
-            touchY < GAME_VIEW_HEIGHT &&
+            touchY < GAME_VIEW_HEIGHT && // Ensure touch is within game view
             !touchState.move.active
           ) {
             touchState.move.active = true;
@@ -715,18 +750,22 @@
             touchState.move.startY = touchY;
             touchState.move.currentX = touchX;
             touchState.move.currentY = touchY;
-          } else if (
+          }
+          // Shooting touch (right side, below HUD)
+          else if (
             touchX >= GAME_WIDTH / 2 &&
-            touchY < GAME_VIEW_HEIGHT &&
+            touchY < GAME_VIEW_HEIGHT && // Ensure touch is within game view
             !touchState.shoot.active
           ) {
             touchState.shoot.active = true;
             touchState.shoot.id = touch.identifier;
+            touchState.shoot.x = touchX; // Store initial X
+            touchState.shoot.y = touchY; // Store initial Y
           }
         }
       }
+
       function handleTouchMove(event) {
-        /* ... same ... */
         event.preventDefault();
         const touches = event.changedTouches;
         const rect = canvas.getBoundingClientRect();
@@ -736,15 +775,33 @@
             (touch.clientX - rect.left) * (canvas.width / rect.width);
           const touchY =
             (touch.clientY - rect.top) * (canvas.height / rect.height);
+
+          // Update movement touch position
           if (
             touchState.move.active &&
             touch.identifier === touchState.move.id
           ) {
+            // Keep movement updates constrained reasonably if needed, but allow raw update here
             touchState.move.currentX = touchX;
             touchState.move.currentY = touchY;
           }
+          // Update shooting touch position
+          else if (
+            // Use 'else if' ONLY if one finger cannot control both (safe assumption here)
+            touchState.shoot.active &&
+            touch.identifier === touchState.shoot.id
+          ) {
+            // Only update if touch remains within game view height
+            if (touchY < GAME_VIEW_HEIGHT) {
+              touchState.shoot.x = touchX;
+              touchState.shoot.y = touchY;
+            }
+            // Optional: if finger slides into HUD, maybe stop shooting or just stop updating indicator pos?
+            // Current behaviour: indicator stops updating position if finger moves into HUD area.
+          }
         }
       }
+
       function handleTouchEnd(event) {
         /* ... same ... */
         event.preventDefault();
