@@ -1,687 +1,803 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no"
+    />
     <title>Elite Inspired Shooter - Infinite Procedural World</title>
     <style>
-        /* CSS styles remain the same */
-        body {
-            margin: 0;
-            padding: 0;
-            background-color: #000;
-            color: #0ff; /* Cyan */
-            font-family: monospace;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            overflow: hidden;
-            touch-action: none; /* Prevent default touch actions like scrolling */
-        }
-        canvas {
-            display: block;
-            background-color: #000;
-            image-rendering: pixelated; /* Maintain sharp pixels */
-            image-rendering: -moz-crisp-edges;
-            image-rendering: crisp-edges;
-        }
+      /* CSS styles remain the same */
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: #000;
+        color: #0ff; /* Cyan */
+        font-family: monospace;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        overflow: hidden;
+        touch-action: none; /* Prevent default touch actions like scrolling */
+      }
+      canvas {
+        display: block;
+        background-color: #000;
+        image-rendering: pixelated; /* Maintain sharp pixels */
+        image-rendering: -moz-crisp-edges;
+        image-rendering: crisp-edges;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <canvas id="gameCanvas"></canvas>
 
-    <!-- Include the procedural world manager script FIRST -->
+    <!-- Ensure infinite-world-manager.js contains the updated InfiniteWorldManager -->
     <script src="./infinite-world-manager.js"></script>
 
     <!-- Main Game Script -->
     <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
+      const canvas = document.getElementById("gameCanvas");
+      const ctx = canvas.getContext("2d");
 
-        // --- Configuration ---
-        const GAME_WIDTH = 360;
-        const GAME_HEIGHT = 640;
-        const HUD_HEIGHT = 120;
-        const GAME_VIEW_HEIGHT = GAME_HEIGHT - HUD_HEIGHT;
+      // --- Configuration ---
+      const GAME_WIDTH = 360;
+      const GAME_HEIGHT = 640;
+      const HUD_HEIGHT = 120;
+      const GAME_VIEW_HEIGHT = GAME_HEIGHT - HUD_HEIGHT;
+      const INITIAL_SPAWN_AREA_WIDTH = 1000;
+      const INITIAL_SPAWN_AREA_HEIGHT = 1000;
+      const ENEMY_DESPAWN_RADIUS = GAME_WIDTH * 2.5;
+      const PLAYER_COLOR = "#FF00FF"; // Magenta
+      const ENEMY_COLOR = "#00FFFF"; // Cyan
+      const PROJECTILE_COLOR = "#FFFFFF"; // White
+      const HUD_COLOR = "#00FFFF";
+      const HUD_ACCENT_COLOR = "#FF00FF";
+      const PLAYER_SIZE = 15;
+      const ENEMY_SIZE = 18;
+      const PROJECTILE_SIZE = 2;
+      const PLAYER_SPEED = 2.5;
+      const ENEMY_SPEED = 1;
+      const PROJECTILE_SPEED = 5;
+      const MAX_ENEMIES = 8;
+      const ENEMY_SPAWN_INTERVAL = 2000;
+      const SHOOT_COOLDOWN = 200;
 
-        // Define finite boundaries ONLY for spawning/initial placement.
-        // Player movement is now unbounded conceptually.
-        const INITIAL_SPAWN_AREA_WIDTH = 1000;
-        const INITIAL_SPAWN_AREA_HEIGHT = 1000;
+      // --- Game State ---
+      let player;
+      let enemies = [];
+      let projectiles = [];
+      let worldManager;
+      let visibleBackgroundObjects = [];
+      let camera = { x: 0, y: 0 };
+      let lastEnemySpawnTime = 0;
+      let lastShotTime = 0;
+      let touchState = {
+        move: {
+          active: false,
+          id: null,
+          startX: 0,
+          startY: 0,
+          currentX: 0,
+          currentY: 0,
+        },
+        shoot: { active: false, id: null },
+      };
+      let enemyIdCounter = 0;
 
-        // Enemy Despawn Radius (relative to player)
-        const ENEMY_DESPAWN_RADIUS = GAME_WIDTH * 2.5;
+      // --- Utility Functions ---
+      function distance(x1, y1, x2, y2) {
+        const dx = x1 - x2;
+        const dy = y1 - y2;
+        return Math.sqrt(dx * dx + dy * dy);
+      }
 
-        const PLAYER_COLOR = '#FF00FF'; // Magenta
-        const ENEMY_COLOR = '#00FFFF'; // Cyan
-        // Station color will come from WorldManager config
-        const PROJECTILE_COLOR = '#FFFFFF'; // White
-        // Star color will come from WorldManager config
-        const HUD_COLOR = '#00FFFF';
-        const HUD_ACCENT_COLOR = '#FF00FF';
+      // --- Game Objects ---
+      class GameObject {
+        constructor(x, y, size, color) {
+          this.x = x;
+          this.y = y;
+          this.size = size;
+          this.color = color;
+          this.radius = size / 2;
+        }
+      }
 
-        const PLAYER_SIZE = 15;
-        const ENEMY_SIZE = 18;
-        // Station size will come from WorldManager config
-        const PROJECTILE_SIZE = 2;
-        const PLAYER_SPEED = 2.5;
-        const ENEMY_SPEED = 1;
-        const PROJECTILE_SPEED = 5;
-        const MAX_ENEMIES = 8; // Can handle a few more
-        const ENEMY_SPAWN_INTERVAL = 2000; // milliseconds
-        const SHOOT_COOLDOWN = 200; // milliseconds
+      class Player extends GameObject {
+        // Player class remains unchanged
+        constructor(x, y) {
+          super(x, y, PLAYER_SIZE, PLAYER_COLOR);
+          this.angle = -Math.PI / 2;
+          this.vx = 0;
+          this.vy = 0;
+        }
+        update() {
+          if (touchState.move.active) {
+            const dx = touchState.move.currentX - touchState.move.startX;
+            const dy = touchState.move.currentY - touchState.move.startY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const maxDist = 50;
+            if (dist > 0) {
+              const moveX = (dx / Math.min(dist, maxDist)) * PLAYER_SPEED;
+              const moveY = (dy / Math.min(dist, maxDist)) * PLAYER_SPEED;
+              this.vx = moveX;
+              this.vy = moveY;
+              this.angle = Math.atan2(dy, dx);
+            } else {
+              this.vx = 0;
+              this.vy = 0;
+            }
+          } else {
+            this.vx = 0;
+            this.vy = 0;
+          }
+          this.x += this.vx;
+          this.y += this.vy;
+        }
+        draw(offsetX, offsetY) {
+          const screenX = this.x - offsetX;
+          const screenY = this.y - offsetY;
+          ctx.save();
+          ctx.translate(screenX, screenY);
+          ctx.rotate(this.angle + Math.PI / 2);
+          ctx.strokeStyle = this.color;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(0, -this.radius);
+          ctx.lineTo(this.radius * 0.7, this.radius * 0.7);
+          ctx.lineTo(0, this.radius * 0.3);
+          ctx.lineTo(-this.radius * 0.7, this.radius * 0.7);
+          ctx.closePath();
+          ctx.moveTo(-this.radius * 0.7, this.radius * 0.7);
+          ctx.lineTo(-this.radius * 1.2, this.radius * 0.5);
+          ctx.moveTo(this.radius * 0.7, this.radius * 0.7);
+          ctx.lineTo(this.radius * 1.2, this.radius * 0.5);
+          ctx.stroke();
+          ctx.restore();
+        }
+        shoot() {
+          const now = Date.now();
+          if (now - lastShotTime > SHOOT_COOLDOWN) {
+            projectiles.push(new Projectile(this.x, this.y, this.angle));
+            lastShotTime = now;
+          }
+        }
+      }
 
-        // --- Game State ---
-        let player;
-        let enemies = [];
-        let projectiles = [];
-        let worldManager; // Instance of InfiniteWorldManager
-        let visibleBackgroundObjects = []; // Stars and Stations currently in view buffer
-        let camera = { x: 0, y: 0 };
-        let lastEnemySpawnTime = 0;
-        let lastShotTime = 0;
-        let touchState = {
-            move: { active: false, id: null, startX: 0, startY: 0, currentX: 0, currentY: 0 },
-            shoot: { active: false, id: null }
+      class Enemy extends GameObject {
+        // Enemy class remains unchanged
+        constructor(x, y) {
+          super(x, y, ENEMY_SIZE, ENEMY_COLOR);
+          this.id = `enemy_${enemyIdCounter++}`;
+          this.angle = Math.random() * Math.PI * 2;
+        }
+        update(targetX, targetY) {
+          const dx = targetX - this.x;
+          const dy = targetY - this.y;
+          const distToPlayer = Math.sqrt(dx * dx + dy * dy);
+          if (distToPlayer > this.radius + player.radius + 5) {
+            this.angle = Math.atan2(dy, dx);
+            this.x += Math.cos(this.angle) * ENEMY_SPEED;
+            this.y += Math.sin(this.angle) * ENEMY_SPEED;
+          }
+        }
+        draw(offsetX, offsetY) {
+          const screenX = this.x - offsetX;
+          const screenY = this.y - offsetY;
+          ctx.save();
+          ctx.translate(screenX, screenY);
+          ctx.rotate(this.angle + Math.PI / 2);
+          ctx.strokeStyle = this.color;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(0, -this.radius);
+          ctx.lineTo(this.radius * 0.6, this.radius * 0.8);
+          ctx.lineTo(0, this.radius * 0.4);
+          ctx.lineTo(-this.radius * 0.6, this.radius * 0.8);
+          ctx.closePath();
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+
+      class Projectile extends GameObject {
+        // Projectile class remains unchanged
+        constructor(x, y, angle) {
+          super(x, y, PROJECTILE_SIZE, PROJECTILE_COLOR);
+          this.vx = Math.cos(angle) * PROJECTILE_SPEED;
+          this.vy = Math.sin(angle) * PROJECTILE_SPEED;
+          this.life = 150;
+        }
+        update() {
+          this.x += this.vx;
+          this.y += this.vy;
+          this.life--;
+        }
+        isOutOfBounds(focusX, focusY, radius) {
+          const despawnRadiusSq = radius * radius;
+          const dx = this.x - focusX;
+          const dy = this.y - focusY;
+          const distSq = dx * dx + dy * dy;
+          return distSq > despawnRadiusSq || this.life <= 0;
+        }
+        draw(offsetX, offsetY) {
+          ctx.fillStyle = this.color;
+          ctx.beginPath();
+          ctx.arc(
+            this.x - offsetX,
+            this.y - offsetY,
+            this.radius,
+            0,
+            Math.PI * 2
+          );
+          ctx.fill();
+        }
+      }
+
+      // --- Game Logic (unchanged) ---
+      function update() {
+        const now = Date.now();
+        if (touchState.shoot.active) player.shoot();
+        player.update();
+        camera.x = player.x - GAME_WIDTH / 2;
+        camera.y = player.y - GAME_VIEW_HEIGHT / 2;
+        visibleBackgroundObjects = worldManager.getObjectsInView(
+          camera.x,
+          camera.y,
+          GAME_WIDTH,
+          GAME_VIEW_HEIGHT
+        );
+        visibleBackgroundObjects.forEach((obj) => {
+          if (obj.type === "station" && typeof obj.rotationSpeed === "number") {
+            obj.angle = (obj.angle + obj.rotationSpeed) % (Math.PI * 2);
+          }
+        });
+        projectiles = projectiles.filter((p) => {
+          p.update();
+          return !p.isOutOfBounds(
+            player.x,
+            player.y,
+            ENEMY_DESPAWN_RADIUS * 1.5
+          );
+        });
+        enemies.forEach((enemy) => enemy.update(player.x, player.y));
+        const enemiesToCull = worldManager.getEnemiesToDespawn(
+          enemies,
+          player.x,
+          player.y,
+          ENEMY_DESPAWN_RADIUS
+        );
+        if (enemiesToCull.length > 0) {
+          const idsToCull = new Set(enemiesToCull.map((e) => e.id));
+          enemies = enemies.filter((enemy) => !idsToCull.has(enemy.id));
+        }
+        if (
+          now - lastEnemySpawnTime > ENEMY_SPAWN_INTERVAL &&
+          enemies.length < MAX_ENEMIES
+        ) {
+          spawnEnemyNearPlayer();
+          lastEnemySpawnTime = now;
+        }
+        handleCollisions();
+      }
+
+      function handleCollisions() {
+        // Unchanged
+        // Projectile vs Enemy/Station
+        for (let i = projectiles.length - 1; i >= 0; i--) {
+          let proj = projectiles[i];
+          let projHit = false;
+          for (let j = enemies.length - 1; j >= 0; j--) {
+            if (
+              distance(proj.x, proj.y, enemies[j].x, enemies[j].y) <
+              proj.radius + enemies[j].radius
+            ) {
+              projectiles.splice(i, 1);
+              enemies.splice(j, 1);
+              projHit = true;
+              break;
+            }
+          }
+          if (projHit) continue;
+          for (const bgObj of visibleBackgroundObjects) {
+            if (bgObj.type === "station") {
+              const stationRadius = bgObj.radius || bgObj.size / 2;
+              if (
+                distance(proj.x, proj.y, bgObj.x, bgObj.y) <
+                proj.radius + stationRadius
+              ) {
+                projectiles.splice(i, 1);
+                projHit = true;
+                break;
+              }
+            }
+          }
+        }
+        // Player vs Enemy
+        for (let i = enemies.length - 1; i >= 0; i--) {
+          if (
+            distance(player.x, player.y, enemies[i].x, enemies[i].y) <
+            player.radius + enemies[i].radius
+          ) {
+            enemies.splice(i, 1);
+            console.log("Collision with enemy!");
+          }
+        }
+        // Player vs Station
+        for (const bgObj of visibleBackgroundObjects) {
+          if (bgObj.type === "station") {
+            const stationRadius = bgObj.radius || bgObj.size / 2;
+            const dist = distance(player.x, player.y, bgObj.x, bgObj.y);
+            if (dist < player.radius + stationRadius) {
+              const angle = Math.atan2(player.y - bgObj.y, player.x - bgObj.x);
+              const overlap = player.radius + stationRadius - dist;
+              player.x += Math.cos(angle) * (overlap + 1);
+              player.y += Math.sin(angle) * (overlap + 1);
+              player.vx = 0;
+              player.vy = 0;
+              console.log("Collision with station!");
+              break;
+            }
+          }
+        }
+      }
+
+      function spawnEnemyNearPlayer() {
+        // Unchanged
+        const spawnDist = GAME_WIDTH * 0.8;
+        const angle = Math.random() * Math.PI * 2;
+        const spawnX = player.x + Math.cos(angle) * spawnDist;
+        const spawnY = player.y + Math.sin(angle) * spawnDist;
+        enemies.push(new Enemy(spawnX, spawnY));
+      }
+
+      // --- Drawing ---
+      function draw() {
+        // Mostly unchanged, calls updated drawStation
+        ctx.fillStyle = "#000000";
+        ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+        ctx.save();
+        ctx.rect(0, 0, GAME_WIDTH, GAME_VIEW_HEIGHT);
+        ctx.clip(); // Clip to game view
+        ctx.imageSmoothingEnabled = false;
+        const offsetX = camera.x;
+        const offsetY = camera.y;
+
+        // Draw Background Objects (Stars and Stations)
+        visibleBackgroundObjects.forEach((obj) => {
+          const screenX = obj.x - offsetX;
+          const screenY = obj.y - offsetY;
+          const size = obj.size || 1;
+          // Basic culling check (remains useful)
+          if (
+            screenX > -size - 100 &&
+            screenX < GAME_WIDTH + 100 &&
+            screenY > -size - 100 &&
+            screenY < GAME_VIEW_HEIGHT + 100
+          ) {
+            if (obj.type === "star") {
+              drawStar(obj, screenX, screenY);
+            } else if (obj.type === "station") {
+              drawStation(obj, screenX, screenY);
+            } // Calls the updated function
+          }
+        });
+
+        enemies.forEach((enemy) => enemy.draw(offsetX, offsetY));
+        projectiles.forEach((proj) => proj.draw(offsetX, offsetY));
+        player.draw(offsetX, offsetY);
+        ctx.restore(); // Remove clipping
+
+        drawHUD();
+        drawTouchControls();
+      }
+
+      // --- Drawing Helper Functions ---
+      function drawStar(starData, screenX, screenY) {
+        // Unchanged
+        ctx.fillStyle = starData.color || "#FFFFFF";
+        ctx.fillRect(
+          Math.floor(screenX),
+          Math.floor(screenY),
+          Math.ceil(starData.size),
+          Math.ceil(starData.size)
+        );
+      }
+
+      // ===== UPDATED drawStation function =====
+      function drawStation(stationData, screenX, screenY) {
+        const r = stationData.radius || stationData.size / 2;
+        const angle = stationData.angle || 0;
+
+        // --- Draw Station Geometry (Rotated) ---
+        ctx.save(); // Save context state BEFORE station transform
+        ctx.translate(screenX, screenY);
+        ctx.rotate(angle); // Apply station rotation
+
+        // Coriolis Style Drawing (same as before)
+        ctx.strokeStyle = stationData.color || "#00FFFF";
+        ctx.lineWidth = 2;
+        const points = [
+          { x: -r, y: -r * 0.5 },
+          { x: -r * 0.5, y: -r },
+          { x: r * 0.5, y: -r },
+          { x: r, y: -r * 0.5 },
+          { x: r, y: r * 0.5 },
+          { x: r * 0.5, y: r },
+          { x: -r * 0.5, y: r },
+          { x: -r, y: r * 0.5 },
+        ];
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) {
+          ctx.lineTo(points[i].x, points[i].y);
+        }
+        ctx.closePath();
+        ctx.stroke();
+        // Inner structure
+        const innerScale = 0.4;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(points[3].x * innerScale, points[3].y * innerScale);
+        ctx.lineTo(points[3].x, points[3].y);
+        ctx.moveTo(points[4].x * innerScale, points[4].y * innerScale);
+        ctx.lineTo(points[4].x, points[4].y);
+        ctx.rect(
+          points[3].x * innerScale,
+          points[3].y * innerScale,
+          (points[4].x - points[3].x) * innerScale,
+          (points[4].y - points[3].y) * innerScale
+        );
+        const detailScale = 0.7;
+        ctx.moveTo(points[1].x * detailScale, points[1].y * detailScale);
+        ctx.lineTo(points[1].x, points[1].y);
+        ctx.moveTo(points[2].x * detailScale, points[2].y * detailScale);
+        ctx.lineTo(points[2].x, points[2].y);
+        ctx.moveTo(points[5].x * detailScale, points[5].y * detailScale);
+        ctx.lineTo(points[5].x, points[5].y);
+        ctx.moveTo(points[6].x * detailScale, points[6].y * detailScale);
+        ctx.lineTo(points[6].x, points[6].y);
+        ctx.stroke();
+
+        ctx.restore(); // Restore context state AFTER station transform (removes rotation)
+        // --- End Station Geometry ---
+
+        // --- Draw Station Name (Unrotated, Above, No Scaling) ---
+        if (stationData.name && r > 5) {
+          // Check if name exists and station is minimally visible
+          const fontSize = 10; // Fixed font size
+          const paddingAbove = 8; // Pixels above station top
+
+          ctx.save(); // Isolate text transformations/settings
+
+          // Calculate position for the bottom-center of the text
+          const textX = screenX; // Center horizontally with station
+          const textY = screenY - r - paddingAbove; // Position above station
+
+          // Set drawing properties
+          ctx.font = `${fontSize}px monospace`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "bottom";
+          ctx.fillStyle = stationData.color || "#00FFFF"; // Use station color
+
+          // Draw the text at the calculated position
+          ctx.fillText(stationData.name, textX, textY);
+
+          ctx.restore(); // Restore context state
+        }
+        // --- End Station Name ---
+      }
+      // ===== End UPDATED drawStation function =====
+
+      function drawHUD() {
+        /* ... HUD drawing logic remains the same ... */
+        const hudY = GAME_VIEW_HEIGHT;
+        const padding = 5;
+        const sectionWidth = GAME_WIDTH / 3 - padding * 1.5;
+        const scannerCenterX = GAME_WIDTH / 2;
+        const scannerCenterY = hudY + HUD_HEIGHT / 2 + 5;
+        const scannerRadius = HUD_HEIGHT / 2 - padding * 2;
+        const scannerMaxDist = 800;
+        ctx.strokeStyle = HUD_COLOR;
+        ctx.fillStyle = HUD_COLOR;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(
+          padding,
+          hudY + padding,
+          GAME_WIDTH - 2 * padding,
+          HUD_HEIGHT - 2 * padding
+        );
+        // Left
+        const leftX = padding * 2;
+        let currentLeftY = hudY + padding * 3;
+        ctx.font = "12px monospace";
+        ctx.fillText("SCANNER", leftX, currentLeftY);
+        currentLeftY += 15;
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 4; i++) {
+          ctx.strokeRect(leftX, currentLeftY + i * 6, sectionWidth * 0.8, 4);
+        }
+        currentLeftY += 35;
+        ctx.fillStyle = HUD_ACCENT_COLOR;
+        for (let i = 0; i < 2; i++) {
+          for (let j = 0; j < 4; j++) {
+            ctx.fillRect(leftX + j * 10, currentLeftY + i * 10, 7, 7);
+          }
+        }
+        ctx.fillStyle = HUD_COLOR;
+        for (let i = 0; i < 1; i++) {
+          for (let j = 0; j < 4; j++) {
+            ctx.fillRect(leftX + j * 10, currentLeftY - 10 + i * 10, 7, 7);
+          }
+        }
+        // Center
+        ctx.font = "16px monospace";
+        const titleWidth = ctx.measureText("ELITE").width;
+        ctx.fillText(
+          "ELITE",
+          scannerCenterX - titleWidth / 2,
+          hudY + HUD_HEIGHT - padding * 2
+        );
+        ctx.strokeStyle = HUD_COLOR;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.ellipse(
+          scannerCenterX,
+          scannerCenterY,
+          scannerRadius * 1.2,
+          scannerRadius * 0.8,
+          0,
+          0,
+          Math.PI * 2
+        );
+        ctx.stroke();
+        ctx.setLineDash([2, 3]);
+        ctx.lineWidth = 1;
+        ctx.beginPath(); // Dotted lines
+        ctx.moveTo(scannerCenterX - scannerRadius * 1.2, scannerCenterY);
+        ctx.lineTo(scannerCenterX + scannerRadius * 1.2, scannerCenterY);
+        ctx.moveTo(scannerCenterX, scannerCenterY - scannerRadius * 0.8);
+        ctx.lineTo(scannerCenterX, scannerCenterY + scannerRadius * 0.8);
+        const diagOffsetX = scannerRadius * 1.2 * Math.cos(Math.PI / 4);
+        const diagOffsetY = scannerRadius * 0.8 * Math.sin(Math.PI / 4);
+        ctx.moveTo(scannerCenterX - diagOffsetX, scannerCenterY - diagOffsetY);
+        ctx.lineTo(scannerCenterX + diagOffsetX, scannerCenterY + diagOffsetY);
+        ctx.moveTo(scannerCenterX - diagOffsetX, scannerCenterY + diagOffsetY);
+        ctx.lineTo(scannerCenterX + diagOffsetX, scannerCenterY - diagOffsetY);
+        ctx.stroke();
+        ctx.setLineDash([]); // Reset dashes
+        // Scanner Objects
+        const drawScannerObject = (objX, objY, color, size) => {
+          const dx = objX - player.x;
+          const dy = objY - player.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < scannerMaxDist) {
+            const angle = Math.atan2(dy, dx);
+            const displayDistX = (dist / scannerMaxDist) * scannerRadius * 1.2;
+            const displayDistY = (dist / scannerMaxDist) * scannerRadius * 0.8;
+            const displayX = scannerCenterX + Math.cos(angle) * displayDistX;
+            const displayY = scannerCenterY + Math.sin(angle) * displayDistY;
+            const normalizedX =
+              (displayX - scannerCenterX) / (scannerRadius * 1.2);
+            const normalizedY =
+              (displayY - scannerCenterY) / (scannerRadius * 0.8);
+            if (normalizedX * normalizedX + normalizedY * normalizedY <= 1) {
+              ctx.fillStyle = color;
+              ctx.fillRect(
+                Math.floor(displayX - size / 2),
+                Math.floor(displayY - size / 2),
+                size,
+                size
+              );
+            }
+          }
         };
-        let enemyIdCounter = 0; // Simple counter for unique enemy IDs
-
-        // --- Utility Functions (distance remains useful) ---
-         function distance(x1, y1, x2, y2) {
-            const dx = x1 - x2;
-            const dy = y1 - y2;
-            return Math.sqrt(dx * dx + dy * dy);
+        enemies.forEach((e) => drawScannerObject(e.x, e.y, ENEMY_COLOR, 3));
+        visibleBackgroundObjects.forEach((bgObj) => {
+          if (bgObj.type === "station") {
+            drawScannerObject(bgObj.x, bgObj.y, bgObj.color || "#00FFFF", 5);
+          }
+        });
+        // Right
+        const rightX = GAME_WIDTH - padding * 2 - sectionWidth;
+        let currentRightY = hudY + padding * 3;
+        ctx.font = "10px monospace";
+        ctx.fillText("SPACE", rightX, currentRightY);
+        ctx.fillRect(rightX + 45, currentRightY - 8, sectionWidth * 0.4, 8);
+        currentRightY += 12;
+        ctx.fillText(" MIS", rightX + 10, currentRightY);
+        ctx.fillRect(rightX + 45, currentRightY - 8, sectionWidth * 0.4, 8);
+        currentRightY += 12;
+        ctx.fillText("  CS", rightX + 10, currentRightY);
+        ctx.fillRect(rightX + 45, currentRightY - 8, sectionWidth * 0.4, 8);
+        currentRightY += 15;
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 5; i++) {
+          ctx.strokeRect(rightX, currentRightY + i * 6, sectionWidth * 0.8, 4);
         }
-        // Removed getRandom as procedural gen handles randomness deterministically
-
-        // --- Game Objects ---
-        // Base GameObject can be simplified or removed if not needed elsewhere
-        class GameObject {
-             constructor(x, y, size, color) {
-                 this.x = x;
-                 this.y = y;
-                 this.size = size;
-                 this.color = color;
-                 this.radius = size / 2;
-             }
-         }
-
-        class Player extends GameObject { // Keep Player class largely the same
-            constructor(x, y) {
-                super(x, y, PLAYER_SIZE, PLAYER_COLOR);
-                this.angle = -Math.PI / 2; // Pointing up
-                this.vx = 0;
-                this.vy = 0;
-            }
-
-            update() {
-                // Movement (same as before)
-                if (touchState.move.active) {
-                    const dx = touchState.move.currentX - touchState.move.startX;
-                    const dy = touchState.move.currentY - touchState.move.startY;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    const maxDist = 50; // Max joystick travel
-
-                    if (dist > 0) {
-                       const moveX = (dx / Math.min(dist, maxDist)) * PLAYER_SPEED;
-                       const moveY = (dy / Math.min(dist, maxDist)) * PLAYER_SPEED;
-                       this.vx = moveX;
-                       this.vy = moveY;
-                       this.angle = Math.atan2(dy, dx); // Update angle based on movement
-                    } else { this.vx = 0; this.vy = 0; }
-                } else { this.vx = 0; this.vy = 0; }
-
-                this.x += this.vx;
-                this.y += this.vy;
-
-                // NO BOUNDS CHECKING for player - infinite world!
-            }
-
-            draw(offsetX, offsetY) { // Drawing logic unchanged
-                const screenX = this.x - offsetX;
-                const screenY = this.y - offsetY;
-                ctx.save();
-                ctx.translate(screenX, screenY);
-                ctx.rotate(this.angle + Math.PI / 2);
-                ctx.strokeStyle = this.color;
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(0, -this.radius);
-                ctx.lineTo(this.radius * 0.7, this.radius * 0.7);
-                ctx.lineTo(0, this.radius * 0.3);
-                ctx.lineTo(-this.radius * 0.7, this.radius * 0.7);
-                ctx.closePath();
-                ctx.moveTo(-this.radius * 0.7, this.radius * 0.7);
-                ctx.lineTo(-this.radius * 1.2, this.radius * 0.5);
-                ctx.moveTo(this.radius * 0.7, this.radius * 0.7);
-                ctx.lineTo(this.radius * 1.2, this.radius * 0.5);
-                ctx.stroke();
-                ctx.restore();
-            }
-
-            shoot() { // Shooting logic unchanged
-                const now = Date.now();
-                if (now - lastShotTime > SHOOT_COOLDOWN) {
-                    projectiles.push(new Projectile(this.x, this.y, this.angle));
-                    lastShotTime = now;
-                }
-            }
+        const barIndicatorX = GAME_WIDTH - padding * 4 - 10;
+        const barIndicatorY = hudY + padding * 3;
+        const barIndicatorH = HUD_HEIGHT - padding * 6;
+        ctx.strokeRect(barIndicatorX, barIndicatorY, 10, barIndicatorH);
+        const fillHeight = barIndicatorH * 0.7;
+        ctx.fillRect(
+          barIndicatorX + 1,
+          barIndicatorY + barIndicatorH - fillHeight + 1,
+          8,
+          fillHeight - 2
+        );
+        for (let i = 1; i < 5; i++) {
+          const tickY = barIndicatorY + (barIndicatorH / 5) * i;
+          ctx.beginPath();
+          ctx.moveTo(barIndicatorX, tickY);
+          ctx.lineTo(barIndicatorX + 10, tickY);
+          ctx.stroke();
         }
+        ctx.beginPath();
+        ctx.moveTo(barIndicatorX - 3, barIndicatorY + barIndicatorH);
+        ctx.lineTo(barIndicatorX + 10 + 3, barIndicatorY + barIndicatorH);
+        ctx.moveTo(barIndicatorX + 5, barIndicatorY + barIndicatorH);
+        ctx.lineTo(barIndicatorX + 5, barIndicatorY + barIndicatorH + 5);
+        ctx.stroke();
+      }
 
-        class Enemy extends GameObject { // Keep Enemy class, add ID
-            constructor(x, y) {
-                super(x, y, ENEMY_SIZE, ENEMY_COLOR);
-                this.id = `enemy_${enemyIdCounter++}`; // Assign unique ID
-                this.angle = Math.random() * Math.PI * 2;
-            }
-
-            update(targetX, targetY) { // Enemy needs player pos to target
-                // Simple AI: Move towards player
-                const dx = targetX - this.x;
-                const dy = targetY - this.y;
-                const distToPlayer = Math.sqrt(dx*dx + dy*dy);
-
-                if (distToPlayer > this.radius + player.radius + 5) { // Don't crowd
-                    this.angle = Math.atan2(dy, dx);
-                    this.x += Math.cos(this.angle) * ENEMY_SPEED;
-                    this.y += Math.sin(this.angle) * ENEMY_SPEED;
-                }
-                 // NO BOUNDS CHECKING - they will be despawned if too far
-            }
-
-            draw(offsetX, offsetY) { // Drawing logic unchanged
-                const screenX = this.x - offsetX;
-                const screenY = this.y - offsetY;
-                ctx.save();
-                ctx.translate(screenX, screenY);
-                ctx.rotate(this.angle + Math.PI / 2);
-                ctx.strokeStyle = this.color;
-                ctx.lineWidth = 1.5;
-                ctx.beginPath();
-                ctx.moveTo(0, -this.radius);
-                ctx.lineTo(this.radius * 0.6, this.radius * 0.8);
-                ctx.lineTo(0, this.radius * 0.4);
-                ctx.lineTo(-this.radius * 0.6, this.radius * 0.8);
-                ctx.closePath();
-                ctx.stroke();
-                ctx.restore();
-            }
+      function drawTouchControls() {
+        /* ... Touch control drawing remains the same ... */
+        if (touchState.move.active) {
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(
+            touchState.move.startX,
+            touchState.move.startY,
+            40,
+            0,
+            Math.PI * 2
+          );
+          ctx.stroke();
+          const dx = touchState.move.currentX - touchState.move.startX;
+          const dy = touchState.move.currentY - touchState.move.startY;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          const maxDist = 40;
+          const clampedDist = Math.min(dist, maxDist);
+          const angle = Math.atan2(dy, dx);
+          const stickX = touchState.move.startX + Math.cos(angle) * clampedDist;
+          const stickY = touchState.move.startY + Math.sin(angle) * clampedDist;
+          ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+          ctx.beginPath();
+          ctx.arc(stickX, stickY, 25, 0, Math.PI * 2);
+          ctx.fill();
         }
-
-        // Station class is removed - stations are now data objects from WorldManager
-
-        class Projectile extends GameObject { // Projectile largely unchanged
-            constructor(x, y, angle) {
-                super(x, y, PROJECTILE_SIZE, PROJECTILE_COLOR);
-                this.vx = Math.cos(angle) * PROJECTILE_SPEED;
-                this.vy = Math.sin(angle) * PROJECTILE_SPEED;
-                this.life = 150; // Frames to live
-            }
-
-            update() {
-                this.x += this.vx;
-                this.y += this.vy;
-                this.life--;
-            }
-
-             isOutOfBounds(focusX, focusY, radius) {
-                // Check if projectile is too far from the player OR life expired
-                 const despawnRadiusSq = radius * radius;
-                 const dx = this.x - focusX;
-                 const dy = this.y - focusY;
-                 const distSq = dx * dx + dy * dy;
-                 return distSq > despawnRadiusSq || this.life <= 0;
-             }
-
-            draw(offsetX, offsetY) { // Drawing logic unchanged
-                ctx.fillStyle = this.color;
-                ctx.beginPath();
-                ctx.arc(this.x - offsetX, this.y - offsetY, this.radius, 0, Math.PI * 2);
-                ctx.fill();
-            }
+        if (touchState.shoot.active) {
+          ctx.fillStyle = "rgba(255, 0, 255, 0.2)";
+          ctx.beginPath();
+          ctx.arc(GAME_WIDTH * 0.75, GAME_VIEW_HEIGHT / 2, 50, 0, Math.PI * 2);
+          ctx.fill();
         }
+      }
 
-        // Star class is removed
-
-        // --- Game Logic ---
-        function update() {
-            const now = Date.now();
-
-            // Handle Shooting
-            if (touchState.shoot.active) {
-                player.shoot();
-            }
-
-            player.update();
-
-            // Update camera to follow player (no clamping)
-            camera.x = player.x - GAME_WIDTH / 2;
-            camera.y = player.y - GAME_VIEW_HEIGHT / 2;
-
-            // Get procedurally generated background objects for the current view
-            visibleBackgroundObjects = worldManager.getObjectsInView(
-                camera.x,
-                camera.y,
-                GAME_WIDTH,
-                GAME_VIEW_HEIGHT
-            );
-            // Update station angles (if they exist and have rotation)
-            // NOTE: This modifies the data directly. A more robust approach might
-            // store animation state separately, but this is simpler for now.
-            visibleBackgroundObjects.forEach(obj => {
-                if (obj.type === 'station' && typeof obj.rotationSpeed === 'number') {
-                    obj.angle = (obj.angle + obj.rotationSpeed) % (Math.PI * 2);
-                }
-            });
-
-
-            // Update projectiles and remove dead/out-of-bounds ones
-            projectiles = projectiles.filter(p => {
-                p.update();
-                // Use despawn radius relative to player for removal check
-                return !p.isOutOfBounds(player.x, player.y, ENEMY_DESPAWN_RADIUS * 1.5);
-            });
-
-            // Update enemies
-            enemies.forEach(enemy => enemy.update(player.x, player.y)); // Pass player pos
-
-            // Despawn enemies that are too far away
-             const enemiesToCull = worldManager.getEnemiesToDespawn(
-                 enemies,
-                 player.x,
-                 player.y,
-                 ENEMY_DESPAWN_RADIUS
-             );
-             if (enemiesToCull.length > 0) {
-                 const idsToCull = new Set(enemiesToCull.map(e => e.id));
-                 enemies = enemies.filter(enemy => !idsToCull.has(enemy.id));
-                 // console.log(`Despawned ${enemiesToCull.length} enemies.`);
-             }
-
-
-            // Spawn new enemies near the player if needed
-            if (now - lastEnemySpawnTime > ENEMY_SPAWN_INTERVAL && enemies.length < MAX_ENEMIES) {
-                spawnEnemyNearPlayer();
-                lastEnemySpawnTime = now;
-            }
-
-            // Collision Detection
-            handleCollisions();
+      // --- Input Handling (unchanged) ---
+      function handleTouchStart(event) {
+        /* ... same ... */
+        event.preventDefault();
+        const touches = event.changedTouches;
+        const rect = canvas.getBoundingClientRect();
+        for (let i = 0; i < touches.length; i++) {
+          const touch = touches[i];
+          const touchX =
+            (touch.clientX - rect.left) * (canvas.width / rect.width);
+          const touchY =
+            (touch.clientY - rect.top) * (canvas.height / rect.height);
+          if (
+            touchX < GAME_WIDTH / 2 &&
+            touchY < GAME_VIEW_HEIGHT &&
+            !touchState.move.active
+          ) {
+            touchState.move.active = true;
+            touchState.move.id = touch.identifier;
+            touchState.move.startX = touchX;
+            touchState.move.startY = touchY;
+            touchState.move.currentX = touchX;
+            touchState.move.currentY = touchY;
+          } else if (
+            touchX >= GAME_WIDTH / 2 &&
+            touchY < GAME_VIEW_HEIGHT &&
+            !touchState.shoot.active
+          ) {
+            touchState.shoot.active = true;
+            touchState.shoot.id = touch.identifier;
+          }
         }
-
-        function handleCollisions() {
-            // Projectile vs Enemy
-            for (let i = projectiles.length - 1; i >= 0; i--) {
-                let proj = projectiles[i];
-                let projHit = false;
-
-                // Check vs Enemies
-                for (let j = enemies.length - 1; j >= 0; j--) {
-                    let enemy = enemies[j];
-                    if (distance(proj.x, proj.y, enemy.x, enemy.y) < proj.radius + enemy.radius) {
-                        projectiles.splice(i, 1);
-                        enemies.splice(j, 1);
-                        projHit = true;
-                        // TODO: Add explosion effect, score
-                        break; // Projectile is gone
-                    }
-                }
-                if (projHit) continue; // Next projectile
-
-                // Check vs Stations (currently visible)
-                for (const bgObj of visibleBackgroundObjects) {
-                    if (bgObj.type === 'station') {
-                         // Use pre-calculated radius if available, otherwise calculate
-                        const stationRadius = bgObj.radius || bgObj.size / 2;
-                         if (distance(proj.x, proj.y, bgObj.x, bgObj.y) < proj.radius + stationRadius) {
-                            projectiles.splice(i, 1);
-                            // TODO: Add hit effect on station
-                            projHit = true;
-                            break; // Projectile is gone
-                        }
-                    }
-                }
-                 // No need to continue checking this projectile if it hit something
-                 // The outer loop continues with the next projectile index (i--)
-            }
-
-
-            // Player vs Enemy
-            for (let i = enemies.length - 1; i >= 0; i--) {
-                 if (distance(player.x, player.y, enemies[i].x, enemies[i].y) < player.radius + enemies[i].radius) {
-                     enemies.splice(i, 1);
-                     // TODO: Damage player, game over check
-                     console.log("Collision with enemy!");
-                 }
-            }
-
-             // Player vs Station (currently visible)
-             for (const bgObj of visibleBackgroundObjects) {
-                 if (bgObj.type === 'station') {
-                     const stationRadius = bgObj.radius || bgObj.size / 2;
-                     const dist = distance(player.x, player.y, bgObj.x, bgObj.y);
-                     if (dist < player.radius + stationRadius) {
-                         // Push player back slightly
-                         const angle = Math.atan2(player.y - bgObj.y, player.x - bgObj.x);
-                         const overlap = (player.radius + stationRadius) - dist;
-                         player.x += Math.cos(angle) * (overlap + 1); // Push slightly more than overlap
-                         player.y += Math.sin(angle) * (overlap + 1);
-                         player.vx = 0; // Stop player momentum after collision
-                         player.vy = 0;
-                         console.log("Collision with station!");
-                         // Only handle one station collision per frame for simplicity
-                         break;
-                     }
-                 }
-             }
+      }
+      function handleTouchMove(event) {
+        /* ... same ... */
+        event.preventDefault();
+        const touches = event.changedTouches;
+        const rect = canvas.getBoundingClientRect();
+        for (let i = 0; i < touches.length; i++) {
+          const touch = touches[i];
+          const touchX =
+            (touch.clientX - rect.left) * (canvas.width / rect.width);
+          const touchY =
+            (touch.clientY - rect.top) * (canvas.height / rect.height);
+          if (
+            touchState.move.active &&
+            touch.identifier === touchState.move.id
+          ) {
+            touchState.move.currentX = touchX;
+            touchState.move.currentY = touchY;
+          }
         }
-
-        function spawnEnemyNearPlayer() {
-            // Spawn enemies relative to the player's current position
-            const spawnDist = GAME_WIDTH * 0.8; // Spawn just off-screen
-            const angle = Math.random() * Math.PI * 2;
-            const spawnX = player.x + Math.cos(angle) * spawnDist;
-            const spawnY = player.y + Math.sin(angle) * spawnDist;
-
-            enemies.push(new Enemy(spawnX, spawnY));
+      }
+      function handleTouchEnd(event) {
+        /* ... same ... */
+        event.preventDefault();
+        const touches = event.changedTouches;
+        for (let i = 0; i < touches.length; i++) {
+          const touch = touches[i];
+          if (
+            touchState.move.active &&
+            touch.identifier === touchState.move.id
+          ) {
+            touchState.move.active = false;
+            touchState.move.id = null;
+            player.vx = 0;
+            player.vy = 0;
+          }
+          if (
+            touchState.shoot.active &&
+            touch.identifier === touchState.shoot.id
+          ) {
+            touchState.shoot.active = false;
+            touchState.shoot.id = null;
+          }
         }
+      }
 
+      // --- Game Loop (unchanged) ---
+      let lastTime = 0;
+      function gameLoop(timestamp) {
+        lastTime = timestamp;
+        update();
+        draw();
+        requestAnimationFrame(gameLoop);
+      }
 
-        // --- Drawing ---
-        function draw() {
-            // Clear canvas
-            ctx.fillStyle = '#000000';
-            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-
-            // --- Draw Game World ---
-            ctx.save();
-            ctx.rect(0, 0, GAME_WIDTH, GAME_VIEW_HEIGHT);
-            ctx.clip();
-
-            ctx.imageSmoothingEnabled = false; // Crisp pixels
-
-            const offsetX = camera.x;
-            const offsetY = camera.y;
-
-            // Draw procedurally generated stars and stations
-            visibleBackgroundObjects.forEach(obj => {
-                const screenX = obj.x - offsetX;
-                const screenY = obj.y - offsetY;
-                const size = obj.size || 1; // Default size for safety
-
-                 // Basic culling check
-                 if (screenX > -size - 20 && screenX < GAME_WIDTH + 20 &&
-                     screenY > -size - 20 && screenY < GAME_VIEW_HEIGHT + 20) {
-
-                    if (obj.type === 'star') {
-                        drawStar(obj, screenX, screenY);
-                    } else if (obj.type === 'station') {
-                        drawStation(obj, screenX, screenY);
-                    }
-                 }
-            });
-
-            // Draw enemies
-            enemies.forEach(enemy => enemy.draw(offsetX, offsetY));
-
-            // Draw projectiles
-            projectiles.forEach(proj => proj.draw(offsetX, offsetY));
-
-            // Draw player last (on top)
-            player.draw(offsetX, offsetY);
-
-            ctx.restore(); // Remove clipping path
-
-            // --- Draw HUD ---
-            drawHUD();
-
-            // --- Draw Touch Controls ---
-            drawTouchControls();
+      // --- Initialization (unchanged) ---
+      function init() {
+        canvas.width = GAME_WIDTH;
+        canvas.height = GAME_HEIGHT;
+        worldManager = new InfiniteWorldManager({
+          cellSize: 350,
+          starBaseDensity: 0.0001,
+          stationProbability: 0.05,
+          starColor: "#FFFFFF",
+          stationColor: "#00FFFF",
+          minStationSize: 45,
+          maxStationSize: 90,
+        });
+        player = new Player(0, 0);
+        for (let i = 0; i < 3; i++) {
+          spawnEnemyNearPlayer();
         }
+        canvas.addEventListener("touchstart", handleTouchStart, {
+          passive: false,
+        });
+        canvas.addEventListener("touchmove", handleTouchMove, {
+          passive: false,
+        });
+        canvas.addEventListener("touchend", handleTouchEnd, { passive: false });
+        canvas.addEventListener("touchcancel", handleTouchEnd, {
+          passive: false,
+        });
+        lastTime = performance.now();
+        requestAnimationFrame(gameLoop);
+      }
 
-        // --- Drawing Helper Functions ---
-         function drawStar(starData, screenX, screenY) {
-             ctx.fillStyle = starData.color || '#00FFFF'; // Use data color or default
-             ctx.fillRect(Math.floor(screenX), Math.floor(screenY), Math.ceil(starData.size), Math.ceil(starData.size));
-         }
-
-        function drawStation(stationData, screenX, screenY) {
-            // Re-implement Coriolis station drawing logic using stationData
-             const r = stationData.radius || stationData.size / 2;
-             const angle = stationData.angle || 0; // Use stored angle
-
-             ctx.save();
-             ctx.translate(screenX, screenY);
-             ctx.rotate(angle); // Apply rotation
-             ctx.strokeStyle = stationData.color || '#00FFFF';
-             ctx.lineWidth = 2;
-
-             // Outer frame points
-             const points = [
-                 { x: -r, y: -r * 0.5 }, { x: -r * 0.5, y: -r }, { x: r * 0.5, y: -r },
-                 { x: r, y: -r * 0.5 }, { x: r, y: r * 0.5 }, { x: r * 0.5, y: r },
-                 { x: -r * 0.5, y: r }, { x: -r, y: r * 0.5 }
-             ];
-
-             // Draw outer frame
-             ctx.beginPath();
-             ctx.moveTo(points[0].x, points[0].y);
-             for (let i = 1; i < points.length; i++) { ctx.lineTo(points[i].x, points[i].y); }
-             ctx.closePath();
-             ctx.stroke();
-
-             // Draw inner structure
-             const innerScale = 0.4;
-             ctx.lineWidth = 1;
-             ctx.beginPath();
-             ctx.moveTo(points[3].x * innerScale, points[3].y * innerScale);
-              ctx.lineTo(points[3].x, points[3].y);
-              ctx.moveTo(points[4].x * innerScale, points[4].y * innerScale);
-              ctx.lineTo(points[4].x, points[4].y);
-              ctx.rect(points[3].x * innerScale, points[3].y * innerScale,
-                       (points[4].x - points[3].x) * innerScale,
-                       (points[4].y - points[3].y) * innerScale);
-              // Detail lines
-              const detailScale = 0.7;
-              ctx.moveTo(points[1].x*detailScale, points[1].y*detailScale); ctx.lineTo(points[1].x, points[1].y);
-              ctx.moveTo(points[2].x*detailScale, points[2].y*detailScale); ctx.lineTo(points[2].x, points[2].y);
-              ctx.moveTo(points[5].x*detailScale, points[5].y*detailScale); ctx.lineTo(points[5].x, points[5].y);
-              ctx.moveTo(points[6].x*detailScale, points[6].y*detailScale); ctx.lineTo(points[6].x, points[6].y);
-             ctx.stroke();
-
-             ctx.restore();
-        }
-
-        function drawHUD() { // Update scanner logic
-            const hudY = GAME_VIEW_HEIGHT;
-            const padding = 5;
-            const sectionWidth = GAME_WIDTH / 3 - padding * 1.5;
-            const scannerCenterX = GAME_WIDTH / 2;
-            const scannerCenterY = hudY + HUD_HEIGHT / 2 + 5;
-            const scannerRadius = HUD_HEIGHT / 2 - padding * 2;
-            const scannerMaxDist = 800; // Increase scanner range further
-
-            ctx.strokeStyle = HUD_COLOR;
-            ctx.fillStyle = HUD_COLOR;
-            ctx.lineWidth = 2;
-            ctx.strokeRect(padding, hudY + padding, GAME_WIDTH - 2 * padding, HUD_HEIGHT - 2 * padding);
-
-            // Left Section (Unchanged)
-            const leftX = padding * 2;
-            let currentLeftY = hudY + padding * 3;
-            ctx.font = '12px monospace'; ctx.fillText("SCANNER", leftX, currentLeftY);
-            currentLeftY += 15; ctx.lineWidth = 1;
-            for (let i=0; i<4; i++) { ctx.strokeRect(leftX, currentLeftY + i * 6, sectionWidth * 0.8, 4); }
-            currentLeftY += 35; ctx.fillStyle = HUD_ACCENT_COLOR;
-            for (let i = 0; i < 2; i++) { for (let j = 0; j < 4; j++) { ctx.fillRect(leftX + j*10, currentLeftY + i * 10, 7, 7); } }
-            ctx.fillStyle = HUD_COLOR;
-            for (let i = 0; i < 1; i++) { for (let j = 0; j < 4; j++) { ctx.fillRect(leftX + j*10, currentLeftY -10 + i * 10, 7, 7); } }
-
-            // Center Section (Scanner Display & Title)
-            ctx.font = '16px monospace';
-            const titleWidth = ctx.measureText("ELITE").width;
-            ctx.fillText("ELITE", scannerCenterX - titleWidth / 2, hudY + HUD_HEIGHT - padding * 2);
-            ctx.strokeStyle = HUD_COLOR; ctx.lineWidth = 1.5;
-            ctx.beginPath(); ctx.ellipse(scannerCenterX, scannerCenterY, scannerRadius * 1.2, scannerRadius * 0.8, 0, 0, Math.PI * 2); ctx.stroke();
-            ctx.setLineDash([2, 3]); ctx.lineWidth = 1; ctx.beginPath(); // Dotted lines
-            ctx.moveTo(scannerCenterX - scannerRadius * 1.2, scannerCenterY); ctx.lineTo(scannerCenterX + scannerRadius * 1.2, scannerCenterY);
-            ctx.moveTo(scannerCenterX, scannerCenterY - scannerRadius * 0.8); ctx.lineTo(scannerCenterX, scannerCenterY + scannerRadius * 0.8);
-            const diagOffsetX = scannerRadius * 1.2 * Math.cos(Math.PI / 4); const diagOffsetY = scannerRadius * 0.8 * Math.sin(Math.PI / 4);
-            ctx.moveTo(scannerCenterX - diagOffsetX, scannerCenterY - diagOffsetY); ctx.lineTo(scannerCenterX + diagOffsetX, scannerCenterY + diagOffsetY);
-            ctx.moveTo(scannerCenterX - diagOffsetX, scannerCenterY + diagOffsetY); ctx.lineTo(scannerCenterX + diagOffsetX, scannerCenterY - diagOffsetY);
-            ctx.stroke(); ctx.setLineDash([]); // Reset dashes
-
-            // Draw scanner objects (enemies AND visible stations)
-            const drawScannerObject = (objX, objY, color, size) => {
-                 const dx = objX - player.x; const dy = objY - player.y;
-                 const dist = Math.sqrt(dx*dx + dy*dy);
-                 if (dist < scannerMaxDist) {
-                     const angle = Math.atan2(dy, dx);
-                     const displayDistX = (dist / scannerMaxDist) * scannerRadius * 1.2;
-                     const displayDistY = (dist / scannerMaxDist) * scannerRadius * 0.8;
-                     const displayX = scannerCenterX + Math.cos(angle) * displayDistX;
-                     const displayY = scannerCenterY + Math.sin(angle) * displayDistY;
-                     const normalizedX = (displayX - scannerCenterX) / (scannerRadius * 1.2);
-                     const normalizedY = (displayY - scannerCenterY) / (scannerRadius * 0.8);
-                     if(normalizedX*normalizedX + normalizedY*normalizedY <= 1) {
-                        ctx.fillStyle = color;
-                        ctx.fillRect(Math.floor(displayX - size/2), Math.floor(displayY - size/2), size, size);
-                     }
-                 }
-             };
-
-             // Draw enemies on scanner
-            enemies.forEach(e => drawScannerObject(e.x, e.y, ENEMY_COLOR, 3));
-             // Draw VISIBLE stations on scanner
-             visibleBackgroundObjects.forEach(bgObj => {
-                 if (bgObj.type === 'station') {
-                     drawScannerObject(bgObj.x, bgObj.y, bgObj.color || STATION_COLOR, 5); // Station blip larger
-                 }
-             });
-
-            // Right Section (Unchanged)
-            const rightX = GAME_WIDTH - padding * 2 - sectionWidth;
-            let currentRightY = hudY + padding * 3; ctx.font = '10px monospace';
-            ctx.fillText("SPACE", rightX, currentRightY); ctx.fillRect(rightX + 45, currentRightY - 8, sectionWidth*0.4, 8); currentRightY += 12;
-            ctx.fillText(" MIS", rightX+10, currentRightY); ctx.fillRect(rightX + 45, currentRightY - 8, sectionWidth*0.4, 8); currentRightY += 12;
-            ctx.fillText("  CS", rightX+10, currentRightY); ctx.fillRect(rightX + 45, currentRightY - 8, sectionWidth*0.4, 8);
-            currentRightY += 15; ctx.lineWidth = 1;
-            for (let i = 0; i < 5; i++) { ctx.strokeRect(rightX, currentRightY + i * 6, sectionWidth * 0.8, 4); }
-            const barIndicatorX = GAME_WIDTH - padding * 4 - 10; const barIndicatorY = hudY + padding * 3; const barIndicatorH = HUD_HEIGHT - padding * 6;
-            ctx.strokeRect(barIndicatorX, barIndicatorY, 10, barIndicatorH); const fillHeight = barIndicatorH * 0.7;
-            ctx.fillRect(barIndicatorX + 1, barIndicatorY + barIndicatorH - fillHeight + 1 , 8, fillHeight - 2 );
-            for (let i=1; i<5; i++) { const tickY = barIndicatorY + (barIndicatorH / 5) * i; ctx.beginPath(); ctx.moveTo(barIndicatorX, tickY); ctx.lineTo(barIndicatorX + 10, tickY); ctx.stroke(); }
-            ctx.beginPath(); ctx.moveTo(barIndicatorX - 3, barIndicatorY + barIndicatorH); ctx.lineTo(barIndicatorX + 10 + 3, barIndicatorY + barIndicatorH);
-            ctx.moveTo(barIndicatorX + 5, barIndicatorY + barIndicatorH); ctx.lineTo(barIndicatorX + 5, barIndicatorY + barIndicatorH + 5); ctx.stroke();
-        }
-
-         function drawTouchControls() { // Unchanged
-            if (touchState.move.active) {
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'; ctx.lineWidth = 2;
-                ctx.beginPath(); ctx.arc(touchState.move.startX, touchState.move.startY, 40, 0, Math.PI * 2); ctx.stroke();
-                 const dx = touchState.move.currentX - touchState.move.startX; const dy = touchState.move.currentY - touchState.move.startY;
-                 const dist = Math.sqrt(dx*dx + dy*dy); const maxDist = 40; const clampedDist = Math.min(dist, maxDist); const angle = Math.atan2(dy, dx);
-                 const stickX = touchState.move.startX + Math.cos(angle) * clampedDist; const stickY = touchState.move.startY + Math.sin(angle) * clampedDist;
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.4)'; ctx.beginPath(); ctx.arc(stickX, stickY, 25, 0, Math.PI * 2); ctx.fill();
-            }
-             if (touchState.shoot.active) {
-                 ctx.fillStyle = 'rgba(255, 0, 255, 0.2)'; ctx.beginPath(); ctx.arc(GAME_WIDTH * 0.75, GAME_VIEW_HEIGHT / 2, 50, 0, Math.PI * 2); ctx.fill();
-             }
-        }
-
-        // --- Input Handling (Unchanged) ---
-        function handleTouchStart(event) { /* ... same as before ... */
-            event.preventDefault();
-            const touches = event.changedTouches;
-            const rect = canvas.getBoundingClientRect();
-            for (let i = 0; i < touches.length; i++) {
-                const touch = touches[i];
-                const touchX = (touch.clientX - rect.left) * (canvas.width / rect.width);
-                const touchY = (touch.clientY - rect.top) * (canvas.height / rect.height);
-                if (touchX < GAME_WIDTH / 2 && touchY < GAME_VIEW_HEIGHT && !touchState.move.active) {
-                    touchState.move.active = true; touchState.move.id = touch.identifier;
-                    touchState.move.startX = touchX; touchState.move.startY = touchY;
-                    touchState.move.currentX = touchX; touchState.move.currentY = touchY;
-                } else if (touchX >= GAME_WIDTH / 2 && touchY < GAME_VIEW_HEIGHT && !touchState.shoot.active) {
-                    touchState.shoot.active = true; touchState.shoot.id = touch.identifier;
-                }
-            }
-         }
-        function handleTouchMove(event) { /* ... same as before ... */
-            event.preventDefault();
-            const touches = event.changedTouches;
-             const rect = canvas.getBoundingClientRect();
-            for (let i = 0; i < touches.length; i++) {
-                const touch = touches[i];
-                const touchX = (touch.clientX - rect.left) * (canvas.width / rect.width);
-                const touchY = (touch.clientY - rect.top) * (canvas.height / rect.height);
-                if (touchState.move.active && touch.identifier === touchState.move.id) {
-                    touchState.move.currentX = touchX; touchState.move.currentY = touchY;
-                }
-            }
-         }
-        function handleTouchEnd(event) { /* ... same as before ... */
-            event.preventDefault();
-            const touches = event.changedTouches;
-            for (let i = 0; i < touches.length; i++) {
-                const touch = touches[i];
-                if (touchState.move.active && touch.identifier === touchState.move.id) {
-                    touchState.move.active = false; touchState.move.id = null;
-                    player.vx = 0; player.vy = 0;
-                }
-                if (touchState.shoot.active && touch.identifier === touchState.shoot.id) {
-                    touchState.shoot.active = false; touchState.shoot.id = null;
-                }
-            }
-         }
-
-        // --- Game Loop ---
-        let lastTime = 0;
-        function gameLoop(timestamp) {
-            // const deltaTime = timestamp - lastTime; // deltaTime not used currently
-            lastTime = timestamp;
-            update();
-            draw();
-            requestAnimationFrame(gameLoop);
-        }
-
-        // --- Initialization ---
-        function init() {
-            canvas.width = GAME_WIDTH;
-            canvas.height = GAME_HEIGHT;
-
-            // Instantiate the world manager
-            worldManager = new InfiniteWorldManager({
-                 cellSize: 250, // Example config values
-                 starBaseDensity: 0.00015,
-                 stationProbability: 0.04,
-                 starColor: '#00FFFF', // Cyan stars
-                 stationColor: '#00FFFF', // Cyan stations
-            });
-
-            // Create player at initial position (e.g., 0,0 world coords)
-            player = new Player(0, 0);
-
-            // Spawn initial enemies near the starting position
-             for(let i = 0; i < 4; i++) {
-                 spawnEnemyNearPlayer();
-             }
-
-            // Add touch listeners
-            canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
-            canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
-            canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
-            canvas.addEventListener('touchcancel', handleTouchEnd, { passive: false });
-
-            // Start the game loop
-             lastTime = performance.now();
-            requestAnimationFrame(gameLoop);
-        }
-
-        // --- Start the game ---
-        init();
-
+      // --- Start the game ---
+      init();
     </script>
-</body>
+  </body>
 </html>
