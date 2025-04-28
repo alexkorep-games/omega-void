@@ -171,7 +171,7 @@ function drawStation(
 function drawHUD(ctx: Ctx, state: IGameState): void {
   const hudY = C.GAME_VIEW_HEIGHT;
   const padding = 5;
-  const sectionWidth = C.GAME_WIDTH / 3 - padding * 1.5;
+  const sectionWidth = C.GAME_WIDTH / 3 - padding * 4;
   const scannerCenterX = C.GAME_WIDTH / 2;
   const scannerCenterY = hudY + C.HUD_HEIGHT / 2 + 5;
   const scannerRadius = C.HUD_HEIGHT / 2 - padding * 2;
@@ -189,7 +189,7 @@ function drawHUD(ctx: Ctx, state: IGameState): void {
 
   // --- Left Panel (simplified) ---
   const leftX = padding * 2;
-  let currentLeftY = hudY + padding * 3;
+  let currentLeftY = hudY + padding * 4;
   ctx.font = "12px monospace";
   ctx.fillText("SYSTEMS", leftX, currentLeftY);
   currentLeftY += 20;
@@ -201,9 +201,6 @@ function drawHUD(ctx: Ctx, state: IGameState): void {
 
   // --- Center Panel (Scanner) ---
   ctx.font = "16px monospace";
-  const title = "NAV SCAN";
-  const titleWidth = ctx.measureText(title).width;
-  ctx.fillText(title, scannerCenterX - titleWidth / 2, hudY + padding * 4);
 
   // Scanner Ellipse
   ctx.strokeStyle = C.HUD_COLOR;
@@ -274,7 +271,7 @@ function drawHUD(ctx: Ctx, state: IGameState): void {
 
   // --- Right Panel (simplified) ---
   const rightX = C.GAME_WIDTH - padding * 2 - sectionWidth;
-  let currentRightY = hudY + padding * 3;
+  let currentRightY = hudY + padding * 4;
   ctx.font = "12px monospace";
   ctx.fillText("STATUS", rightX, currentRightY);
   currentRightY += 20;
@@ -282,17 +279,6 @@ function drawHUD(ctx: Ctx, state: IGameState): void {
   ctx.fillText("Shield: 100%", rightX, currentRightY);
   currentRightY += 15;
   ctx.fillText("Laser: READY", rightX, currentRightY);
-
-  // Bottom Title (optional)
-  ctx.font = "16px monospace";
-  const gameTitle = "REACT ELITE";
-  const gameTitleWidth = ctx.measureText(gameTitle).width;
-  ctx.fillStyle = C.HUD_ACCENT_COLOR;
-  ctx.fillText(
-    gameTitle,
-    scannerCenterX - gameTitleWidth / 2,
-    C.GAME_HEIGHT - padding * 2
-  );
 }
 
 function drawTouchControls(ctx: Ctx, touchState: ITouchState): void {

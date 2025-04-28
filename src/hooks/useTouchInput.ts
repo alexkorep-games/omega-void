@@ -10,7 +10,7 @@ import { GAME_WIDTH, GAME_VIEW_HEIGHT } from "../game/config";
  * @returns The current ITouchState.
  */
 export function useTouchInput(
-  canvasRef: RefObject<HTMLCanvasElement>
+  canvasRef: RefObject<HTMLCanvasElement | null>
 ): ITouchState {
   const [touchState, setTouchState] = useState<ITouchState>(initialTouchState);
 
@@ -44,7 +44,7 @@ export function useTouchInput(
       const touches = event.changedTouches;
 
       setTouchState((prevState) => {
-        let newState = { ...prevState }; // Shallow copy previous state
+        const newState = { ...prevState }; // Shallow copy previous state
 
         for (let i = 0; i < touches.length; i++) {
           const touch = touches[i];
@@ -172,8 +172,8 @@ export function useTouchInput(
     [canvasRef]
   ); // No dependency on getTouchPosition here
 
+  const canvasElement = canvasRef?.current;
   useEffect(() => {
-    const canvasElement = canvasRef.current;
     if (canvasElement) {
       // Use passive: false to allow preventDefault()
       const options = { passive: false };
@@ -190,7 +190,7 @@ export function useTouchInput(
         canvasElement.removeEventListener("touchcancel", handleTouchEnd);
       };
     }
-  }, [canvasRef, handleTouchStart, handleTouchMove, handleTouchEnd]); // Add handlers to dependency array
+  }, [handleTouchStart, handleTouchMove, handleTouchEnd, canvasElement]);
 
   return touchState;
 }

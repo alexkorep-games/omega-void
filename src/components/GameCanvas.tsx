@@ -7,7 +7,7 @@ import { GAME_WIDTH, GAME_HEIGHT } from "../game/config";
 interface GameCanvasProps {
   gameState: IGameState;
   touchState: ITouchState;
-  canvasRef: React.RefObject<HTMLCanvasElement>; // Receive ref from parent
+  canvasRef: React.RefObject<HTMLCanvasElement | null>; // Receive ref from parent
 }
 
 const GameCanvas: React.FC<GameCanvasProps> = ({
