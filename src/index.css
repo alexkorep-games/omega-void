@@ -1,0 +1,27 @@
+/* src/index.css */
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #000;
+  color: #0ff; /* Cyan */
+  font-family: monospace;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  overflow: hidden;
+  touch-action: none; /* Prevent default touch actions like scrolling */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+canvas {
+  display: block;
+  background-color: #000;
+  image-rendering: pixelated; /* Maintain sharp pixels */
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+/* Style moved to CoordinatesDisplay component */
+/* #coordinates { ... } */
