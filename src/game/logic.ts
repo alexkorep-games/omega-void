@@ -227,39 +227,39 @@ function handleCollisions(state: IGameState): {
   };
 }
 
-/**
- * The main update function for the game state.
- * Takes the current state, input, world manager, delta time, and current time.
- * Returns the new game state.
- */
-export function updateGameStateLogic( // Renamed to avoid conflict if imported directly
+export function updateGameStateLogic(
   currentState: IGameState,
-  touchState: ITouchState | undefined, // Touch state is optional now
+  touchState: ITouchState | undefined,
   worldManager: InfiniteWorldManager,
   deltaTime: number,
-  now: number,
-  actions: {
-    // Pass actions from useGameState
-    initiateDocking: (stationId: string) => void;
-    completeDocking: () => void;
-    completeUndocking: () => void;
-  }
+  now: number
 ): IGameState {
   let newState = { ...currentState }; // Start with a copy
 
   // --- Handle Animations ---
   if (newState.gameView === "docking" || newState.gameView === "undocking") {
-    newState.animationState.progress += deltaTime;
-    if (newState.animationState.progress >= newState.animationState.duration) {
-      if (newState.gameView === "docking") {
-        actions.completeDocking();
-      } else {
-        actions.completeUndocking();
+    // Ensure animationState exists and is not null type before incrementing
+    if (newState.animationState.type) {
+      newState.animationState = {
+        ...newState.animationState,
+        progress: newState.animationState.progress + deltaTime,
+      };
+
+      if (
+        newState.animationState.progress >= newState.animationState.duration
+      ) {
+        // Animation finished: Signal completion by setting type to null
+        console.log(`Logic: ${newState.gameView} animation finished.`);
+        newState.animationState = {
+          ...newState.animationState,
+          type: null,
+          progress: 0,
+        };
+        // Crucially, DO NOT change gameView here. Let the hook handle it.
+        return newState; // Return state indicating animation ended
       }
-
-      return newState;
     }
-
+    // If animation is running but not finished, return state with updated progress
     return newState;
   }
 
@@ -346,21 +346,30 @@ export function updateGameStateLogic( // Renamed to avoid conflict if imported d
 
     // 8. Handle Collisions & Docking Check
     const collisionResult = handleCollisions(newState);
-    newState = collisionResult.newState; // Update state based on collisions (pushback etc.)
+    newState = collisionResult.newState; // Apply pushback etc.
 
+    // Check if docking was triggered by collision logic
     if (collisionResult.dockingTriggerStationId) {
-      // Call the action provided by the hook to change the game state
-      actions.initiateDocking(collisionResult.dockingTriggerStationId);
-      // Return the state *before* the docking animation starts.
-      // The hook's setState will trigger the re-render with the 'docking' view.
-      // Modify state directly to reflect docking start immediately
-      newState.gameView = "docking";
+      // Signal intent to dock by setting the ID. Keep view as 'playing'.
+      console.log(
+        `Logic: Docking collision detected for ${collisionResult.dockingTriggerStationId}`
+      );
       newState.dockingStationId = collisionResult.dockingTriggerStationId;
-      newState.animationState = {
-        type: "docking",
-        progress: 0,
-        duration: 1500,
-      }; // Reset animation
+      // Ensure player velocity is stopped *immediately* in the logic state
+      if (newState.player instanceof Player) {
+        newState.player.vx = 0;
+        newState.player.vy = 0;
+      } else {
+        // If player is not an instance, create a new one with stopped velocity
+        newState.player = new Player(newState.player.x, newState.player.y);
+        newState.player.angle = currentState.player.angle; // Preserve angle
+        newState.player.vx = 0;
+        newState.player.vy = 0;
+        console.warn(
+          "Player object was not an instance during docking collision check. Recreated."
+        );
+      }
+      // Return the state signalling the *start* of docking process
       return newState;
     }
 
