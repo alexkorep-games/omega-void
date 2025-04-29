@@ -4,8 +4,39 @@ import { Player } from "./entities/Player";
 import { Enemy } from "./entities/Enemy";
 import { Projectile } from "./entities/Projectile";
 import { InfiniteWorldManager } from "./world/InfiniteWorldManager";
+// Removed pointToLineSegmentDistance and rotatePoint as they are not needed for this approach
 import { distance } from "../utils/geometry";
 import * as C from "./config"; // Use C for brevity
+
+// --- Constants for Hexagon Docking ---
+// A hexagon side spans 60 degrees (PI / 3 radians).
+// We'll define the "entrance" as the side centered around the station's local "up" direction.
+// Assuming local "up" is -PI/2 relative to the station's angle=0 (pointing right),
+// the entrance spans +/- 30 degrees (PI / 6 radians) around -PI/2.
+const DOCKING_ENTRANCE_CENTER_ANGLE = -Math.PI / 2; // Station's local "up" direction
+const DOCKING_ENTRANCE_HALF_SPAN = Math.PI / 6; // +/- 30 degrees tolerance
+const DOCKING_MIN_RELATIVE_ANGLE =
+  DOCKING_ENTRANCE_CENTER_ANGLE - DOCKING_ENTRANCE_HALF_SPAN; // -2*PI/3 or -120 deg
+const DOCKING_MAX_RELATIVE_ANGLE =
+  DOCKING_ENTRANCE_CENTER_ANGLE + DOCKING_ENTRANCE_HALF_SPAN; // -PI/3 or -60 deg
+
+/**
+ * Normalizes an angle to the range [-PI, PI].
+ * @param angle Angle in radians.
+ * @returns Angle normalized to [-PI, PI].
+ */
+function normalizeAngle(angle: number): number {
+  // First wrap to [0, 2*PI]
+  angle = angle % (2 * Math.PI);
+  if (angle < 0) {
+    angle += 2 * Math.PI;
+  }
+  // Then shift to [-PI, PI]
+  if (angle > Math.PI) {
+    angle -= 2 * Math.PI;
+  }
+  return angle;
+}
 
 /**
  * Creates a new player instance, potentially loading position.
@@ -118,40 +149,74 @@ function handleCollisions(state: IGameState): {
   // Player vs Station (Check for Docking or Pushback)
   for (const bgObj of state.visibleBackgroundObjects) {
     if (bgObj.type === "station") {
-      const dist = distance(
-        playerInstance.x,
-        playerInstance.y,
-        bgObj.x,
-        bgObj.y
-      );
-      const dockThreshold = playerInstance.radius + bgObj.radius * 1.2; // Closer threshold for docking
-      const pushbackThreshold = playerInstance.radius + bgObj.radius;
+      const station = bgObj as IStation;
+      const player = playerInstance;
 
-      // Check for docking first
-      if (dist < dockThreshold) {
-        console.log("Close enough to dock with station:", bgObj.id);
-        dockingTriggerStationId = bgObj.id; // Signal to initiate docking
-        // Stop player movement immediately upon docking trigger
-        playerInstance.vx = 0;
-        playerInstance.vy = 0;
-        break; // Only dock with one station at a time
-      }
-      // If not docking, check for pushback collision
-      else if (dist < pushbackThreshold) {
-        const angle = Math.atan2(
-          playerInstance.y - bgObj.y,
-          playerInstance.x - bgObj.x
+      const distToCenter = distance(player.x, player.y, station.x, station.y);
+
+      // --- Define Thresholds ---
+      // Player must be close enough to consider docking or pushback
+      const interactionDistanceThreshold = player.radius + station.radius + 10; // Allow a small approach buffer
+      // Threshold for pushback (actual overlap)
+      const pushbackThreshold = player.radius + station.radius;
+
+      if (distToCenter < interactionDistanceThreshold) {
+        // --- Calculate Approach Angle ---
+        const dxPlayerToStation = station.x - player.x;
+        const dyPlayerToStation = station.y - player.y;
+        const worldApproachAngle = Math.atan2(
+          dyPlayerToStation,
+          dxPlayerToStation
         );
-        const overlap = pushbackThreshold - dist;
-        playerInstance.x += Math.cos(angle) * (overlap + 0.5); // Nudge factor
-        playerInstance.y += Math.sin(angle) * (overlap + 0.5);
-        playerInstance.vx = 0;
-        playerInstance.vy = 0;
-        console.log("Collision (pushback) with station!");
-        // Don't break here, could potentially push back from multiple if overlapping weirdly
-      }
-    }
-  }
+
+        // --- Adjust for Station Rotation ---
+        const relativeApproachAngleRaw = worldApproachAngle - station.angle;
+        const relativeApproachAngle = normalizeAngle(relativeApproachAngleRaw); // Normalize to [-PI, PI]
+
+        // --- Check Docking Condition (Distance + Angle) ---
+        const isAngleCorrectForDocking =
+          relativeApproachAngle >= DOCKING_MIN_RELATIVE_ANGLE &&
+          relativeApproachAngle <= DOCKING_MAX_RELATIVE_ANGLE;
+
+        if (isAngleCorrectForDocking) {
+          // Use a slightly tighter distance check for actual docking commitment
+          const dockingCommitDistance = player.radius + station.radius * 1.2; // Needs to be closer to the center when angle is right
+          if (distToCenter < dockingCommitDistance) {
+            console.log(
+              `Docking angle OK (${relativeApproachAngle.toFixed(
+                2
+              )} rad) & distance OK (${distToCenter.toFixed(
+                1
+              )}). Docking with ${station.id}`
+            );
+            dockingTriggerStationId = station.id; // Signal to initiate docking
+            player.vx = 0; // Stop player movement
+            player.vy = 0;
+            break; // Only dock with one station
+          } else {
+            // Optional: Log if angle is right but too far
+            // console.log(`Docking angle OK (${relativeApproachAngle.toFixed(2)}) but too far (${distToCenter.toFixed(1)})`);
+          }
+        }
+
+        // --- Check for Pushback Collision (If not docking and overlapping) ---
+        // This happens if the angle wasn't right for docking OR if the angle was right but player wasn't close enough for commitment,
+        // AND the player is physically overlapping the station radius.
+        if (!dockingTriggerStationId && distToCenter < pushbackThreshold) {
+          const pushAngle = Math.atan2(
+            player.y - station.y,
+            player.x - station.x
+          ); // Angle from station *to* player
+          const overlap = pushbackThreshold - distToCenter;
+          player.x += Math.cos(pushAngle) * (overlap + 0.5); // Nudge factor
+          player.y += Math.sin(pushAngle) * (overlap + 0.5);
+          player.vx = 0; // Stop movement from collision
+          player.vy = 0;
+          // console.log("Collision (pushback) with station body!");
+        }
+      } // End distance check
+    } // End if station
+  } // End loop through background objects
 
   // Return new state and docking trigger
   return {
