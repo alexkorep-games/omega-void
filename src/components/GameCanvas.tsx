@@ -36,14 +36,6 @@ const canvasStyleBase: React.CSSProperties = {
   zIndex: 1,
 };
 
-// --- Easing Functions ---
-function easeOutQuad(t: number): number {
-  return t * (2 - t);
-}
-function easeInQuad(t: number): number {
-  return t * t;
-}
-
 // --- Main GameCanvas Component ---
 const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
   const stageStyle: React.CSSProperties = {
