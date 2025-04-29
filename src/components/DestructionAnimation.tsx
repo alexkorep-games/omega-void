@@ -40,9 +40,8 @@ const overlayStyle: React.CSSProperties = {
 
 const lineBaseStyle: React.CSSProperties = {
   position: "absolute",
-  transformOrigin: "center left",
+  transformOrigin: "center right",
   opacity: 1,
-  // Transitions will be added dynamically
 };
 
 const DestructionAnimation: React.FC<DestructionAnimationProps> = ({
@@ -115,18 +114,16 @@ const DestructionAnimation: React.FC<DestructionAnimationProps> = ({
           width: `${p.length}px`,
           height: `${p.thickness}px`,
           backgroundColor: color,
-          transform: `rotate(${p.initialRotation}deg) translateX(0px)`,
+          transform: `translate(-50%, -50%) rotate(${p.initialRotation}deg) translateX(0px)`,
           opacity: 1,
-          // Transition definition MUST be part of the style object itself
           transition: `transform ${p.duration}ms ease-out ${p.delay}ms, opacity ${p.duration}ms ease-in ${p.delay}ms`,
         };
 
         // Define final style object
         const finalStyle: React.CSSProperties = {
           ...initialStyle, // Base it on initial style
-          transform: `rotate(${finalRotation}deg) translateX(${p.finalDistance}px)`,
+          transform: `translate(-50%, -50%) rotate(${finalRotation}deg) translateX(${p.finalDistance}px)`,
           opacity: 0,
-          // Transition definition is inherited from initialStyle
         };
 
         // Render the Particle component, passing the styles
