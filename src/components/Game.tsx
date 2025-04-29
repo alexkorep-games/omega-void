@@ -3,18 +3,18 @@ import SettingsMenu from "./SettingsMenu";
 import React, { useRef, useCallback, useEffect } from "react";
 import GameCanvas from "./GameCanvas";
 import CoordinatesDisplay from "./CoordinatesDisplay";
-// import StationScreen from "./StationScreen"; // No longer needed directly here
 import DockingAnimation from "./DockingAnimation";
 import DestructionAnimation from "./DestructionAnimation"; // Import new component
-import BuyCargoScreen from "./BuyCargoScreen"; // Import Buy screen
-import SellCargoScreen from "./SellCargoScreen"; // Import Sell screen
-import StationInfoScreen from "./StationInfoScreen"; // Import Station Info screen
-import BottomToolbar from "./BottomToolbar"; // Import Toolbar
+import BuyCargoScreen from "./BuyCargoScreen";
+import SellCargoScreen from "./SellCargoScreen";
+import StationInfoScreen from "./StationInfoScreen";
+import BottomToolbar from "./BottomToolbar";
 import { useGameState } from "../hooks/useGameState";
 import { useGameLoop } from "../hooks/useGameLoop";
 import { useTouchInput } from "../hooks/useTouchInput";
 import TradeScreen from "./TradeScreen";
 import ChatScreen from "./ChatScreen";
+import * as C from "../game/config"; // Import config for colors/sizes
 
 const Game: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -60,13 +60,12 @@ const Game: React.FC = () => {
     (gameState.gameView === "playing" ||
       gameState.gameView === "docking" ||
       gameState.gameView === "undocking" ||
-      gameState.gameView === "destroyed"); // Keep loop for destroyed timer/animation
+      gameState.gameView === "destroyed"); // Keep loop for destroyed timer/animation logic
 
   useGameLoop(gameLoopUpdate, isLoopRunning);
 
   // --- Determine which docked UI component to show ---
   const renderDockedUI = () => {
-    // console.log(`Rendering UI for game view: ${gameState.gameView}`); // Less noisy log
     switch (gameState.gameView) {
       case "buy_cargo":
         return <BuyCargoScreen />;
@@ -106,12 +105,28 @@ const Game: React.FC = () => {
     gameState.gameView === "trade_select" ||
     gameState.gameView === "chat_log";
 
+  // --- Define Destruction Animation Parameters ---
+  const playerDestroyParams = {
+    particleCount: 60,
+    maxDistance: 120,
+    duration: 1200,
+    particleLength: 10,
+    particleThickness: 2,
+  };
+  const enemyDestroyParams = {
+    particleCount: 25,
+    maxDistance: 50,
+    duration: 800,
+    particleLength: 6,
+    particleThickness: 1.5,
+  };
+
   return (
     <div className="GameContainer">
       <SettingsMenu />
 
-      {/* Game Canvas (only visible when playing) */}
-      <GameCanvas // Pass destruction state? No, drawing handles view.
+      {/* Game Canvas (visible when playing or destroyed) */}
+      <GameCanvas
         gameState={gameState}
         touchState={touchState}
         canvasRef={canvasRef}
@@ -128,7 +143,6 @@ const Game: React.FC = () => {
         isInitialized && (
           <DockingAnimation
             type={gameState.gameView}
-            // Ensure division by zero is avoided if duration is 0 (shouldn't happen)
             progress={
               gameState.animationState.duration > 0
                 ? gameState.animationState.progress /
@@ -138,15 +152,44 @@ const Game: React.FC = () => {
           />
         )}
 
-      {/* Destruction Animation Overlay */}
-      {gameState.gameView === "destroyed" && isInitialized && (
-        <DestructionAnimation
-          x={gameState.player.x - gameState.camera.x} // Pass screen coordinates
-          y={gameState.player.y - gameState.camera.y}
-          // Pass relative progress of the respawn timer
-          progress={Math.max(0, 1 - gameState.respawnTimer / 3000)} // 3000ms respawn time
-        />
-      )}
+      {/* Player Destruction Animation (Shown during 'destroyed' view) */}
+      {gameState.gameView === "destroyed" &&
+        isInitialized &&
+        gameState.player && (
+          <DestructionAnimation
+            key={`player-destroy-${gameState.player.id}`} // Key ensures it re-mounts if player ID changes (unlikely but good practice)
+            x={gameState.player.x - gameState.camera.x} // Screen coordinates
+            y={gameState.player.y - gameState.camera.y}
+            color={gameState.player.color || C.PLAYER_COLOR}
+            particleCount={playerDestroyParams.particleCount}
+            maxDistance={playerDestroyParams.maxDistance}
+            duration={playerDestroyParams.duration}
+            particleLength={playerDestroyParams.particleLength}
+            particleThickness={playerDestroyParams.particleThickness}
+            // onComplete is not needed as the view change handles disappearance
+          />
+        )}
+
+      {/* Temporary Destruction Animations (Enemies, etc.) */}
+      {isInitialized &&
+        gameState.activeDestructionAnimations.map((anim) => {
+          const params =
+            anim.size === "large" ? playerDestroyParams : enemyDestroyParams;
+          return (
+            <DestructionAnimation
+              key={anim.id} // Use unique ID from state
+              x={anim.x - gameState.camera.x} // Use world coords from anim data
+              y={anim.y - gameState.camera.y}
+              color={anim.color}
+              particleCount={params.particleCount}
+              maxDistance={params.maxDistance}
+              duration={params.duration}
+              particleLength={params.particleLength}
+              particleThickness={params.particleThickness}
+              // onComplete could trigger removal from state, but logic handles it based on time
+            />
+          );
+        })}
 
       {/* Docked Screens (Buy/Sell, Info, Trade Select, Chat) */}
       {showDockedUI && isInitialized && renderDockedUI()}

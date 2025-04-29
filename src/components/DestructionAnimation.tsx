@@ -1,146 +1,143 @@
 // src/components/DestructionAnimation.tsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
+import Particle from "./Particle"; // Import the new component
 
-interface DestructionAnimationProps {
-  x: number; // Screen X coordinate
-  y: number; // Screen Y coordinate
-  progress: number; // Animation progress (0 to 1)
+// --- Interfaces (ParticleState, DestructionAnimationProps) remain the same ---
+interface ParticleState {
+  id: number;
+  delay: number;
+  duration: number;
+  finalAngle: number;
+  finalDistance: number;
+  initialRotation: number;
+  rotationSpeed: number;
+  length: number;
+  thickness: number;
 }
 
+interface DestructionAnimationProps {
+  x: number;
+  y: number;
+  color: string;
+  particleCount?: number;
+  maxDistance?: number;
+  duration?: number;
+  particleLength?: number;
+  particleThickness?: number;
+  onComplete?: () => void;
+}
+// --- Styles (overlayStyle, lineBaseStyle) remain the same ---
 const overlayStyle: React.CSSProperties = {
   position: "fixed",
   top: 0,
   left: 0,
   width: "100vw",
-  height: "100dvh", // Use dynamic viewport height
-  pointerEvents: "none", // Allow clicks through
-  zIndex: 25, // Above game canvas, below docking animation maybe
+  height: "100dvh",
+  pointerEvents: "none",
+  zIndex: 25,
   overflow: "hidden",
 };
 
-const explosionBaseStyle: React.CSSProperties = {
+const lineBaseStyle: React.CSSProperties = {
   position: "absolute",
-  borderRadius: "50%",
-  background:
-    "radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,200,0,0.6) 40%, rgba(255,100,0,0.3) 70%, rgba(255,0,0,0.0) 100%)",
-  transformOrigin: "center center",
-  opacity: 0,
-};
-
-const particleBaseStyle: React.CSSProperties = {
-  position: "absolute",
-  width: "3px",
-  height: "3px",
-  background: `rgba(255, 255, ${Math.random() * 155 + 100}, ${
-    0.5 + Math.random() * 0.5
-  })`, // Yellow/White sparks
-  borderRadius: "50%",
-  transformOrigin: "center center",
-  opacity: 0,
+  transformOrigin: "center left",
+  opacity: 1,
+  // Transitions will be added dynamically
 };
 
 const DestructionAnimation: React.FC<DestructionAnimationProps> = ({
   x,
   y,
-  progress,
+  color,
+  particleCount = 40,
+  maxDistance = 100,
+  duration = 800,
+  particleLength = 8,
+  particleThickness = 1.5,
+  onComplete,
 }) => {
-  const [particles, setParticles] = useState<React.CSSProperties[]>([]);
+  const [particles, setParticles] = useState<ParticleState[]>([]);
+  const [isVisible, setIsVisible] = useState(true);
+  const timeoutRef = useRef<number | null>(null);
 
-  // Generate particles once
+  // Generate particle configurations (this useEffect remains the same)
   useEffect(() => {
-    const newParticles: React.CSSProperties[] = [];
-    const numParticles = 50;
-    for (let i = 0; i < numParticles; i++) {
-      // const angle = Math.random() * Math.PI * 2; // Angle moved to render calculation
-      // const dist = Math.random() * 80 + 20; // Distance moved to render calculation
-      const duration = 0.5 + Math.random() * 0.5; // Random duration
-      const delay = Math.random() * 0.2; // Staggered start
+    const newParticles: ParticleState[] = [];
+    for (let i = 0; i < particleCount; i++) {
+      const delay = Math.random() * (duration * 0.2);
+      const animDuration = duration * (0.7 + Math.random() * 0.3);
+
       newParticles.push({
-        ...particleBaseStyle,
-        transition: `all ${duration}s ease-out ${delay}s`,
+        id: i,
+        delay: delay,
+        duration: animDuration,
+        finalAngle: Math.random() * 360,
+        finalDistance: maxDistance * (0.5 + Math.random() * 0.5),
+        initialRotation: Math.random() * 360,
+        rotationSpeed: (Math.random() - 0.5) * 720,
+        length: particleLength * (0.8 + Math.random() * 0.4),
+        thickness: particleThickness * (0.8 + Math.random() * 0.4),
       });
     }
     setParticles(newParticles);
-  }, []); // Empty dependency array ensures this runs only once
 
-  const explosionSize = 100 + progress * 150; // Grows
-  const explosionOpacity = Math.max(0, 1 - progress * 1.5); // Fades out
+    timeoutRef.current = window.setTimeout(() => {
+      setIsVisible(false);
+      if (onComplete) {
+        onComplete();
+      }
+    }, duration + 100);
 
-  const explosionStyle: React.CSSProperties = {
-    ...explosionBaseStyle,
-    left: `${x}px`,
-    top: `${y}px`,
-    width: `${explosionSize}px`,
-    height: `${explosionSize}px`,
-    transform: `translate(-50%, -50%) scale(${1 + progress * 0.5})`, // Slight scale effect
-    opacity: explosionOpacity,
-    transition:
-      "opacity 0.5s ease-out, transform 0.5s ease-out, width 0.5s ease-out, height 0.5s ease-out",
-  };
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Style for white flash overlay
-  const flashOpacity = Math.max(
-    0,
-    Math.sin(progress * Math.PI * 2) * 0.5 * (1 - progress)
-  ); // Quick flash at start
-  const flashStyle: React.CSSProperties = {
-    position: "fixed",
-    top: 0,
-    left: 0,
-    width: "100%",
-    height: "100%",
-    background: "rgba(255, 255, 255, 1)",
-    opacity: flashOpacity,
-    zIndex: 26, // Above explosion
-    pointerEvents: "none",
-    mixBlendMode: "screen", // Blend mode for flash effect
-    transition: "opacity 0.1s ease-out",
-  };
+  if (!isVisible) {
+    return null;
+  }
 
   return (
     <div style={overlayStyle}>
-      {/* White Flash */}
-      <div style={flashStyle}></div>
+      {particles.map((p) => {
+        // Calculate final rotation
+        const finalRotation =
+          p.initialRotation + (p.rotationSpeed * p.duration) / 1000;
 
-      {/* Main Explosion Core */}
-      <div style={explosionStyle}></div>
-
-      {/* Particles */}
-      {particles.map((style, index) => {
-        const angle =
-          (index / particles.length) * Math.PI * 2 +
-          (Math.random() - 0.5) * 0.5;
-        const distance = 20 + progress * (100 + Math.random() * 50); // Particles fly outwards
-        const particleOpacity = Math.max(0, 1 - progress * 2); // Fade faster
-
-        const finalStyle: React.CSSProperties = {
-          ...style, // Base style with transition
-          left: `${x + Math.cos(angle) * distance}px`,
-          top: `${y + Math.sin(angle) * distance}px`,
-          transform: `translate(-50%, -50%) scale(${1 - progress})`, // Shrink slightly
-          opacity: particleOpacity,
+        // Define initial style object
+        const initialStyle: React.CSSProperties = {
+          ...lineBaseStyle,
+          left: `${x}px`,
+          top: `${y}px`,
+          width: `${p.length}px`,
+          height: `${p.thickness}px`,
+          backgroundColor: color,
+          transform: `rotate(${p.initialRotation}deg) translateX(0px)`,
+          opacity: 1,
+          // Transition definition MUST be part of the style object itself
+          transition: `transform ${p.duration}ms ease-out ${p.delay}ms, opacity ${p.duration}ms ease-in ${p.delay}ms`,
         };
-        return <div key={index} style={finalStyle}></div>;
-      })}
 
-      {/* Optional: Respawn Text */}
-      {progress > 0.8 && (
-        <div
-          style={{
-            position: "absolute",
-            bottom: "10%",
-            left: "50%",
-            transform: "translateX(-50%)",
-            color: "#FF5555",
-            fontSize: "18px",
-            fontFamily: "monospace",
-            textShadow: "0 0 5px #FF0000",
-            opacity: (progress - 0.8) / 0.2, // Fade in text at the end
-          }}
-        >
-          SYSTEM FAILURE - REINITIALIZING...
-        </div>
-      )}
+        // Define final style object
+        const finalStyle: React.CSSProperties = {
+          ...initialStyle, // Base it on initial style
+          transform: `rotate(${finalRotation}deg) translateX(${p.finalDistance}px)`,
+          opacity: 0,
+          // Transition definition is inherited from initialStyle
+        };
+
+        // Render the Particle component, passing the styles
+        return (
+          <Particle
+            key={p.id}
+            initialStyle={initialStyle}
+            finalStyle={finalStyle}
+          />
+        );
+      })}
     </div>
   );
 };

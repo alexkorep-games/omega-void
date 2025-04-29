@@ -118,7 +118,7 @@ export type GameView =
   | "sell_cargo"
   | "station_info"
   | "trade_select" // Selection screen (Buy/Sell/Replenish)
-  | "destroyed" // Player ship destroyed state
+  | "destroyed" // Player ship destroyed state (just the view, animation handled separately now)
   | "chat_log";
 
 // Animation State
@@ -126,6 +126,16 @@ export interface IAnimationState {
   type: "docking" | "undocking" | null;
   progress: number; // ms elapsed
   duration: number; // ms total duration
+}
+
+// Destruction Animation Data
+export interface DestructionAnimationData {
+  id: string; // Unique ID for the animation instance
+  x: number; // World X coordinate
+  y: number; // World Y coordinate
+  color: string;
+  size: "small" | "large"; // To control particle count/distance etc.
+  startTime: number; // performance.now() timestamp when created
 }
 
 // Game State
@@ -150,6 +160,8 @@ export interface IGameState {
   cargoHold: Map<string, number>; // Commodity Key -> Quantity Held
   cargoCapacity: number; // Max tonnes
   market: MarketSnapshot | null; // Current market data when docked
+  // --- Added for temporary destruction animations ---
+  activeDestructionAnimations: DestructionAnimationData[];
 }
 
 // World Manager Config (matches the class constructor)

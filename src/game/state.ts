@@ -1,5 +1,10 @@
 // src/game/state.ts
-import { IGameState, IPlayer, ITouchState } from "./types";
+import {
+  IGameState,
+  IPlayer,
+  ITouchState,
+  DestructionAnimationData,
+} from "./types"; // Added DestructionAnimationData
 import { Player } from "./entities/Player";
 import {
   GAME_WIDTH,
@@ -48,6 +53,8 @@ export const initialGameState: IGameState = {
   respawnTimer: 0, // Timer for respawn delay
   isInitialized: false,
   market: null, // No market data initially
+  // Destruction animations
+  activeDestructionAnimations: [], // Initialize as empty array
 };
 
 // updateCamera function remains the same
