@@ -116,7 +116,8 @@ export type GameView =
   | "buy_cargo"
   | "sell_cargo"
   | "station_info"
-  | "trade_select";
+  | "trade_select"
+  | "chat_log";
 
 // Animation State
 export interface IAnimationState {
@@ -170,3 +171,10 @@ export interface IWorldManagerConfig {
 
 // Update function signature used in useGameLoop
 export type UpdateCallback = (deltaTime: number, now: number) => void;
+
+// --- Chat ---
+export interface ChatMessage {
+  id: string | number;
+  sender: "user" | "ai";
+  text: string;
+}

@@ -12,6 +12,7 @@ import { useGameState } from "../hooks/useGameState";
 import { useGameLoop } from "../hooks/useGameLoop";
 import { useTouchInput } from "../hooks/useTouchInput";
 import TradeScreen from "./TradeScreen";
+import ChatScreen from "./ChatScreen";
 
 const Game: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -121,6 +122,23 @@ const Game: React.FC = () => {
             }
           />
         )}
+
+      {gameState.gameView === "chat_log" && isInitialized && (
+        <ChatScreen
+          messages={[
+            {
+              id: 1,
+              sender: "user",
+              text: "Hello, this is a test message.",
+            },
+            {
+              id: 2,
+              sender: "ai",
+              text: "Hello, how can I assist you today?",
+            },
+          ]}
+        />
+      )}
 
       {/* Docked Screens (Buy/Sell, etc.) */}
       {showDockedUI && isInitialized && renderDockedUI()}

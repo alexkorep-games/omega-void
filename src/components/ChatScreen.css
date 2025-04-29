@@ -1,0 +1,97 @@
+/* src/components/ChatScreen.css */
+
+/* Inherit general layout and variables from Market.css */
+.chat-screen {
+  border: 2px solid #00ffff; /* Cyan border */
+  background-color: rgba(0, 15, 30, 0.9); /* Dark blue background */
+  /* Uses padding/flex from .market-container */
+}
+
+.chat-header {
+  /* Uses styles from .market-header */
+  flex-shrink: 0; /* Prevent header from shrinking */
+}
+
+.chat-messages-area {
+  flex-grow: 1; /* Take remaining vertical space */
+  overflow-y: auto; /* Enable scrolling */
+  padding: 10px 5px 10px 15px; /* Add some padding (more left for AI messages) */
+  display: flex;
+  flex-direction: column;
+  gap: 12px; /* Space between messages */
+
+  /* Custom Scrollbar (borrowed from Market.css) */
+  scrollbar-width: thin;
+  scrollbar-color: #00ffff rgba(0, 10, 20, 0.9); /* Cyan on dark blue */
+}
+
+/* Webkit Scrollbar */
+.chat-messages-area::-webkit-scrollbar {
+  width: 8px;
+}
+.chat-messages-area::-webkit-scrollbar-track {
+  background: rgba(0, 10, 20, 0.9); /* Dark background */
+}
+.chat-messages-area::-webkit-scrollbar-thumb {
+  background-color: #00ffff; /* Cyan thumb */
+  border-radius: 4px;
+  border: 1px solid #008888; /* Dim cyan border */
+}
+
+.chat-message {
+  padding: 8px 12px;
+  border-radius: 8px;
+  max-width: 80%; /* Prevent messages taking full width */
+  word-wrap: break-word; /* Wrap long words */
+  line-height: 1.5;
+  font-size: 0.95em; /* Slightly smaller than base */
+  position: relative; /* For potential future absolute elements like timestamps */
+}
+
+/* AI/System Messages */
+.ai-message {
+  background-color: rgba(0, 80, 80, 0.7); /* Dim cyan background */
+  color: #e0ffff; /* Very light cyan text */
+  border: 1px solid rgba(0, 120, 120, 0.8);
+  align-self: flex-start; /* Align to the left */
+  margin-right: auto; /* Push away from the right */
+  border-top-left-radius: 0; /* Style like common chat bubbles */
+}
+
+/* User Messages */
+.user-message {
+  background-color: rgba(0, 50, 100, 0.8); /* Slightly different blue */
+  color: #cceeff; /* Lighter blue text */
+  border: 1px solid rgba(0, 100, 150, 0.9);
+  align-self: flex-end; /* Align to the right */
+  margin-left: auto; /* Push away from the left */
+  border-top-right-radius: 0; /* Style like common chat bubbles */
+}
+
+.chat-empty-message {
+  text-align: center;
+  color: #668888; /* Dimmer color */
+  margin-top: 30px;
+  font-style: italic;
+}
+
+/* Optional: Styling for sender labels if added */
+/*
+.message-sender-label {
+    display: block;
+    font-size: 0.75em;
+    color: #88aaaa;
+    margin-top: 4px;
+    text-align: right;
+}
+.ai-message .message-sender-label {
+    text-align: left;
+}
+*/
+
+/* Optional Footer styles */
+/*
+.chat-footer {
+    flex-shrink: 0;
+}
+*/

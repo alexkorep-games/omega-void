@@ -64,13 +64,22 @@ const BottomToolbar: React.FC = () => {
     targetView: GameView;
     action?: () => void;
   }> = [
-    { label: "Trade", targetView: "trade_select", action: () => setGameView("trade_select") },
+    {
+      label: "Trade",
+      targetView: "trade_select",
+      action: () => setGameView("trade_select"),
+    },
     { label: "Undock", targetView: "undocking", action: initiateUndocking },
     { label: "Info", targetView: "station_info" },
     {
       label: "New Game",
       targetView: "undocking",
       action: handleNewGameClick,
+    },
+    {
+      label: "Messages",
+      targetView: "chat_log",
+      action: () => setGameView("chat_log"),
     },
   ];
 
@@ -80,6 +89,7 @@ const BottomToolbar: React.FC = () => {
     "buy_cargo",
     "sell_cargo",
     "station_info",
+    "chat_log",
   ];
 
   // Only render if the current gameView is one where the toolbar should be visible
