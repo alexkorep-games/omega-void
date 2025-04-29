@@ -1,46 +1,107 @@
+/* src/hooks/useTouchInput.ts */
 // src/hooks/useTouchInput.ts
 import { useState, useCallback, useEffect, RefObject } from "react";
 import { ITouchState } from "../game/types";
 import { initialTouchState } from "../game/state";
-import { GAME_WIDTH, GAME_VIEW_HEIGHT } from "../game/config";
+import { GAME_WIDTH, GAME_VIEW_HEIGHT, GAME_HEIGHT } from "../game/config";
 
 type UseTouchStateResult = {
   touchState: ITouchState;
   resetTouchState: () => void;
 };
 
+// Helper function to check if an element or its ancestor is a button
+function isEventTargetButton(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) {
+    return false;
+  }
+  // Check for button or any element with pointer-events: auto (like toolbar buttons)
+  // or specific classes if needed. Let's stick to buttons for now.
+  return target.closest("button") !== null;
+}
+
 /**
  * Hook to manage touch input state for the game canvas.
- * @param canvasRef - Ref object pointing to the HTMLCanvasElement.
+ * Attaches listeners to the container element.
+ * @param containerRef - Ref object pointing to the Container DIV holding the Konva Stage.
  * @returns The current ITouchState.
  */
 export function useTouchInput(
-  canvasRef: RefObject<HTMLCanvasElement | null>
+  containerRef: RefObject<HTMLDivElement | null> // Changed from CanvasElement to DivElement
 ): UseTouchStateResult {
   const [touchState, setTouchState] = useState<ITouchState>(initialTouchState);
 
   const resetTouchState = useCallback(() => {
-    console.log("Resetting touch state...");
+    // console.log("Resetting touch state..."); // Less noisy
     setTouchState(initialTouchState);
   }, []);
 
   const getTouchPosition = useCallback(
     (
       touch: Touch,
-      canvas: HTMLCanvasElement
+      container: HTMLDivElement // Changed from CanvasElement
     ): { x: number; y: number } | null => {
-      const rect = canvas.getBoundingClientRect();
-      // Important: Calculate coordinates relative to the canvas rendering size,
-      // not the potentially scaled display size.
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
-      const x = (touch.clientX - rect.left) * scaleX;
-      const y = (touch.clientY - rect.top) * scaleY;
+      const rect = container.getBoundingClientRect();
+      // Konva stage internal size is fixed (GAME_WIDTH, GAME_HEIGHT)
+      // We need to map client coordinates to the stage's coordinate system.
+      // This assumes the stage is scaled via CSS using 'object-fit: contain'
+      // within the container which uses flexbox centering.
+      const stageWidth = GAME_WIDTH;
+      const stageHeight = GAME_HEIGHT;
+      const containerWidth = rect.width;
+      const containerHeight = rect.height;
 
-      // Ignore touches outside the game area (or handle differently if needed)
-      // if (x < 0 || x > GAME_WIDTH || y < 0 || y > GAME_HEIGHT) {
-      //     return null;
-      // }
+      const stageAspectRatio = stageWidth / stageHeight;
+      const containerAspectRatio = containerWidth / containerHeight;
+
+      let displayedWidth, displayedHeight, displayedX, displayedY;
+
+      if (containerAspectRatio > stageAspectRatio) {
+        // Container is wider than stage aspect ratio (letterboxed top/bottom)
+        displayedHeight = containerHeight;
+        displayedWidth = displayedHeight * stageAspectRatio;
+        displayedX = rect.left + (containerWidth - displayedWidth) / 2;
+        displayedY = rect.top;
+      } else {
+        // Container is taller than stage aspect ratio (pillarboxed left/right)
+        displayedWidth = containerWidth;
+        displayedHeight = displayedWidth / stageAspectRatio;
+        displayedX = rect.left;
+        displayedY = rect.top + (containerHeight - displayedHeight) / 2;
+      }
+
+      // Check if touch is outside the displayed stage area
+      if (
+        touch.clientX < displayedX ||
+        touch.clientX > displayedX + displayedWidth ||
+        touch.clientY < displayedY ||
+        touch.clientY > displayedY + displayedHeight
+      ) {
+        // console.log("Touch outside displayed stage", {clientX: touch.clientX, clientY: touch.clientY, displayedX, displayedY, displayedWidth, displayedHeight});
+        return null; // Touch is outside the effective stage bounds
+      }
+
+      // Calculate coordinates relative to the displayed stage top-left
+      const relativeX = touch.clientX - displayedX;
+      const relativeY = touch.clientY - displayedY;
+
+      // Scale coordinates to the stage's internal resolution
+      const scaleX = stageWidth / displayedWidth;
+      const scaleY = stageHeight / displayedHeight;
+      const x = relativeX * scaleX;
+      const y = relativeY * scaleY;
+
+      // Ignore touches outside the logical game area (Konva stage coords)
+      // This might be redundant due to the check above, but acts as a safeguard.
+      if (x < 0 || x > GAME_WIDTH || y < 0 || y > GAME_HEIGHT) {
+        console.warn(
+          "Calculated touch position outside stage bounds, should be clipped earlier.",
+          { x, y }
+        );
+        return null;
+      }
+
+      // console.log("Mapped touch:", { x, y }); // Debug log
       return { x, y };
     },
     []
@@ -48,9 +109,17 @@ export function useTouchInput(
 
   const handleTouchStart = useCallback(
     (event: TouchEvent) => {
-      if (!canvasRef.current) return;
-      event.preventDefault(); // Prevent default actions like scrolling
-      const canvas = canvasRef.current;
+      if (!containerRef.current) return;
+      const container = containerRef.current;
+
+      // *** Check if the touch started on a button ***
+      if (isEventTargetButton(event.target)) {
+        // console.log("Touch started on a button, ignoring for game controls."); // Debug
+        return; // Do not interfere with button clicks
+      }
+
+      // *** If not on a button, proceed with game control logic ***
+      event.preventDefault(); // Prevent default actions like scrolling ONLY for game controls
       const touches = event.changedTouches;
 
       setTouchState((prevState) => {
@@ -58,8 +127,8 @@ export function useTouchInput(
 
         for (let i = 0; i < touches.length; i++) {
           const touch = touches[i];
-          const pos = getTouchPosition(touch, canvas);
-          if (!pos) continue; // Ignore touch if outside canvas bounds
+          const pos = getTouchPosition(touch, container);
+          if (!pos) continue; // Ignore touch if outside effective stage bounds
 
           // Movement touch (left side, below HUD)
           if (
@@ -67,6 +136,7 @@ export function useTouchInput(
             pos.y < GAME_VIEW_HEIGHT &&
             !newState.move.active
           ) {
+            // console.log("Touch Start: Move", pos, touch.identifier); // Debug
             newState.move = {
               active: true,
               id: touch.identifier,
@@ -82,62 +152,82 @@ export function useTouchInput(
             pos.y < GAME_VIEW_HEIGHT &&
             !newState.shoot.active
           ) {
+            // console.log("Touch Start: Shoot", pos, touch.identifier); // Debug
             newState.shoot = {
               active: true,
               id: touch.identifier,
               x: pos.x,
               y: pos.y,
             };
+          } else {
+            // console.log("Touch Start: Ignored (Area)", pos, touch.identifier); // Debug
           }
         }
         return newState; // Return the potentially updated state
       });
     },
-    [canvasRef, getTouchPosition]
+    [containerRef, getTouchPosition]
   );
 
   const handleTouchMove = useCallback(
     (event: TouchEvent) => {
-      if (!canvasRef.current) return;
-      event.preventDefault();
-      const canvas = canvasRef.current;
+      if (!containerRef.current) return;
+      const container = containerRef.current;
       const touches = event.changedTouches;
 
+      let preventDefaultCalled = false; // Track if preventDefault was called for this event
+
       setTouchState((prevState) => {
-        // Create a modifiable copy only if necessary
         let stateChanged = false;
         let nextMoveState = prevState.move;
         let nextShootState = prevState.shoot;
 
         for (let i = 0; i < touches.length; i++) {
           const touch = touches[i];
-          const pos = getTouchPosition(touch, canvas);
-          if (!pos) continue; // Skip if touch moved off canvas
+          const touchId = touch.identifier;
 
-          // Update movement touch position
-          if (prevState.move.active && touch.identifier === prevState.move.id) {
-            nextMoveState = {
-              ...prevState.move,
-              currentX: pos.x,
-              currentY: pos.y,
-            };
-            stateChanged = true;
-          }
-          // Update shooting touch position (only if still in game view)
-          else if (
-            prevState.shoot.active &&
-            touch.identifier === prevState.shoot.id
-          ) {
-            if (pos.y < GAME_VIEW_HEIGHT) {
-              nextShootState = { ...prevState.shoot, x: pos.x, y: pos.y };
+          // Check if this touch corresponds to an active game control
+          const isMoveTouch =
+            prevState.move.active && prevState.move.id === touchId;
+          const isShootTouch =
+            prevState.shoot.active && prevState.shoot.id === touchId;
+
+          if (isMoveTouch || isShootTouch) {
+            // Only prevent default if we are actually handling this touch for game control
+            if (!preventDefaultCalled) {
+              event.preventDefault();
+              preventDefaultCalled = true;
+            }
+
+            const pos = getTouchPosition(touch, container);
+            const touchIsOffStage = pos === null;
+
+            if (isMoveTouch) {
+              if (touchIsOffStage) {
+                nextMoveState = { ...initialTouchState.move };
+                // console.log("Move touch ended (finger off stage)"); // Debug
+              } else {
+                nextMoveState = {
+                  ...prevState.move,
+                  currentX: pos.x,
+                  currentY: pos.y,
+                };
+                // console.log("Touch Move: Move Update", { x: pos.x, y: pos.y }); // Debug
+              }
+              stateChanged = true;
+            } else if (isShootTouch) {
+              if (touchIsOffStage || (pos && pos.y >= GAME_VIEW_HEIGHT)) {
+                nextShootState = { ...initialTouchState.shoot };
+                // console.log("Shoot touch ended (finger off stage or in HUD)"); // Debug
+              } else {
+                // pos must exist here
+                nextShootState = { ...prevState.shoot, x: pos.x, y: pos.y };
+                // console.log("Touch Move: Shoot Update", { x: pos.x, y: pos.y }); // Debug
+              }
               stateChanged = true;
             }
-            // Optional: Handle finger sliding into HUD (e.g., deactivate shooting)
-            // else if (prevState.shoot.active && touch.identifier === prevState.shoot.id) {
-            //     nextShootState = { ...initialTouchState.shoot }; // Deactivate shooting
-            //     stateChanged = true;
-            // }
           }
+          // else: Touch move doesn't correspond to an active game control, ignore it.
         }
 
         // Only return a new state object if something actually changed
@@ -146,61 +236,79 @@ export function useTouchInput(
           : prevState;
       });
     },
-    [canvasRef, getTouchPosition]
+    [containerRef, getTouchPosition]
   );
 
   const handleTouchEnd = useCallback(
     (event: TouchEvent) => {
-      if (!canvasRef.current) return;
-      event.preventDefault();
+      if (!containerRef.current) return;
+
+      let preventDefaultCalled = false;
+
+      // Need to determine if the ending touch was a game touch *before* preventDefault
       const touches = event.changedTouches;
+      let nextState = touchState; // Start with current state
 
-      setTouchState((prevState) => {
-        let stateChanged = false;
-        let nextMoveState = prevState.move;
-        let nextShootState = prevState.shoot;
+      for (let i = 0; i < touches.length; i++) {
+        const touch = touches[i];
+        const touchId = touch.identifier;
 
-        for (let i = 0; i < touches.length; i++) {
-          const touch = touches[i];
-          if (prevState.move.active && touch.identifier === prevState.move.id) {
-            nextMoveState = { ...initialTouchState.move }; // Reset move state
-            stateChanged = true;
+        const isMoveTouch =
+          nextState.move.active && nextState.move.id === touchId;
+        const isShootTouch =
+          nextState.shoot.active && nextState.shoot.id === touchId;
+
+        if (isMoveTouch || isShootTouch) {
+          if (!preventDefaultCalled) {
+            event.preventDefault(); // Prevent default for the ended game touch
+            preventDefaultCalled = true;
           }
-          if (
-            prevState.shoot.active &&
-            touch.identifier === prevState.shoot.id
-          ) {
-            nextShootState = { ...initialTouchState.shoot }; // Reset shoot state
-            stateChanged = true;
-          }
+          // Update the state locally to reset the ended touch
+          nextState = {
+            ...nextState,
+            move: isMoveTouch ? { ...initialTouchState.move } : nextState.move,
+            shoot: isShootTouch
+              ? { ...initialTouchState.shoot }
+              : nextState.shoot,
+          };
         }
-        return stateChanged
-          ? { ...prevState, move: nextMoveState, shoot: nextShootState }
-          : prevState;
-      });
-    },
-    [canvasRef]
-  ); // No dependency on getTouchPosition here
+      }
 
-  const canvasElement = canvasRef?.current;
+      // Apply the accumulated state changes
+      if (nextState !== touchState) {
+        setTouchState(nextState);
+        // if (nextState.move.id === null) console.log("Move touch ended (touchend)"); // Debug
+        // if (nextState.shoot.id === null) console.log("Shoot touch ended (touchend)"); // Debug
+      }
+    },
+    [containerRef, touchState] // Depend on touchState to check active touches
+  );
+
+  const containerElement = containerRef?.current;
   useEffect(() => {
-    if (canvasElement) {
+    const currentElement = containerElement; // Capture ref value
+    if (currentElement) {
+      // console.log("Attaching touch listeners to container:", currentElement); // Debug
       // Use passive: false to allow preventDefault()
       const options = { passive: false };
-      canvasElement.addEventListener("touchstart", handleTouchStart, options);
-      canvasElement.addEventListener("touchmove", handleTouchMove, options);
-      canvasElement.addEventListener("touchend", handleTouchEnd, options);
-      canvasElement.addEventListener("touchcancel", handleTouchEnd, options); // Treat cancel same as end
+      currentElement.addEventListener("touchstart", handleTouchStart, options);
+      currentElement.addEventListener("touchmove", handleTouchMove, options);
+      currentElement.addEventListener("touchend", handleTouchEnd, options);
+      currentElement.addEventListener("touchcancel", handleTouchEnd, options); // Treat cancel same as end
 
       // Cleanup function
       return () => {
-        canvasElement.removeEventListener("touchstart", handleTouchStart);
-        canvasElement.removeEventListener("touchmove", handleTouchMove);
-        canvasElement.removeEventListener("touchend", handleTouchEnd);
-        canvasElement.removeEventListener("touchcancel", handleTouchEnd);
+        // console.log("Removing touch listeners from container:", currentElement); // Debug
+        currentElement.removeEventListener("touchstart", handleTouchStart);
+        currentElement.removeEventListener("touchmove", handleTouchMove);
+        currentElement.removeEventListener("touchend", handleTouchEnd);
+        currentElement.removeEventListener("touchcancel", handleTouchEnd);
       };
+    } else {
+      // console.log("Container element not available for attaching listeners."); // Less noisy
     }
-  }, [handleTouchStart, handleTouchMove, handleTouchEnd, canvasElement]);
+    // Re-run effect if the element reference changes
+  }, [containerElement, handleTouchStart, handleTouchMove, handleTouchEnd]);
 
   return {
     touchState,

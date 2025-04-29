@@ -1,6 +1,6 @@
 // src/components/Game.tsx
 import SettingsMenu from "./SettingsMenu";
-import React, { useRef, useCallback, useEffect } from "react"; // Remove useRef
+import React, { useRef, useCallback, useEffect } from "react"; // Keep useRef
 import GameCanvas from "./GameCanvas";
 import CoordinatesDisplay from "./CoordinatesDisplay";
 import DockingAnimation from "./DockingAnimation";
@@ -17,11 +17,11 @@ import ChatScreen from "./ChatScreen";
 import * as C from "../game/config"; // Import config for colors/sizes
 
 const Game: React.FC = () => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null); // Ref for the container
   const { gameState, updateGame, isInitialized, initializeGameState } =
     useGameState();
 
-  const { touchState, resetTouchState } = useTouchInput(canvasRef);
+  const { touchState, resetTouchState } = useTouchInput(containerRef);
 
   // Initialize game state on first render
   useEffect(() => {
@@ -122,14 +122,10 @@ const Game: React.FC = () => {
   };
 
   return (
-    <div className="GameContainer">
+    <div className="GameContainer" ref={containerRef}>
       <SettingsMenu />
 
-      <GameCanvas
-        gameState={gameState}
-        touchState={touchState}
-        canvasRef={canvasRef}
-      />
+      <GameCanvas gameState={gameState} touchState={touchState} />
 
       {/* Coordinate Display (only visible when playing) */}
       {gameState.gameView === "playing" &&

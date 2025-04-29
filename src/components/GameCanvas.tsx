@@ -1,5 +1,5 @@
 // src/components/GameCanvas.tsx
-import React, { memo, useEffect, useRef } from "react";
+import React, { memo } from "react";
 import {
   Stage,
   Layer,
@@ -21,12 +21,10 @@ import {
   IStation,
 } from "../game/types";
 import * as C from "../game/config"; // Use C for brevity
-import Konva from "konva";
 
 interface GameCanvasProps {
   gameState: IGameState;
   touchState: ITouchState;
-  canvasRef: React.RefObject<HTMLCanvasElement | null>; // Receive ref from parent
 }
 
 const canvasStyleBase: React.CSSProperties = {
@@ -634,28 +632,7 @@ const KonvaTouchControls: React.FC<{ touchState: ITouchState }> = ({
   );
 };
 
-const GameCanvas: React.FC<GameCanvasProps> = ({
-  gameState,
-  touchState,
-  canvasRef,
-}) => {
-  const stageRef = useRef<Konva.Stage>(null);
-
-  useEffect(() => {
-    if (stageRef.current) {
-      // Get the Konva Stage instance
-      const stage = stageRef.current.getStage();
-
-      // Get the first layer (assuming one Layer)
-      const layer = stage.getLayers()[0];
-
-      // Get the scene canvas element (used for drawing shapes)
-      const canvas = layer.getCanvas()._canvas;
-
-      canvasRef.current = canvas; // Set the ref to the canvas element
-    }
-  }, []);
-
+const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
   // Dynamic style to hide canvas when not playing OR destroyed
   const stageStyle: React.CSSProperties = {
     ...canvasStyleBase,
