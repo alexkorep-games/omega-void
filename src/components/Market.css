@@ -34,6 +34,11 @@
   background-color: rgba(0, 40, 0, 0.9); /* Dark green background */
 }
 
+.info-screen {
+  border: 2px solid #ffff00; /* Yellow border for Info */
+  background-color: rgba(40, 40, 0, 0.9); /* Dark yellow background */
+}
+
 .market-header {
   display: flex;
   justify-content: space-between;
@@ -113,6 +118,9 @@
 }
 .sell-screen .market-table th {
   background-color: rgba(0, 40, 0, 0.9); /* Match sell screen bg */
+}
+.info-screen .market-table th {
+  background-color: rgba(40, 40, 0, 0.9); /* Match info screen bg */
 }
 
 /* Align columns */
@@ -204,4 +212,31 @@ td:nth-child(4) {
   50% {
     border-bottom-color: transparent;
   }
+}
+
+/* Styles for Station Info Screen */
+.station-info-content {
+  padding: 20px;
+  flex-grow: 1;
+  overflow-y: auto;
+  line-height: 1.8;
+  font-size: 1.1em; /* Slightly larger font */
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  border-bottom: 1px dashed rgba(255, 255, 0, 0.3); /* Dashed yellow line */
+  padding-bottom: 8px;
+}
+
+.info-label {
+  color: #aaaaaa; /* Dimmer text for label */
+  min-width: 120px; /* Align values */
+  text-align: left;
+}
+
+.info-value {
+  color: #ffff00; /* Bright yellow for value */
 }

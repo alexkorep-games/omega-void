@@ -104,7 +104,7 @@ export function useGameState() {
 
       console.log("SETTING MARKET TO", newMarket);
       return {
-        ...prev,
+        ...prev, // Use the state before animation finished to get dockingStationId
         gameView: "buy_cargo", // Go directly to buy screen
         animationState: { ...prev.animationState, type: null, progress: 0 }, // Ensure animation state is reset
         market: newMarket,
@@ -227,12 +227,30 @@ export function useGameState() {
           console.log(
             "Hook: Detected docking initiation signal. Applying state change directly."
           );
+          // Ensure player velocity is stopped *immediately* in the logic state
+          if (nextLogicState.player instanceof Player) {
+            nextLogicState.player.vx = 0;
+            nextLogicState.player.vy = 0; // Correctly assign to the logic state's player
+          } else {
+            // If player is not an instance, create a new one with stopped velocity
+            nextLogicState.player = new Player(
+              nextLogicState.player.x,
+              nextLogicState.player.y
+            );
+            nextLogicState.player.angle = currentGameState.player.angle; // Preserve angle
+            nextLogicState.player.vx = 0;
+            nextLogicState.player.vy = 0;
+            console.warn(
+              "Player object was not an instance during docking collision check. Recreated."
+            );
+          }
+
           // Return the new state for docking directly
           return {
-            ...nextLogicState, // Base on logic results (includes dockingStationId, stopped player velocity)
+            ...nextLogicState, // Includes the mutated player and dockingStationId
             gameView: "docking", // Set the view
             animationState: {
-              type: "docking",
+              type: "docking", // Set animation type
               progress: 0,
               duration: currentGameState.animationState.duration, // Use duration from current state
             },

@@ -84,7 +84,7 @@ export interface IStation extends IPosition {
 export type BackgroundObject = IStar | IStation;
 
 // Camera
-export interface ICamera extends IPosition {}
+export type ICamera = IPosition;
 
 // Touch Input State
 export interface ITouchControlState {
@@ -114,9 +114,9 @@ export type GameView =
   | "docking"
   | "docked" // General docked overview (could show StationScreen)
   | "undocking"
-  | "buy_cargo" // New view for buying
-  | "sell_cargo"; // New view for selling
-// | "target_planet_prices"; // Removed for now
+  | "buy_cargo"
+  | "sell_cargo"
+  | "station_info";
 
 // Animation State
 export interface IAnimationState {

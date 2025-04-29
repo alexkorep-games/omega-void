@@ -67,6 +67,7 @@ const BottomToolbar: React.FC = () => {
     { label: "Buy", targetView: "buy_cargo" },
     { label: "Sell", targetView: "sell_cargo" },
     { label: "Undock", targetView: "undocking", action: initiateUndocking },
+    { label: "Info", targetView: "station_info" },
     {
       label: "New Game",
       targetView: "undocking",
@@ -78,8 +79,8 @@ const BottomToolbar: React.FC = () => {
   const toolbarVisibleViews: GameView[] = [
     "docked", // Show on the initial docked screen
     "buy_cargo",
+    "station_info",
     "sell_cargo",
-    // Add other docked views here if they are created
   ];
 
   // Only render if the current gameView is one where the toolbar should be visible

@@ -6,6 +6,7 @@ import CoordinatesDisplay from "./CoordinatesDisplay";
 import DockingAnimation from "./DockingAnimation";
 import BuyCargoScreen from "./BuyCargoScreen"; // Import Buy screen
 import SellCargoScreen from "./SellCargoScreen"; // Import Sell screen
+import StationInfoScreen from "./StationInfoScreen"; // Import Station Info screen
 import BottomToolbar from "./BottomToolbar"; // Import Toolbar
 import { useGameState } from "../hooks/useGameState";
 import { useGameLoop } from "../hooks/useGameLoop";
@@ -31,6 +32,7 @@ const Game: React.FC = () => {
       gameState.gameView === "docking" ||
       gameState.gameView === "docked" ||
       gameState.gameView === "buy_cargo" ||
+      gameState.gameView === "station_info" ||
       gameState.gameView === "sell_cargo"
     ) {
       resetTouchState();
@@ -62,6 +64,8 @@ const Game: React.FC = () => {
         return <BuyCargoScreen />;
       case "sell_cargo":
         return <SellCargoScreen />;
+      case "station_info":
+        return <StationInfoScreen />;
       // case "docked": // If you have a main station overview screen later
       //   return <StationScreen station={currentStation} />; // Assuming currentStation is fetched
       default:
@@ -72,6 +76,7 @@ const Game: React.FC = () => {
   // Determine if any docked UI should be visible
   const showDockedUI =
     gameState.gameView === "buy_cargo" ||
+    gameState.gameView === "station_info" ||
     gameState.gameView === "sell_cargo" ||
     gameState.gameView === "docked"; // Add 'docked' if created
 
