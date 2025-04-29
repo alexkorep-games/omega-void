@@ -12,7 +12,6 @@ const SellCargoScreen: React.FC = () => {
     isEnteringQuantity,
     playerCash,
     statusMessage,
-    isProcessingInput, // Use this to disable interaction during debounce
   } = useTradeCargoLogic("sell");
 
   return (
@@ -43,7 +42,7 @@ const SellCargoScreen: React.FC = () => {
                 <tr
                   key={key}
                   onClick={() =>
-                    !isProcessingInput && handleItemPrimaryAction(key)
+                    handleItemPrimaryAction(key)
                   } // Prevent clicks during debounce
                 >
                   <td>{key}</td>

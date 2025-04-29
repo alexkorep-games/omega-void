@@ -14,7 +14,6 @@ const BuyCargoScreen: React.FC = () => {
     cargoSpaceLeft,
     playerCash, // Get cash directly from hook
     statusMessage, // Get status message
-    isProcessingInput, // Use this to disable interaction during debounce
   } = useTradeCargoLogic("buy");
 
   if (!market) {
@@ -52,7 +51,7 @@ const BuyCargoScreen: React.FC = () => {
               <tr
                 key={key}
                 onClick={() =>
-                  !isProcessingInput && handleItemPrimaryAction(key)
+                  handleItemPrimaryAction(key)
                 } // Prevent clicks during debounce
               >
                 <td>{key}</td>

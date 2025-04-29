@@ -36,14 +36,10 @@ export function useTradeCargoLogic(mode: TradeMode) {
 
   // --- Internal State ---
   const [tradeItems, setTradeItems] = useState<TradeItemDisplay[]>([]);
-
-  const [isEnteringQuantity, setIsEnteringQuantity] = useState(false);
-  const [quantityInput, setQuantityInput] = useState("");
   const [statusMessage, setStatusMessage] = useState<StatusMessage | null>(
     null
   );
   const messageTimeoutRef = useRef<number | null>(null); // Use number for browser setTimeout return type
-  const isProcessingInput = useRef(false); // Debounce flag
 
   // --- Memoized Calculations ---
   const cargoSpaceLeft = useMemo(() => {
@@ -177,8 +173,6 @@ export function useTradeCargoLogic(mode: TradeMode) {
     if (!market || !mode) {
       // Clear state if not on a trading screen or market not loaded
       setTradeItems([]);
-      setIsEnteringQuantity(false);
-      setQuantityInput("");
       setStatusMessage(null);
       if (messageTimeoutRef.current) clearTimeout(messageTimeoutRef.current);
       return;
@@ -221,14 +215,6 @@ export function useTradeCargoLogic(mode: TradeMode) {
     }
 
     setTradeItems(items);
-
-    // Reset quantity input when view/data changes
-    setIsEnteringQuantity(false);
-    setQuantityInput("");
-    // Don't clear message immediately on list refresh, only on view change (handled above)
-
-    // Rerun when view, market, or cargo changes. `lastClickedItemKey` tracks highlight.
-    // `selectedCommodityKey` tracks potential keyboard focus.
   }, [gameView, market, cargoHold, mode]); // Dependency on lastClickedItemKey to potentially preserve highlight
 
   // --- Input Handlers ---
@@ -236,8 +222,6 @@ export function useTradeCargoLogic(mode: TradeMode) {
   // Handles primary action on item click (Buy 1 / Sell All)
   const handleItemPrimaryAction = useCallback(
     (key: string) => {
-      if (isProcessingInput.current || isEnteringQuantity || !mode) return;
-      isProcessingInput.current = true;
       let quantityToTrade = 0;
       if (mode === "buy") {
         quantityToTrade = 1;
@@ -252,37 +236,15 @@ export function useTradeCargoLogic(mode: TradeMode) {
           showMessage("Error: Cannot sell 0 units.", "error");
         // No message for buy 1 if stock/cash/space is zero, performTrade handles that
       }
-
-      setTimeout(() => {
-        isProcessingInput.current = false;
-      }, 100); // Debounce
     },
-    [
-      isProcessingInput,
-      isEnteringQuantity,
-      mode,
-      performTrade,
-      cargoHold,
-      showMessage,
-    ]
+    [mode, performTrade, cargoHold, showMessage]
   );
-
-  // Cancels the quantity input mode
-  const handleCancelQuantity = useCallback(() => {
-    setIsEnteringQuantity(false);
-    setQuantityInput("");
-    showMessage("Trade cancelled.", "info"); // Provide feedback
-  }, [showMessage]);
 
   // --- Return Values ---
   return {
     mode, // 'buy', 'sell', or null
     market, // Expose market snapshot used
     tradeItems, // Unified list for display
-
-    isEnteringQuantity,
-    quantityInput,
-    handleCancelQuantity,
 
     // Primary actions
     handleItemPrimaryAction, // Handles click (Buy 1 / Sell All)
@@ -293,6 +255,5 @@ export function useTradeCargoLogic(mode: TradeMode) {
 
     // UI feedback
     statusMessage,
-    isProcessingInput: isProcessingInput.current, // Expose debounce state
   };
 }
