@@ -81,6 +81,16 @@ export interface ITouchState {
   shoot: IShootControlState;
 }
 
+// Game View State
+export type GameView = "playing" | "docking" | "docked" | "undocking";
+
+// Animation State
+export interface IAnimationState {
+  type: "docking" | "undocking" | null;
+  progress: number; // ms elapsed
+  duration: number; // ms total duration
+}
+
 // Game State
 export interface IGameState {
   player: IPlayer;
@@ -92,6 +102,10 @@ export interface IGameState {
   lastShotTime: number;
   enemyIdCounter: number; // Keep track of unique IDs
   isInitialized: boolean; // Flag to check if initial load is done
+  // New properties for docking/station interaction
+  gameView: GameView;
+  dockingStationId: string | null; // ID of the station the player is docking/docked with
+  animationState: IAnimationState; // State for docking/undocking animations
 }
 
 // World Manager Config (matches the class constructor)
