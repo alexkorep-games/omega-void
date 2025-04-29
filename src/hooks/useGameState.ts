@@ -355,6 +355,73 @@ export function useGameState() {
     [worldManager] // Depends only on worldManager
   );
 
+  const startNewGame = useCallback(() => {
+    console.log("Action: Start New Game");
+
+    // Stop the current save interval if it's running
+    if (saveIntervalId.current) {
+      clearInterval(saveIntervalId.current);
+      saveIntervalId.current = null;
+    }
+
+    // Reset state to defaults
+    const defaultPosition = { x: 0, y: 0 };
+    const defaultCash = initialGameState.cash; // Get default from initial state
+    const defaultCargo = new Map<string, number>(); // Empty map
+
+    setGameStateInternal((prev) => ({
+      ...initialGameState, // Start with initial structure and defaults
+      // Overwrite specific fields with fresh values
+      player: createPlayer(defaultPosition.x, defaultPosition.y),
+      cash: defaultCash,
+      cargoHold: defaultCargo,
+      gameView: "playing", // Start directly in playing view
+      isInitialized: true, // It's now initialized with new game state
+      // Clear any lingering dynamic state
+      enemies: [],
+      projectiles: [],
+      visibleBackgroundObjects: [],
+      camera: { x: 0 - 360 / 2, y: 0 - (640 - 120) / 2 }, // Center camera on 0,0
+      dockingStationId: null,
+      animationState: {
+        type: null,
+        progress: 0,
+        duration: prev.animationState.duration,
+      },
+      market: null,
+      lastEnemySpawnTime: 0, // Reset timers/counters if needed
+      lastShotTime: 0,
+      enemyIdCounter: 0,
+    }));
+
+    // Immediately save the reset state
+    saveGameState({
+      coordinates: defaultPosition,
+      cash: defaultCash,
+      cargoHold: defaultCargo,
+    });
+
+    // Restart the save interval
+    saveIntervalId.current = setInterval(() => {
+      setGameStateInternal((currentSyncState) => {
+        if (
+          currentSyncState.player &&
+          typeof currentSyncState.player.x === "number"
+        ) {
+          saveGameState({
+            coordinates: {
+              x: currentSyncState.player.x,
+              y: currentSyncState.player.y,
+            },
+            cash: currentSyncState.cash,
+            cargoHold: currentSyncState.cargoHold,
+          });
+        }
+        return currentSyncState;
+      });
+    }, SAVE_STATE_INTERVAL);
+  }, [setGameStateInternal]);
+
   return {
     initializeGameState,
     gameState,
@@ -365,7 +432,7 @@ export function useGameState() {
     setGameView,
     updatePlayerState,
     updateMarketQuantity,
-    // Helpers
     findStationById,
+    startNewGame,
   };
 }

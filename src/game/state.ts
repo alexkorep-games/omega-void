@@ -1,7 +1,7 @@
 // src/game/state.ts
 import { IGameState, IPlayer, ITouchState } from "./types";
 import { Player } from "./entities/Player";
-import { GAME_WIDTH, GAME_VIEW_HEIGHT } from "./config";
+import { GAME_WIDTH, GAME_VIEW_HEIGHT, DEFAULT_STARTING_CASH } from "./config";
 
 export const initialPlayerState: IPlayer = new Player(0, 0); // Position will be loaded
 
@@ -36,7 +36,7 @@ export const initialGameState: IGameState = {
     duration: 1500, // Total duration in ms
   },
   // --- Initialize Trading State ---
-  cash: 1000.0, // Starting cash
+  cash: DEFAULT_STARTING_CASH, // Starting cash
   cargoHold: new Map<string, number>(), // Start with empty cargo
   cargoCapacity: 10, // Start with 10t capacity
   market: null, // No market data initially

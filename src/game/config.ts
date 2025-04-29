@@ -54,3 +54,6 @@ export const LOCAL_STORAGE_GAME_STATE_KEY = "omegaVoidGameState"; // New combine
 
 // Drawing
 export const SCANNER_MAX_DIST = 800;
+
+
+export const DEFAULT_STARTING_CASH = 100.0;

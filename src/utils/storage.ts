@@ -1,5 +1,8 @@
 // src/utils/storage.ts
-import { LOCAL_STORAGE_GAME_STATE_KEY } from "../game/config";
+import {
+  DEFAULT_STARTING_CASH,
+  LOCAL_STORAGE_GAME_STATE_KEY,
+} from "../game/config";
 import { IPosition } from "../game/types";
 
 // Define the structure of the saved state
@@ -50,7 +53,7 @@ export function saveGameState(stateToSave: {
 export function loadGameState(): LoadedGameState {
   const defaultState: LoadedGameState = {
     coordinates: { x: 0, y: 0 },
-    cash: 1000.0, // Default starting cash
+    cash: DEFAULT_STARTING_CASH, // Default starting cash
     cargoHold: new Map<string, number>(), // Default empty cargo
   };
 

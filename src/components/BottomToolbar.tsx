@@ -37,7 +37,8 @@ const ToolbarButton: React.FC<ToolbarButtonProps> = ({
 };
 
 const BottomToolbar: React.FC = () => {
-  const { gameState, setGameView, initiateUndocking } = useGameState(); // Use Game 2 hook and setter
+  const { gameState, setGameView, initiateUndocking, startNewGame } =
+    useGameState();
 
   const handleNavigate = useCallback(
     (targetView: GameView) => {
@@ -47,8 +48,17 @@ const BottomToolbar: React.FC = () => {
     [setGameView]
   );
 
-  // Define the buttons and their target game views
-  // Keep it simple for now: Buy, Sell, Undock
+  // Define the action for the New Game button
+  const handleNewGameClick = useCallback(() => {
+    const confirmed = window.confirm(
+      "Start a new game? This will erase your current progress (coordinates, cash, cargo)."
+    );
+    if (confirmed) {
+      startNewGame();
+    }
+  }, [startNewGame]);
+
+  // Define the buttons and their target game views or actions
   const buttons: Array<{
     label: string;
     targetView: GameView;
@@ -56,8 +66,12 @@ const BottomToolbar: React.FC = () => {
   }> = [
     { label: "Buy", targetView: "buy_cargo" },
     { label: "Sell", targetView: "sell_cargo" },
-    // Add more later like Shipyard, Equipment...
     { label: "Undock", targetView: "undocking", action: initiateUndocking },
+    {
+      label: "New Game",
+      targetView: "undocking",
+      action: handleNewGameClick,
+    },
   ];
 
   // Determine which views show the toolbar
@@ -77,7 +91,7 @@ const BottomToolbar: React.FC = () => {
     <div className="bottom-toolbar">
       {buttons.map((button) => (
         <ToolbarButton
-          key={button.label} // Use label as key assuming labels are unique here
+          key={button.label}
           label={button.label}
           targetView={button.targetView}
           currentView={gameState.gameView}
