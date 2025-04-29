@@ -104,21 +104,7 @@ const Game: React.FC = () => {
     gameState.gameView === "chat_log";
 
   return (
-    <div
-      className="GameContainer"
-      style={{
-        position: "fixed", // Use fixed to fill viewport
-        top: 0,
-        left: 0,
-        width: "100vw",
-        height: "100vh",
-        overflow: "hidden", // Prevent scrollbars
-        display: "flex",
-        justifyContent: "center", // Center canvas horizontally
-        alignItems: "center", // Center canvas vertically
-        background: "#000", // Black background
-      }}
-    >
+    <div className="GameContainer">
       <SettingsMenu />
 
       {/* Game Canvas (only visible when playing) */}
