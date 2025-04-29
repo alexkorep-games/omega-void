@@ -36,7 +36,6 @@ export interface IProjectile extends IGameObject {
 }
 
 // --- Market & Station Data ---
-// Copied/Adapted from Game 1
 export type EconomyType =
   | "Poor Agricultural"
   | "Agricultural"
@@ -45,7 +44,6 @@ export type EconomyType =
   | "Industrial"
   | "Rich Industrial"
   | "High Tech";
-// Removed: "Tourism", "Refinery", "Extraction", "Anarchy", etc. for simplicity
 
 export type TechLevel =
   | "TL0" // Pre-industrial
@@ -59,27 +57,26 @@ export type TechLevel =
 
 // Background objects from World Manager
 export interface IStar extends IPosition {
-  id: string; // e.g., `star_${cellX}_${cellY}_${index}`
+  id: string;
   type: "star";
   size: number;
   color: string;
 }
 
 export interface IStation extends IPosition {
-  id: string; // e.g., `station_${cellX}_${cellY}`
+  id: string;
   type: "station";
   name: string;
   size: number;
   radius: number;
   color: string;
-  stationType: string; // e.g., 'coriolis'
-  angle: number; // Current rotation angle
-  initialAngle: number; // Starting rotation
-  rotationSpeed: number; // Speed of rotation
-  // --- Added properties for Market ---
+  stationType: string;
+  angle: number;
+  initialAngle: number;
+  rotationSpeed: number;
   economyType: EconomyType;
   techLevel: TechLevel;
-  coordinates: IPosition; // Store world coordinates for market seed generation
+  coordinates: IPosition;
 }
 
 export type BackgroundObject = IStar | IStation;
@@ -100,7 +97,7 @@ export interface ITouchControlState {
 export interface IShootControlState {
   active: boolean;
   id: number | null;
-  x: number; // Position of the shooting touch indicator
+  x: number;
   y: number;
 }
 
@@ -117,26 +114,43 @@ export type GameView =
   | "buy_cargo"
   | "sell_cargo"
   | "station_info"
-  | "trade_select" // Selection screen (Buy/Sell/Replenish)
-  | "destroyed" // Player ship destroyed state (just the view, animation handled separately now)
+  | "trade_select"
+  | "destroyed" // Player ship destroyed state view
   | "chat_log";
 
 // Animation State
 export interface IAnimationState {
   type: "docking" | "undocking" | null;
-  progress: number; // ms elapsed
-  duration: number; // ms total duration
+  progress: number;
+  duration: number;
 }
 
-// Destruction Animation Data
-export interface DestructionAnimationData {
-  id: string; // Unique ID for the animation instance
-  x: number; // World X coordinate
-  y: number; // World Y coordinate
-  color: string;
-  size: "small" | "large"; // To control particle count/distance etc.
-  startTime: number; // performance.now() timestamp when created
+// --- Destruction Animation ---
+// Structure for individual particle parameters (previously in DestructionAnimation.tsx)
+export interface ParticleState {
+  id: number;
+  delay: number; // ms
+  duration: number; // ms (particle's own lifespan within animation)
+  finalAngle: number; // degrees
+  finalDistance: number;
+  initialRotation: number; // degrees
+  rotationSpeed: number; // degrees per second
+  length: number;
+  thickness: number;
 }
+
+// Updated data stored in gameState.activeDestructionAnimations
+export interface DestructionAnimationData {
+  id: string;
+  x: number;
+  y: number;
+  color: string;
+  size: "small" | "large"; // Determines which config parameters to use
+  startTime: number; // performance.now() timestamp when created
+  duration: number; // Total duration of this specific animation instance (ms)
+  particles: ParticleState[]; // Pre-calculated particle parameters
+}
+// --- End Destruction Animation ---
 
 // Game State
 export interface IGameState {
@@ -147,24 +161,21 @@ export interface IGameState {
   camera: ICamera;
   lastEnemySpawnTime: number;
   lastShotTime: number;
-  enemyIdCounter: number; // Keep track of unique IDs
-  // New properties for docking/station interaction
+  enemyIdCounter: number;
   gameView: GameView;
-  dockingStationId: string | null; // ID of the station the player is docking/docked with
-  animationState: IAnimationState; // State for docking/undocking animations
-  // --- Added properties for Trading ---
+  dockingStationId: string | null;
+  animationState: IAnimationState;
   cash: number;
-  lastDockedStationId: string | null; // For respawning
-  respawnTimer: number; // Countdown after destruction
-  isInitialized: boolean; // Flag to check if initial load is done
-  cargoHold: Map<string, number>; // Commodity Key -> Quantity Held
-  cargoCapacity: number; // Max tonnes
-  market: MarketSnapshot | null; // Current market data when docked
-  // --- Added for temporary destruction animations ---
-  activeDestructionAnimations: DestructionAnimationData[];
+  lastDockedStationId: string | null;
+  respawnTimer: number;
+  isInitialized: boolean;
+  cargoHold: Map<string, number>;
+  cargoCapacity: number;
+  market: MarketSnapshot | null;
+  activeDestructionAnimations: DestructionAnimationData[]; // Stores data for canvas rendering
 }
 
-// World Manager Config (matches the class constructor)
+// World Manager Config
 export interface IWorldManagerConfig {
   cellSize?: number;
   seedPrime1?: number;
@@ -180,7 +191,6 @@ export interface IWorldManagerConfig {
   stationColor?: string;
   stationTypes?: string[];
   viewBufferFactor?: number;
-  // Added for station generation
   economyTypes?: EconomyType[];
   techLevels?: TechLevel[];
 }

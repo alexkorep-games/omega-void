@@ -1,5 +1,5 @@
 // src/components/GameCanvas.tsx
-import React, { memo } from "react";
+import React, { memo, useMemo } from "react"; // Added useMemo
 import {
   Stage,
   Layer,
@@ -19,31 +19,43 @@ import {
   IProjectile,
   IStar,
   IStation,
+  DestructionAnimationData, // Import animation type
+  ParticleState, // Import particle type
 } from "../game/types";
 import * as C from "../game/config"; // Use C for brevity
 
+// --- Interfaces ---
 interface GameCanvasProps {
   gameState: IGameState;
   touchState: ITouchState;
 }
 
+// --- Canvas Styling ---
 const canvasStyleBase: React.CSSProperties = {
   display: "block",
   backgroundColor: "#000",
-  touchAction: "none", // Prevent default touch actions like scroll/zoom
-  userSelect: "none", // Prevent text selection
-  WebkitUserSelect: "none", // Safari
-  msUserSelect: "none", // IE
-  width: "100%", // Use CSS to control display size
+  touchAction: "none",
+  userSelect: "none",
+  WebkitUserSelect: "none",
+  msUserSelect: "none",
+  width: "100%",
   height: "100%",
-  objectFit: "contain", // Scale the canvas content while maintaining aspect ratio
-  maxWidth: `${C.GAME_WIDTH}px`, // Limit max CSS size to native res
-  maxHeight: `${C.GAME_HEIGHT}px`, // Limit max CSS size to native res
-  position: "relative", // Needed for absolute positioning of children
-  zIndex: 1, // Base layer
+  objectFit: "contain",
+  maxWidth: `${C.GAME_WIDTH}px`,
+  maxHeight: `${C.GAME_HEIGHT}px`,
+  position: "relative",
+  zIndex: 1,
 };
 
-// --- Konva Component Renderers ---
+// --- Easing Functions ---
+function easeOutQuad(t: number): number {
+  return t * (2 - t);
+}
+function easeInQuad(t: number): number {
+  return t * t;
+}
+
+// --- Konva Component Renderers (Star, Station, Player, Enemy, Projectile, HUD, TouchControls) ---
 
 const KonvaStar: React.FC<{
   star: IStar;
@@ -358,7 +370,9 @@ const KonvaHUD: React.FC<{
 
   // --- Shield Bar ---
   const leftX = padding * 2;
-  const currentLeftY = hudY + padding * 4 + 30; // Adjusted Y pos for shield label + bar
+  // Adjust Y pos to account for font size and line height of "SHIELD:" text
+  const shieldLabelY = hudY + padding * 4 + 30;
+  const shieldBarY = shieldLabelY + 12; // Space after label
   const shieldBarWidth = C.GAME_WIDTH / 3 - padding * 6;
   const shieldBarHeight = 10;
   const shieldFillWidth = Math.max(
@@ -435,7 +449,7 @@ const KonvaHUD: React.FC<{
       <Text
         text={`SHIELD:`}
         x={leftX}
-        y={hudY + padding * 4 + 30}
+        y={shieldLabelY} // Use calculated label Y
         fill={C.HUD_COLOR}
         fontSize={10}
         fontFamily="monospace"
@@ -444,21 +458,21 @@ const KonvaHUD: React.FC<{
       {/* Shield Bar */}
       <Rect
         x={leftX}
-        y={currentLeftY}
+        y={shieldBarY} // Use calculated bar Y
         width={shieldBarWidth}
         height={shieldBarHeight}
         fill={C.HUD_SHIELD_BAR_EMPTY_COLOR}
       />
       <Rect
         x={leftX}
-        y={currentLeftY}
+        y={shieldBarY}
         width={shieldFillWidth}
         height={shieldBarHeight}
         fill={C.HUD_SHIELD_BAR_COLOR}
       />
       <Rect
         x={leftX}
-        y={currentLeftY}
+        y={shieldBarY}
         width={shieldBarWidth}
         height={shieldBarHeight}
         stroke={C.HUD_COLOR}
@@ -467,7 +481,7 @@ const KonvaHUD: React.FC<{
       <Text
         text={`${Math.max(0, player.shieldLevel).toFixed(0)}%`}
         x={leftX}
-        y={currentLeftY}
+        y={shieldBarY}
         width={shieldBarWidth}
         height={shieldBarHeight}
         fill={C.HUD_COLOR}
@@ -632,8 +646,68 @@ const KonvaTouchControls: React.FC<{ touchState: ITouchState }> = ({
   );
 };
 
+// --- NEW: Destruction Animation Renderer ---
+const KonvaDestructionParticle: React.FC<{
+  anim: DestructionAnimationData;
+  particle: ParticleState;
+  offsetX: number; // Camera offset X
+  offsetY: number; // Camera offset Y
+  now: number; // Current time
+}> = ({ anim, particle: p, offsetX, offsetY, now }) => {
+  const elapsedTime = now - (anim.startTime + p.delay);
+
+  if (elapsedTime < 0 || elapsedTime > p.duration) {
+    return null; // Particle not active yet or finished
+  }
+
+  // Clamp progress ratio between 0 and 1
+  const progressRatio = Math.max(0, Math.min(1, elapsedTime / p.duration));
+
+  // Apply easing
+  const moveProgress = easeOutQuad(progressRatio);
+  const opacityProgress = easeInQuad(progressRatio); // Fades *in* over time, so use directly for opacity fade *out*
+
+  const currentDistance = p.finalDistance * moveProgress;
+  const currentOpacity = 1 - opacityProgress; // Opacity goes from 1 down to 0
+
+  // Calculate rotation in DEGREES for Konva
+  const currentRotation =
+    p.initialRotation + p.rotationSpeed * (elapsedTime / 1000); // Rotate based on elapsed time
+
+  // Convert finalAngle (direction of travel) to radians for Math.cos/sin
+  const travelAngleRad = p.finalAngle * (Math.PI / 180);
+
+  // Calculate particle position relative to animation center
+  const particleOffsetX = Math.cos(travelAngleRad) * currentDistance;
+  const particleOffsetY = Math.sin(travelAngleRad) * currentDistance;
+
+  // Calculate final screen position
+  const screenX = anim.x - offsetX + particleOffsetX;
+  const screenY = anim.y - offsetY + particleOffsetY;
+
+  // Use Konva Line for the particle "streak"
+  // Points define the line relative to its position (screenX, screenY)
+  // Rotate the line itself
+  // Offset ensures rotation happens around the particle's "start"
+  return (
+    <Line
+      key={p.id}
+      x={screenX}
+      y={screenY}
+      points={[0, 0, p.length, 0]} // Draw line along x-axis, length p.length
+      stroke={anim.color}
+      strokeWidth={p.thickness}
+      rotation={currentRotation} // Apply visual rotation (degrees)
+      opacity={currentOpacity}
+      perfectDrawEnabled={false} // Optimization
+      listening={false}
+    />
+  );
+};
+// --- End New Renderer ---
+
+// --- Main GameCanvas Component ---
 const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
-  // Dynamic style to hide canvas when not playing OR destroyed
   const stageStyle: React.CSSProperties = {
     ...canvasStyleBase,
     visibility:
@@ -642,9 +716,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
         : "hidden",
   };
 
-  // Prevent rendering Konva stage if not initialized or hidden
+  // Get current time for animations - useMemo ensures it's fetched on relevant re-renders
+  // Depends on the array of animations itself (for adding/removing) and the game view (to trigger re-render on view change)
+  const now = useMemo(
+    () => performance.now(),
+    [gameState.activeDestructionAnimations, gameState.gameView]
+  );
+
   if (!gameState.isInitialized || stageStyle.visibility === "hidden") {
-    // Render a placeholder or null to keep the container size
     return <div style={stageStyle} />;
   }
 
@@ -652,7 +731,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
   const offsetY = gameState.camera.y;
 
   return (
-    // Cast props to StageProps to help TypeScript
     <Stage
       {...({
         width: C.GAME_WIDTH,
@@ -701,13 +779,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
               align="center"
               listening={false}
               perfectDrawEnabled={false}
-              // Removed offset and width/height which might conflict with align="center"
             />
           ))}
       </Layer>
 
       {/* Game Entities Layer (Player, Enemies, Projectiles) */}
-      {/* FIX: Use ternary operator to return null instead of false */}
+      {/* Render only if not destroyed */}
       {gameState.gameView !== "destroyed" ? (
         <Layer
           clipX={0}
@@ -731,8 +808,36 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
         </Layer>
       ) : null}
 
+      {/* *** NEW: Destruction Animations Layer *** */}
+      {/* This layer should be drawn above entities but below HUD/Controls */}
+      <Layer
+        clipX={0}
+        clipY={0}
+        clipWidth={C.GAME_WIDTH}
+        clipHeight={C.GAME_VIEW_HEIGHT} // Clip effects to game view area
+        listening={false}
+        perfectDrawEnabled={false}
+      >
+        {gameState.activeDestructionAnimations.map((anim) => (
+          // Render particles for each active animation
+          <Group key={anim.id}>
+            {anim.particles.map((p) => (
+              <KonvaDestructionParticle
+                key={p.id}
+                anim={anim}
+                particle={p}
+                offsetX={offsetX}
+                offsetY={offsetY}
+                now={now} // Pass current time
+              />
+            ))}
+          </Group>
+        ))}
+      </Layer>
+      {/* *** End New Layer *** */}
+
       {/* HUD Layer */}
-      {/* FIX: Use ternary operator */}
+      {/* Render only if not destroyed */}
       {gameState.gameView !== "destroyed" ? (
         <Layer
           // No clipping needed for HUD, drawn below game view height
@@ -747,6 +852,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
         </Layer>
       ) : null}
 
+      {/* Touch Controls Layer */}
+      {/* Render only if playing */}
       {gameState.gameView === "playing" ? (
         <Layer perfectDrawEnabled={false} listening={false}>
           <KonvaTouchControls touchState={touchState} />

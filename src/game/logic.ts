@@ -5,39 +5,31 @@ import {
   IPlayer,
   IStation,
   DestructionAnimationData,
-} from "./types"; // Added DestructionAnimationData
+  ParticleState, // Import ParticleState type
+} from "./types";
 import { Player } from "./entities/Player";
 import { Enemy } from "./entities/Enemy";
 import { Projectile } from "./entities/Projectile";
 import { InfiniteWorldManager } from "./world/InfiniteWorldManager";
-// Need world manager to find stations
 import { distance } from "../utils/geometry";
 import * as C from "./config"; // Use C for brevity
 
 // --- Constants for Hexagon Docking ---
-// A hexagon side spans 60 degrees (PI / 3 radians).
-const DOCKING_ENTRANCE_CENTER_ANGLE = Math.PI; // Entrance
+const DOCKING_ENTRANCE_CENTER_ANGLE = Math.PI;
 const DOCKING_ENTRANCE_HALF_SPAN = Math.PI / 12;
 const DOCKING_MIN_RELATIVE_ANGLE =
   DOCKING_ENTRANCE_CENTER_ANGLE - DOCKING_ENTRANCE_HALF_SPAN;
 const DOCKING_MAX_RELATIVE_ANGLE =
   DOCKING_ENTRANCE_CENTER_ANGLE + DOCKING_ENTRANCE_HALF_SPAN;
 
-// --- Constants for Destruction Animations ---
-const DESTRUCTION_ANIMATION_DURATION = 1000; // ms
-
 /**
  * Normalizes an angle to the range [-PI, PI].
- * @param angle Angle in radians.
- * @returns Angle normalized to [-PI, PI].
  */
 function normalizeAngle(angle: number): number {
-  // First wrap to [0, 2*PI]
   angle = angle % (2 * Math.PI);
   if (angle < 0) {
     angle += 2 * Math.PI;
   }
-  // Then shift to [-PI, PI]
   if (angle > Math.PI) {
     angle -= 2 * Math.PI;
   }
@@ -45,10 +37,10 @@ function normalizeAngle(angle: number): number {
 }
 
 /**
- * Creates a new player instance, potentially loading position.
+ * Creates a new player instance.
  */
 export function createPlayer(x: number, y: number): IPlayer {
-  return new Player(x, y); // Player constructor sets default shield
+  return new Player(x, y);
 }
 
 /**
@@ -86,8 +78,57 @@ function shootProjectile(state: IGameState): IGameState {
       lastShotTime: now,
     };
   }
-  return state; // No change if on cooldown
+  return state;
 }
+
+function generateParticleStates(size: "small" | "large"): {
+  particles: ParticleState[];
+  duration: number;
+} {
+  const count =
+    size === "large"
+      ? C.LARGE_EXPLOSION_PARTICLE_COUNT
+      : C.SMALL_EXPLOSION_PARTICLE_COUNT;
+  const maxDist =
+    size === "large"
+      ? C.LARGE_EXPLOSION_MAX_DISTANCE
+      : C.SMALL_EXPLOSION_MAX_DISTANCE;
+  const baseDuration =
+    size === "large" ? C.LARGE_EXPLOSION_DURATION : C.SMALL_EXPLOSION_DURATION;
+  const length =
+    size === "large"
+      ? C.LARGE_EXPLOSION_PARTICLE_LENGTH
+      : C.SMALL_EXPLOSION_PARTICLE_LENGTH;
+  const thickness =
+    size === "large"
+      ? C.LARGE_EXPLOSION_PARTICLE_THICKNESS
+      : C.SMALL_EXPLOSION_PARTICLE_THICKNESS;
+
+  const particles: ParticleState[] = [];
+  let maxTotalDuration = 0;
+
+  for (let i = 0; i < count; i++) {
+    const delay = Math.random() * (baseDuration * 0.2); // Delay up to 20% of base duration
+    const animDuration = baseDuration * (0.7 + Math.random() * 0.3); // Randomize duration 70-100%
+    const totalParticleTime = delay + animDuration;
+    maxTotalDuration = Math.max(maxTotalDuration, totalParticleTime);
+
+    particles.push({
+      id: i,
+      delay: delay,
+      duration: animDuration,
+      finalAngle: Math.random() * 360, // degrees
+      finalDistance: maxDist * (0.5 + Math.random() * 0.5), // Randomize distance 50-100%
+      initialRotation: Math.random() * 360, // degrees
+      rotationSpeed: (Math.random() - 0.5) * 720, // degrees/sec, +/-
+      length: length * (0.8 + Math.random() * 0.4), // Randomize length 80-120%
+      thickness: thickness * (0.8 + Math.random() * 0.4), // Randomize thickness 80-120%
+    });
+  }
+
+  return { particles: particles, duration: maxTotalDuration };
+}
+// *** End New Helper ***
 
 /**
  * Handles collisions between different game entities.
@@ -95,18 +136,18 @@ function shootProjectile(state: IGameState): IGameState {
  */
 function handleCollisions(
   state: IGameState,
-  now: number // Pass current time for animation start time
+  now: number
 ): {
   newState: IGameState;
   dockingTriggerStationId: string | null;
   playerDestroyed: boolean;
-  newAnimations: DestructionAnimationData[]; // Return newly created animations
+  newAnimations: DestructionAnimationData[];
 } {
   const newProjectiles = [...state.projectiles];
   const newEnemies = [...state.enemies];
   const playerInstance = state.player;
   let dockingTriggerStationId: string | null = null;
-  let newAnimations: DestructionAnimationData[] = []; // Initialize animation list
+  const newAnimations: DestructionAnimationData[] = []; // Initialize animation list
 
   // Projectile vs Enemy/Station
   for (let i = newProjectiles.length - 1; i >= 0; i--) {
@@ -120,7 +161,8 @@ function handleCollisions(
         distance(proj.x, proj.y, enemy.x, enemy.y) <
         proj.radius + enemy.radius
       ) {
-        // Create ENEMY destruction animation on projectile hit
+        // *** Generate enemy destruction animation data ***
+        const { particles, duration } = generateParticleStates("small");
         newAnimations.push({
           id: `destroy-enemy-proj-${enemy.id}-${now}`,
           x: enemy.x,
@@ -128,14 +170,16 @@ function handleCollisions(
           color: enemy.color,
           size: "small",
           startTime: now,
+          particles: particles, // Add generated particles
+          duration: duration, // Store calculated duration
         });
         newProjectiles.splice(i, 1);
         newEnemies.splice(j, 1);
         projHit = true;
-        break; // Projectile can only hit one thing
+        break;
       }
     }
-    if (projHit) continue; // Move to next projectile if hit occurred
+    if (projHit) continue;
 
     // Vs Stations
     for (const bgObj of state.visibleBackgroundObjects) {
@@ -145,7 +189,6 @@ function handleCollisions(
           proj.radius + bgObj.radius
         ) {
           newProjectiles.splice(i, 1);
-          // Stations are indestructible for now
           projHit = true;
           break;
         }
@@ -157,45 +200,46 @@ function handleCollisions(
   let playerDestroyed = false;
 
   if (playerInstance) {
-    // Only check if player exists
     for (let i = newEnemies.length - 1; i >= 0; i--) {
       const enemy = newEnemies[i];
       if (
         distance(playerInstance.x, playerInstance.y, enemy.x, enemy.y) <
         playerInstance.radius + enemy.radius
       ) {
-        // Create ENEMY destruction animation on PLAYER collision
+        // *** Generate enemy destruction animation data on collision with player ***
+        const { particles, duration } = generateParticleStates("small");
         newAnimations.push({
           id: `destroy-enemy-player-${enemy.id}-${now}`,
           x: enemy.x,
           y: enemy.y,
           color: enemy.color,
-          size: "small", // Small animation for enemy hitting player
+          size: "small",
           startTime: now,
+          particles: particles, // Add generated particles
+          duration: duration, // Store calculated duration
         });
 
         newEnemies.splice(i, 1); // Remove enemy
 
         // Apply damage to player
         playerInstance.shieldLevel -= C.ENEMY_SHIELD_DAMAGE;
-        playerInstance.shieldLevel = Math.max(0, playerInstance.shieldLevel); // Clamp at 0
+        playerInstance.shieldLevel = Math.max(0, playerInstance.shieldLevel);
         console.log(
           `Collision with enemy! Shield: ${playerInstance.shieldLevel}%`
         );
 
-        // Check if this hit destroys the player
         if (playerInstance.shieldLevel <= 0) {
           playerDestroyed = true;
-          // Don't break loop immediately, let other enemies hit if overlapping in same frame
         }
       }
     }
   }
 
-  // If player was destroyed in this frame's checks
+  // If player was destroyed
   if (playerDestroyed) {
     console.log("Player shield depleted! Ship destroyed.");
-    // Create PLAYER destruction animation
+    // *** Generate PLAYER destruction animation data ***
+    const { particles, duration } = generateParticleStates("large");
     newAnimations.push({
       id: `destroy-player-${playerInstance.id}-${now}`,
       x: playerInstance.x,
@@ -203,30 +247,33 @@ function handleCollisions(
       color: playerInstance.color,
       size: "large",
       startTime: now,
+      particles: particles, // Add generated particles
+      duration: duration, // Store calculated duration
     });
-    // Pass back the state *before* removing player, but signal destruction
+
     const stateBeforePlayerModification = {
       ...state,
       enemies: newEnemies,
       projectiles: newProjectiles,
-      // Don't modify player object itself here, let the main logic handle view transition
+      player: {
+        ...playerInstance, // Keep player data for animation pos reference
+        shieldLevel: 0, // Ensure shield is 0
+      },
     };
     return {
       newState: stateBeforePlayerModification,
       dockingTriggerStationId: null,
-      playerDestroyed: true, // Signal destruction
+      playerDestroyed: true,
       newAnimations: newAnimations,
     };
   }
 
   // Player vs Station (Check for Docking or Pushback)
-  // Only proceed if player exists and was not destroyed this frame
   if (playerInstance && !playerDestroyed) {
     for (const bgObj of state.visibleBackgroundObjects) {
       if (bgObj.type === "station") {
         const station = bgObj as IStation;
         const player = playerInstance;
-
         const distToCenter = distance(player.x, player.y, station.x, station.y);
         const interactionDistanceThreshold =
           player.radius + station.radius + 10;
@@ -250,17 +297,10 @@ function handleCollisions(
           if (isAngleCorrectForDocking) {
             const dockingCommitDistance = player.radius + station.radius * 1.2;
             if (distToCenter < dockingCommitDistance) {
-              console.log(
-                `Docking angle OK (${relativeApproachAngle.toFixed(
-                  2
-                )} rad) & distance OK (${distToCenter.toFixed(
-                  1
-                )}). Docking with ${station.id}`
-              );
               dockingTriggerStationId = station.id;
               player.vx = 0;
               player.vy = 0;
-              break; // Dock with one station only
+              break;
             }
           }
 
@@ -280,7 +320,6 @@ function handleCollisions(
     }
   }
 
-  // Return new state and triggers
   return {
     newState: {
       ...state,
@@ -290,7 +329,7 @@ function handleCollisions(
       // Active animations are handled in the main update loop
     },
     dockingTriggerStationId,
-    playerDestroyed: false, // Not destroyed unless signaled above
+    playerDestroyed: false,
     newAnimations: newAnimations,
   };
 }
@@ -305,15 +344,13 @@ export function updateGameStateLogic(
   let newState = { ...currentState };
 
   // --- Update and Filter Active Destruction Animations ---
-  // Filter out animations that have finished
   newState.activeDestructionAnimations =
     newState.activeDestructionAnimations.filter(
-      (anim) => now - anim.startTime < DESTRUCTION_ANIMATION_DURATION + 100 // Keep for duration + buffer
+      (anim) => now - anim.startTime < anim.duration + 100 // Use animation's own duration + buffer
     );
 
   // --- Handle Destroyed State ---
   if (newState.gameView === "destroyed") {
-    // Decrement timer
     newState.respawnTimer -= deltaTime;
     if (newState.respawnTimer <= 0) {
       console.log("Respawn timer finished. Respawning player...");
@@ -324,7 +361,7 @@ export function updateGameStateLogic(
       let respawnY = 0;
       if (respawnStation) {
         const exitAngle = respawnStation.angle + Math.PI;
-        const respawnDist = respawnStation.radius + C.PLAYER_SIZE / 2 + 20; // Use default player size for calc
+        const respawnDist = respawnStation.radius + C.PLAYER_SIZE / 2 + 20;
         respawnX = respawnStation.x + Math.cos(exitAngle) * respawnDist;
         respawnY = respawnStation.y + Math.sin(exitAngle) * respawnDist;
       } else {
@@ -332,23 +369,21 @@ export function updateGameStateLogic(
           `Could not find respawn station ${respawnStationId}. Respawning at origin.`
         );
       }
-
       const respawnedPlayer = createPlayer(respawnX, respawnY);
-
       return {
         ...newState,
         player: respawnedPlayer,
-        cargoHold: new Map(), // Clear cargo
+        cargoHold: new Map(),
         gameView: "playing",
         respawnTimer: 0,
         enemies: [],
         projectiles: [],
-        activeDestructionAnimations: [], // Clear any remaining animations on respawn
+        activeDestructionAnimations: [], // Clear animations on respawn
       };
     }
-    // If timer still running, just update timer and keep view as 'destroyed'
-    // Also update camera based on the *static* player position from the destroyed state
-    const deadPlayer = currentState.player; // Use player from state *before* this update tick
+
+    // Update camera based on the *static* player position from the destroyed state
+    const deadPlayer = currentState.player;
     return {
       ...newState,
       respawnTimer: newState.respawnTimer,
@@ -356,6 +391,7 @@ export function updateGameStateLogic(
         x: deadPlayer.x - C.GAME_WIDTH / 2,
         y: deadPlayer.y - C.GAME_VIEW_HEIGHT / 2,
       },
+      // Keep active destruction animation running
     };
   }
 
@@ -366,11 +402,9 @@ export function updateGameStateLogic(
         ...newState.animationState,
         progress: newState.animationState.progress + deltaTime,
       };
-
       if (
         newState.animationState.progress >= newState.animationState.duration
       ) {
-        console.log(`Logic: ${newState.gameView} animation finished.`);
         newState.animationState = {
           ...newState.animationState,
           type: null,
@@ -386,9 +420,10 @@ export function updateGameStateLogic(
   if (newState.gameView === "playing") {
     if (!newState.player || !(newState.player instanceof Player)) {
       console.error(
-        "Player state is missing or not a Player instance during update!",
+        "Player state missing/invalid during update!",
         newState.player
       );
+      // Attempt recovery or return current state
       if (
         currentState.player?.x !== undefined &&
         currentState.player?.y !== undefined
@@ -401,26 +436,19 @@ export function updateGameStateLogic(
         newState.player.shieldLevel =
           currentState.player.shieldLevel ?? C.DEFAULT_STARTING_SHIELD;
       } else {
-        console.error("Cannot recover player state. Bailing out of update.");
+        console.error("Cannot recover player state. Bailing update.");
         return currentState;
       }
     }
 
-    // 1. Handle Input & Player Update
-    if (touchState?.shoot.active) {
-      newState = shootProjectile(newState);
-    }
-    if (touchState) {
-      (newState.player as Player).update(touchState);
-    }
+    if (touchState?.shoot.active) newState = shootProjectile(newState);
+    if (touchState) (newState.player as Player).update(touchState);
 
-    // 2. Update Camera based on new player position
     newState.camera = {
       x: newState.player.x - C.GAME_WIDTH / 2,
       y: newState.player.y - C.GAME_VIEW_HEIGHT / 2,
     };
 
-    // 3. Update World Objects (get visible stars/stations)
     newState.visibleBackgroundObjects = worldManager.getObjectsInView(
       newState.camera.x,
       newState.camera.y,
@@ -428,7 +456,6 @@ export function updateGameStateLogic(
       C.GAME_VIEW_HEIGHT
     );
 
-    // 4. Update Projectiles & Filter out-of-bounds/dead ones
     newState.projectiles = newState.projectiles
       .map((p) => {
         (p as Projectile).update();
@@ -439,13 +466,11 @@ export function updateGameStateLogic(
           !(p as Projectile).isOutOfBounds(newState.player.x, newState.player.y)
       );
 
-    // 5. Update Enemies
     newState.enemies = newState.enemies.map((enemy) => {
       (enemy as Enemy).update(newState.player);
       return enemy;
     });
 
-    // 6. Despawn Far Enemies
     const enemyIdsToDespawn = worldManager.getEnemiesToDespawn(
       newState.enemies,
       newState.player.x,
@@ -459,7 +484,6 @@ export function updateGameStateLogic(
       );
     }
 
-    // 7. Spawn New Enemies
     if (
       now - newState.lastEnemySpawnTime > C.ENEMY_SPAWN_INTERVAL &&
       newState.enemies.length < C.MAX_ENEMIES
@@ -467,54 +491,45 @@ export function updateGameStateLogic(
       newState = spawnEnemyNearPlayer(newState);
     }
 
-    // 8. Handle Collisions & Docking Check
+    // Handle Collisions & Docking Check
     const collisionResult = handleCollisions(newState, now);
-    newState = collisionResult.newState; // Apply pushback etc.
+    newState = collisionResult.newState;
 
     // Add any new destruction animations from collisions
     newState.activeDestructionAnimations.push(...collisionResult.newAnimations);
 
-    // Check if player was destroyed by collision logic
+    // Check if player was destroyed
     if (collisionResult.playerDestroyed) {
       console.log("Logic: Player destroyed signal received.");
       return {
-        ...collisionResult.newState,
-        player: {
-          ...collisionResult.newState.player, // Keep player data for animation pos
-          shieldLevel: 0, // Ensure shield is visually 0
-        },
+        ...collisionResult.newState, // Includes player ref for anim position
         gameView: "destroyed",
         respawnTimer: C.RESPAWN_DELAY_MS,
-        projectiles: [], // Clear projectiles immediately
-        enemies: [], // Clear enemies immediately
-        activeDestructionAnimations: newState.activeDestructionAnimations, // Keep animations from collision
+        projectiles: [],
+        enemies: [],
+        activeDestructionAnimations: newState.activeDestructionAnimations, // Keep animations
       };
     }
 
-    // Check if docking was triggered by collision logic
+    // Check if docking was triggered
     if (collisionResult.dockingTriggerStationId) {
-      console.log(
-        `Logic: Docking collision detected for ${collisionResult.dockingTriggerStationId}`
-      );
       newState.dockingStationId = collisionResult.dockingTriggerStationId;
       if (newState.player instanceof Player) {
         newState.player.vx = 0;
         newState.player.vy = 0;
       } else if (newState.player) {
+        // Ensure player object integrity if needed
         newState.player = new Player(newState.player.x, newState.player.y);
         newState.player.angle = currentState.player?.angle ?? -Math.PI / 2;
         newState.player.shieldLevel =
           currentState.player?.shieldLevel ?? C.DEFAULT_STARTING_SHIELD;
         newState.player.vx = 0;
         newState.player.vy = 0;
-        console.warn(
-          "Player object was not an instance during docking collision check. Recreated."
-        );
       }
-      return newState;
+      return newState; // Return state signaling docking initiation
     }
 
-    // Camera update might be needed again if collisions moved the player
+    // Update camera again if collisions moved player
     if (newState.player) {
       newState.camera = {
         x: newState.player.x - C.GAME_WIDTH / 2,
@@ -523,6 +538,5 @@ export function updateGameStateLogic(
     }
   }
 
-  // Return the fully updated state
   return newState;
 }

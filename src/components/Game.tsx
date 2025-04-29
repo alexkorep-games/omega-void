@@ -1,10 +1,9 @@
 // src/components/Game.tsx
 import SettingsMenu from "./SettingsMenu";
-import React, { useRef, useCallback, useEffect } from "react"; // Keep useRef
+import React, { useRef, useCallback, useEffect } from "react";
 import GameCanvas from "./GameCanvas";
 import CoordinatesDisplay from "./CoordinatesDisplay";
 import DockingAnimation from "./DockingAnimation";
-import DestructionAnimation from "./DestructionAnimation"; // Import new component
 import BuyCargoScreen from "./BuyCargoScreen";
 import SellCargoScreen from "./SellCargoScreen";
 import StationInfoScreen from "./StationInfoScreen";
@@ -14,16 +13,14 @@ import { useGameLoop } from "../hooks/useGameLoop";
 import { useTouchInput } from "../hooks/useTouchInput";
 import TradeScreen from "./TradeScreen";
 import ChatScreen from "./ChatScreen";
-import * as C from "../game/config"; // Import config for colors/sizes
 
 const Game: React.FC = () => {
-  const containerRef = useRef<HTMLDivElement>(null); // Ref for the container
+  const containerRef = useRef<HTMLDivElement>(null);
   const { gameState, updateGame, isInitialized, initializeGameState } =
     useGameState();
 
   const { touchState, resetTouchState } = useTouchInput(containerRef);
 
-  // Initialize game state on first render
   useEffect(() => {
     if (!isInitialized) {
       initializeGameState();
@@ -31,7 +28,6 @@ const Game: React.FC = () => {
   }, [isInitialized, initializeGameState]);
 
   useEffect(() => {
-    // Reset touch if docking starts or if we enter a non-playing view
     if (
       gameState.gameView === "docking" ||
       gameState.gameView === "buy_cargo" ||
@@ -39,7 +35,7 @@ const Game: React.FC = () => {
       gameState.gameView === "sell_cargo" ||
       gameState.gameView === "trade_select" ||
       gameState.gameView === "chat_log" ||
-      gameState.gameView === "destroyed" // Reset touch when destroyed
+      gameState.gameView === "destroyed"
     ) {
       resetTouchState();
     }
@@ -54,17 +50,16 @@ const Game: React.FC = () => {
     [updateGame, touchState, gameState.gameView]
   );
 
-  // Loop runs during playing and animations
+  // Loop runs during playing and animations, destruction
   const isLoopRunning =
     isInitialized &&
     (gameState.gameView === "playing" ||
       gameState.gameView === "docking" ||
       gameState.gameView === "undocking" ||
-      gameState.gameView === "destroyed"); // Keep loop for destroyed timer/animation logic
+      gameState.gameView === "destroyed"); // Keep loop for destruction animation & timer
 
   useGameLoop(gameLoopUpdate, isLoopRunning);
 
-  // --- Determine which docked UI component to show ---
   const renderDockedUI = () => {
     switch (gameState.gameView) {
       case "buy_cargo":
@@ -79,11 +74,7 @@ const Game: React.FC = () => {
         return (
           <ChatScreen
             messages={[
-              {
-                id: 1,
-                sender: "user",
-                text: "Hello, this is a test message.",
-              },
+              { id: 1, sender: "user", text: "Hello, this is a test message." },
               {
                 id: 2,
                 sender: "ai",
@@ -93,33 +84,16 @@ const Game: React.FC = () => {
           />
         );
       default:
-        return null; // Should not happen in a docked state with toolbar
+        return null;
     }
   };
 
-  // Determine if any docked UI should be visible
   const showDockedUI =
     gameState.gameView === "buy_cargo" ||
     gameState.gameView === "station_info" ||
     gameState.gameView === "sell_cargo" ||
     gameState.gameView === "trade_select" ||
     gameState.gameView === "chat_log";
-
-  // --- Define Destruction Animation Parameters ---
-  const playerDestroyParams = {
-    particleCount: 60,
-    maxDistance: 120,
-    duration: 1200,
-    particleLength: 10,
-    particleThickness: 2,
-  };
-  const enemyDestroyParams = {
-    particleCount: 25,
-    maxDistance: 50,
-    duration: 800,
-    particleLength: 6,
-    particleThickness: 1.5,
-  };
 
   return (
     <div className="GameContainer" ref={containerRef}>
@@ -148,44 +122,6 @@ const Game: React.FC = () => {
           />
         )}
 
-      {/* Player Destruction Animation (Shown during 'destroyed' view) */}
-      {gameState.gameView === "destroyed" &&
-        isInitialized &&
-        gameState.player && (
-          <DestructionAnimation
-            key={`player-destroy-${gameState.player.id}`} // Key ensures it re-mounts if player ID changes (unlikely but good practice)
-            x={gameState.player.x - gameState.camera.x} // Screen coordinates
-            y={gameState.player.y - gameState.camera.y}
-            color={gameState.player.color || C.PLAYER_COLOR}
-            particleCount={playerDestroyParams.particleCount}
-            maxDistance={playerDestroyParams.maxDistance}
-            duration={playerDestroyParams.duration}
-            particleLength={playerDestroyParams.particleLength}
-            particleThickness={playerDestroyParams.particleThickness}
-            // onComplete is not needed as the view change handles disappearance
-          />
-        )}
-
-      {/* Temporary Destruction Animations (Enemies, etc.) */}
-      {isInitialized &&
-        gameState.activeDestructionAnimations.map((anim) => {
-          const params =
-            anim.size === "large" ? playerDestroyParams : enemyDestroyParams;
-          return (
-            <DestructionAnimation
-              key={anim.id} // Use unique ID from state
-              x={anim.x - gameState.camera.x} // Use world coords from anim data
-              y={anim.y - gameState.camera.y}
-              color={anim.color}
-              particleCount={params.particleCount}
-              maxDistance={params.maxDistance}
-              duration={params.duration}
-              particleLength={params.particleLength}
-              particleThickness={params.particleThickness}
-              // onComplete could trigger removal from state, but logic handles it based on time
-            />
-          );
-        })}
 
       {/* Docked Screens (Buy/Sell, Info, Trade Select, Chat) */}
       {showDockedUI && isInitialized && renderDockedUI()}
