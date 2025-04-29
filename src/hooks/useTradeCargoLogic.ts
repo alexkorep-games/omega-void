@@ -24,11 +24,7 @@ interface StatusMessage {
 const MESSAGE_DURATION = 2500; // ms
 
 export function useTradeCargoLogic(mode: TradeMode) {
-  const {
-    gameState,
-    updatePlayerState,
-    updateMarketQuantity,
-  } = useGameState();
+  const { gameState, updatePlayerState, updateMarketQuantity } = useGameState();
 
   const {
     market,
@@ -37,15 +33,10 @@ export function useTradeCargoLogic(mode: TradeMode) {
     cargoCapacity,
     gameView,
   } = gameState;
-  if (market) {
-    console.log("Market loaded:", market);
-  }
 
   // --- Internal State ---
   const [tradeItems, setTradeItems] = useState<TradeItemDisplay[]>([]);
-  const [selectedCommodityKey, setSelectedCommodityKey] = useState<
-    string | null
-  >(null);
+
   const [isEnteringQuantity, setIsEnteringQuantity] = useState(false);
   const [quantityInput, setQuantityInput] = useState("");
   const [statusMessage, setStatusMessage] = useState<StatusMessage | null>(
@@ -186,7 +177,6 @@ export function useTradeCargoLogic(mode: TradeMode) {
     if (!market || !mode) {
       // Clear state if not on a trading screen or market not loaded
       setTradeItems([]);
-      setSelectedCommodityKey(null);
       setIsEnteringQuantity(false);
       setQuantityInput("");
       setStatusMessage(null);
@@ -232,38 +222,22 @@ export function useTradeCargoLogic(mode: TradeMode) {
 
     setTradeItems(items);
 
-    // Maintain selection or select first item
-    if (items.length > 0) {
-      const currentKey = selectedCommodityKey;
-      const foundIndex = items.findIndex((item) => item.key === currentKey);
-      const newIndex = foundIndex !== -1 ? foundIndex : 0;
-      // Ensure the key actually exists at the new index before setting
-      if (items[newIndex]) {
-        setSelectedCommodityKey(items[newIndex].key);
-      } else {
-        setSelectedCommodityKey(null); // Should not happen if items.length > 0
-      }
-    } else {
-      setSelectedCommodityKey(null);
-    }
-
     // Reset quantity input when view/data changes
     setIsEnteringQuantity(false);
     setQuantityInput("");
     // Don't clear message immediately on list refresh, only on view change (handled above)
 
-    // Rerun when view, market, or cargo changes. Include selectedCommodityKey to handle selection persistence.
-  }, [gameView, market, cargoHold, selectedCommodityKey]);
+    // Rerun when view, market, or cargo changes. `lastClickedItemKey` tracks highlight.
+    // `selectedCommodityKey` tracks potential keyboard focus.
+  }, [gameView, market, cargoHold, mode]); // Dependency on lastClickedItemKey to potentially preserve highlight
 
   // --- Input Handlers ---
 
-  // Handles primary action on item click/select (Buy 1 / Sell All)
+  // Handles primary action on item click (Buy 1 / Sell All)
   const handleItemPrimaryAction = useCallback(
     (key: string) => {
       if (isProcessingInput.current || isEnteringQuantity || !mode) return;
       isProcessingInput.current = true;
-      setSelectedCommodityKey(key); // Select the item
-
       let quantityToTrade = 0;
       if (mode === "buy") {
         quantityToTrade = 1;
@@ -293,110 +267,6 @@ export function useTradeCargoLogic(mode: TradeMode) {
     ]
   );
 
-  // Initiates entering quantity for Buy Multiple / Sell Multiple
-  const handleInitiateQuantityTrade = useCallback(() => {
-    if (
-      isProcessingInput.current ||
-      isEnteringQuantity ||
-      !selectedCommodityKey ||
-      !mode ||
-      !market
-    )
-      return;
-
-    isProcessingInput.current = true; // Prevent double triggers
-
-    const item = tradeItems.find((i) => i.key === selectedCommodityKey);
-    if (!item) {
-      console.error("Selected item not found in trade list");
-      setTimeout(() => {
-        isProcessingInput.current = false;
-      }, 100);
-      return;
-    }
-
-    let canTrade = false;
-    let promptMessage = "";
-
-    if (mode === "buy") {
-      const spaceForOne = getTonnesPerUnit(selectedCommodityKey);
-      canTrade =
-        item.marketQuantity > 0 &&
-        cargoSpaceLeft >= spaceForOne &&
-        playerCash >= item.marketPrice;
-      promptMessage = "Enter quantity to buy.";
-    } else if (mode === "sell") {
-      canTrade = item.playerHolding > 0 && item.marketPrice > 0;
-      promptMessage = `Enter quantity to sell (max ${item.playerHolding}).`;
-    }
-
-    if (canTrade) {
-      setIsEnteringQuantity(true);
-      setQuantityInput(""); // Clear previous input
-      showMessage(promptMessage, "info");
-    } else {
-      showMessage(
-        mode === "buy"
-          ? "Cannot buy: Check stock, space, or funds."
-          : "Cannot sell: Check holding or market price.",
-        "error"
-      );
-    }
-
-    // Release debounce slightly after check
-    setTimeout(() => {
-      isProcessingInput.current = false;
-    }, 100);
-  }, [
-    isProcessingInput,
-    isEnteringQuantity,
-    selectedCommodityKey,
-    mode,
-    market, // Added dependency
-    tradeItems, // Added dependency
-    cargoSpaceLeft, // Added dependency
-    playerCash, // Added dependency
-    showMessage,
-  ]);
-
-  // Handles changes to the quantity input field
-  const handleQuantityInputChange = useCallback((value: string) => {
-    // Allow only numbers
-    const numericValue = value.replace(/[^0-9]/g, "");
-    setQuantityInput(numericValue);
-  }, []);
-
-  // Confirms the entered quantity and performs the trade
-  const handleConfirmQuantity = useCallback(() => {
-    if (!isEnteringQuantity || !selectedCommodityKey || !mode) return;
-
-    const quantity = parseInt(quantityInput, 10);
-
-    if (isNaN(quantity) || quantity <= 0) {
-      showMessage("Invalid quantity entered.", "error");
-      // Optionally reset state or keep input open
-      // setIsEnteringQuantity(false);
-      // setQuantityInput("");
-      return; // Don't proceed
-    }
-
-    performTrade(selectedCommodityKey, quantity, mode);
-
-    // Reset quantity input state regardless of success/failure of trade itself
-    // (performTrade shows specific errors)
-    setIsEnteringQuantity(false);
-    setQuantityInput("");
-    // Optionally clear info message if trade was attempted
-    // setStatusMessage(null); // Or let new success/error message overwrite it
-  }, [
-    isEnteringQuantity,
-    selectedCommodityKey,
-    quantityInput,
-    mode,
-    performTrade,
-    showMessage,
-  ]);
-
   // Cancels the quantity input mode
   const handleCancelQuantity = useCallback(() => {
     setIsEnteringQuantity(false);
@@ -409,18 +279,13 @@ export function useTradeCargoLogic(mode: TradeMode) {
     mode, // 'buy', 'sell', or null
     market, // Expose market snapshot used
     tradeItems, // Unified list for display
-    selectedCommodityKey,
-    setSelectedCommodityKey, // Allow external control if needed (e.g., keyboard nav)
 
     isEnteringQuantity,
     quantityInput,
-    handleQuantityInputChange,
-    handleConfirmQuantity,
     handleCancelQuantity,
 
     // Primary actions
-    handleItemPrimaryAction, // Handles click/select (Buy 1 / Sell All)
-    handleInitiateQuantityTrade, // Handles 'B' or 'S' key (Buy/Sell Multiple)
+    handleItemPrimaryAction, // Handles click (Buy 1 / Sell All)
 
     // Player state relevant to trading
     playerCash,

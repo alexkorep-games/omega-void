@@ -9,14 +9,13 @@ const BuyCargoScreen: React.FC = () => {
     market,
     tradeItems, // Use cargoItems from hook (includes price/qty from market)
     handleItemPrimaryAction, // Buy one unit on click
-    selectedCommodityKey,
     quantityInput,
     isEnteringQuantity,
     cargoSpaceLeft,
     playerCash, // Get cash directly from hook
     statusMessage, // Get status message
     isProcessingInput, // Use this to disable interaction during debounce
-  } = useTradeCargoLogic('buy');
+  } = useTradeCargoLogic("buy");
 
   if (!market) {
     return (
@@ -34,8 +33,9 @@ const BuyCargoScreen: React.FC = () => {
         <div className="market-credits">{playerCash.toFixed(1)} CR</div>
       </div>
       <div className="market-instructions">
-        Arrow keys/Click to select. ENTER to buy 1. B for multiple.
-        <br />S switch to Sell. ESC exit.
+        Click item to BUY 1 unit. 'B' key for multiple.
+        <br />
+        'S' key to switch to Sell screen. ESC to exit.
       </div>
       <div className="market-table-container">
         <table className="market-table">
@@ -51,14 +51,17 @@ const BuyCargoScreen: React.FC = () => {
             {tradeItems.map(({ key, marketPrice, marketQuantity }) => (
               <tr
                 key={key}
-                className={key === selectedCommodityKey ? "selected" : ""}
-                onClick={() => !isProcessingInput && handleItemPrimaryAction(key)} // Prevent clicks during debounce
+                onClick={() =>
+                  !isProcessingInput && handleItemPrimaryAction(key)
+                } // Prevent clicks during debounce
               >
                 <td>{key}</td>
                 <td>{getCommodityUnit(key)}</td>
                 <td>{marketPrice.toFixed(1)}</td>
                 <td>
-                  {marketQuantity > 0 ? `${marketQuantity}${getCommodityUnit(key)}` : "-"}
+                  {marketQuantity > 0
+                    ? `${marketQuantity}${getCommodityUnit(key)}`
+                    : "-"}
                 </td>
               </tr>
             ))}

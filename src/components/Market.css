@@ -145,15 +145,6 @@ td:nth-child(4) {
   cursor: pointer;
 }
 
-.market-table tbody tr.selected {
-  background-color: #00ffff; /* Cyan background */
-  color: #001122; /* Dark blue text */
-}
-.market-table tbody tr.selected td {
-  color: #001122; /* Ensure all cells in selected row are dark */
-  border-bottom-color: #008888; /* Keep separator visible */
-}
-
 /* Styling for empty cargo state in sell screen */
 .market-table tbody tr td[colspan="4"] {
   text-align: center;

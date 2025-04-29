@@ -8,7 +8,6 @@ const SellCargoScreen: React.FC = () => {
   const {
     tradeItems,
     handleItemPrimaryAction,
-    selectedCommodityKey,
     quantityInput,
     isEnteringQuantity,
     playerCash,
@@ -23,8 +22,9 @@ const SellCargoScreen: React.FC = () => {
         <div className="market-credits">{playerCash.toFixed(1)} CR</div>
       </div>
       <div className="market-instructions">
-        Arrow keys/Click to select. ENTER to sell all. S for partial sell.
-        <br />B switch to Buy. ESC exit.
+        Click item to SELL ALL held units. 'S' key for partial sell.
+        <br />
+        'B' key to switch to Buy screen. ESC to exit.
       </div>
       <div className="market-table-container">
         <table className="market-table">
@@ -42,7 +42,6 @@ const SellCargoScreen: React.FC = () => {
               return (
                 <tr
                   key={key}
-                  className={key === selectedCommodityKey ? "selected" : ""}
                   onClick={() =>
                     !isProcessingInput && handleItemPrimaryAction(key)
                   } // Prevent clicks during debounce
@@ -75,7 +74,7 @@ const SellCargoScreen: React.FC = () => {
         </table>
       </div>
       <div className="market-footer">
-        <span>Selected: {selectedCommodityKey ?? "None"}</span>
+        {/* Removed 'Selected:' display */}
         {isEnteringQuantity && (
           <div className="quantity-prompt">
             Quantity? <span className="quantity-input">{quantityInput}</span>
