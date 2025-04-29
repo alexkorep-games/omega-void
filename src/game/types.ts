@@ -116,7 +116,8 @@ export type GameView =
   | "undocking"
   | "buy_cargo"
   | "sell_cargo"
-  | "station_info";
+  | "station_info"
+  | "trade_screen";
 
 // Animation State
 export interface IAnimationState {

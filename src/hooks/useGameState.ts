@@ -35,6 +35,7 @@ export function useGameState() {
       setGameStateInternal((prev) => {
         // Prevent unnecessary state changes if view is the same
         if (prev.gameView === newView) return prev;
+        console.log(`Game view updated to: ${newView}`);
         return { ...prev, gameView: newView };
       });
     },
@@ -105,7 +106,7 @@ export function useGameState() {
       console.log("SETTING MARKET TO", newMarket);
       return {
         ...prev, // Use the state before animation finished to get dockingStationId
-        gameView: "buy_cargo", // Go directly to buy screen
+        gameView: "docked", // Go to neutral docked view
         animationState: { ...prev.animationState, type: null, progress: 0 }, // Ensure animation state is reset
         market: newMarket,
       };
@@ -289,7 +290,7 @@ export function useGameState() {
           // Return the new state for completed docking
           return {
             ...nextLogicState, // Base on logic results (animation type is null)
-            gameView: "buy_cargo", // Transition to docked view (e.g., buy screen)
+            gameView: "docked", // Transition to neutral docked view
             market: newMarket,
             // dockingStationId remains from nextLogicState (which should be same as current)
             animationState: {

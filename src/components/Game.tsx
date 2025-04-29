@@ -11,6 +11,7 @@ import BottomToolbar from "./BottomToolbar"; // Import Toolbar
 import { useGameState } from "../hooks/useGameState";
 import { useGameLoop } from "../hooks/useGameLoop";
 import { useTouchInput } from "../hooks/useTouchInput";
+import TradeScreen from "./TradeScreen";
 
 const Game: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -59,6 +60,7 @@ const Game: React.FC = () => {
 
   // --- Determine which docked UI component to show ---
   const renderDockedUI = () => {
+    console.log(`Rendering UI for game view: ${gameState.gameView}`);
     switch (gameState.gameView) {
       case "buy_cargo":
         return <BuyCargoScreen />;
@@ -66,6 +68,8 @@ const Game: React.FC = () => {
         return <SellCargoScreen />;
       case "station_info":
         return <StationInfoScreen />;
+      case "trade_screen":
+        return <TradeScreen />;
       // case "docked": // If you have a main station overview screen later
       //   return <StationScreen station={currentStation} />; // Assuming currentStation is fetched
       default:
@@ -78,6 +82,7 @@ const Game: React.FC = () => {
     gameState.gameView === "buy_cargo" ||
     gameState.gameView === "station_info" ||
     gameState.gameView === "sell_cargo" ||
+    gameState.gameView === "trade_screen" ||
     gameState.gameView === "docked"; // Add 'docked' if created
 
   return (
