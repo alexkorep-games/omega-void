@@ -2,11 +2,11 @@
 import { useCallback, useMemo, useRef } from "react";
 import { atom, useAtom } from "jotai";
 import { IGameState, ITouchState, IStation, GameView } from "../game/types";
-import { initialGameState } from "../game/state";
+import { initialGameState } from "../game/state"; // Still used for base structure
 import { updateGameStateLogic, createPlayer } from "../game/logic";
 import { InfiniteWorldManager } from "../game/world/InfiniteWorldManager";
-import { loadPlayerPosition, savePlayerPosition } from "../utils/storage";
-import { SAVE_COORDS_INTERVAL } from "../game/config";
+import { loadGameState, saveGameState } from "../utils/storage"; // Use new functions
+import { SAVE_STATE_INTERVAL } from "../game/config"; // Renamed constant
 import { Player } from "../game/entities/Player";
 import {
   MarketGenerator,
@@ -130,39 +130,70 @@ export function useGameState() {
 
   // --- Initialization ---
   const initializeGameState = useCallback(() => {
+    if (gameState.isInitialized) {
+      console.log("Initialization already done, skipping.");
+      return;
+    }
+
     console.log("Initializing game state...");
-    const initialPosition = loadPlayerPosition();
+    const loadedData = loadGameState();
+
     setGameStateInternal((prevState) => ({
       ...prevState,
-      player: createPlayer(initialPosition.x, initialPosition.y),
+      player: createPlayer(loadedData.coordinates.x, loadedData.coordinates.y), // Use loaded coords
+      cash: loadedData.cash, // Use loaded cash
+      cargoHold: loadedData.cargoHold, // Use loaded cargo (already a Map)
       isInitialized: true,
+      // Reset other dynamic parts of state if necessary
+      enemies: [],
+      projectiles: [],
+      visibleBackgroundObjects: [],
+      camera: { x: 0, y: 0 }, // Will be updated by logic soon
+      gameView: "playing", // Assume start in playing view unless docking/undocking state is also persisted (not done here)
+      dockingStationId: null,
+      animationState: { ...initialGameState.animationState }, // Reset animation
+      market: null,
     }));
 
+    // Clear any existing interval before starting a new one
     if (saveIntervalId.current) clearInterval(saveIntervalId.current);
-    saveIntervalId.current = setInterval(() => {
-      setGameStateInternal((currentSyncState) => {
-        if (
-          currentSyncState.gameView === "playing" ||
-          currentSyncState.gameView === "docked" || // Also save when docked (or in buy/sell)
-          currentSyncState.gameView === "buy_cargo" ||
-          currentSyncState.gameView === "sell_cargo"
-        ) {
-          savePlayerPosition({
-            x: currentSyncState.player.x,
-            y: currentSyncState.player.y,
-          });
-        }
-        return currentSyncState; // Always return the state in the setter function
-      });
-    }, SAVE_COORDS_INTERVAL);
 
+    saveIntervalId.current = setInterval(() => {
+      // Use a stable reference to the state for saving,
+      // by getting the latest state *inside* the interval callback
+      // Note: Using the atom's read function directly might be another approach,
+      // but setGameStateInternal allows reading the *current* state before setting.
+      setGameStateInternal((currentSyncState) => {
+        // Check if player exists and has coordinates before saving
+        if (
+          currentSyncState.player &&
+          typeof currentSyncState.player.x === "number" &&
+          typeof currentSyncState.player.y === "number"
+        ) {
+          saveGameState({
+            coordinates: {
+              x: currentSyncState.player.x,
+              y: currentSyncState.player.y,
+            },
+            cash: currentSyncState.cash,
+            cargoHold: currentSyncState.cargoHold,
+          });
+        } else {
+          console.warn("Attempted to save state but player data was invalid.");
+        }
+        return currentSyncState; // Interval must return the state for Jotai's setter
+      });
+    }, SAVE_STATE_INTERVAL); // Use the renamed constant
+
+    // Return cleanup function for the interval
     return () => {
       if (saveIntervalId.current) {
         clearInterval(saveIntervalId.current);
         console.log("Cleaned up save interval.");
+        saveIntervalId.current = null; // Ensure ref is cleared
       }
     };
-  }, [setGameStateInternal]);
+  }, [setGameStateInternal, gameState.isInitialized]); // Add gameState.isInitialized dependency to prevent re-running if already initialized
 
   // --- Core Update Callback ---
   const updateGame = useCallback(

@@ -49,8 +49,8 @@ export const TOUCH_SHOOT_INDICATOR_RADIUS = 35;
 export const TOUCH_SHOOT_INDICATOR_INNER_RADIUS = 8;
 
 // Saving
-export const SAVE_COORDS_INTERVAL = 5000; // ms
-export const LOCAL_STORAGE_COORDS_KEY = "eliteShooterPlayerCoords";
+export const SAVE_STATE_INTERVAL = 5000;
+export const LOCAL_STORAGE_GAME_STATE_KEY = "omegaVoidGameState"; // New combined key
 
 // Drawing
 export const SCANNER_MAX_DIST = 800;
