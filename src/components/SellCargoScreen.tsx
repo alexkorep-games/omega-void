@@ -15,9 +15,7 @@ const SellCargoScreen: React.FC = () => {
         <div className="market-credits">{playerCash.toFixed(1)} CR</div>
       </div>
       <div className="market-instructions">
-        Click item to SELL ALL held units. 'S' key for partial sell.
-        <br />
-        'B' key to switch to Buy screen. ESC to exit.
+        Click item to SELL ALL held units.
       </div>
       <div className="market-table-container">
         <table className="market-table">

@@ -29,11 +29,7 @@ const BuyCargoScreen: React.FC = () => {
         <div className="market-title">BUY CARGO</div>
         <div className="market-credits">{playerCash.toFixed(1)} CR</div>
       </div>
-      <div className="market-instructions">
-        Click item to BUY 1 unit. 'B' key for multiple.
-        <br />
-        'S' key to switch to Sell screen. ESC to exit.
-      </div>
+      <div className="market-instructions">Click item to BUY 1 unit.</div>
       <div className="market-table-container">
         <table className="market-table">
           <thead>
