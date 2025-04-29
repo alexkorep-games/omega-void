@@ -18,7 +18,7 @@ export class Enemy extends GameObject implements IEnemy {
     const distToPlayer = Math.sqrt(dx * dx + dy * dy);
 
     // Only move if player is not too close (prevents jittering on top)
-    if (distToPlayer > this.radius + player.radius + 5) {
+    if (distToPlayer > this.radius + player.radius - 5) {
       this.angle = Math.atan2(dy, dx); // Face the player
       this.x += Math.cos(this.angle) * ENEMY_SPEED;
       this.y += Math.sin(this.angle) * ENEMY_SPEED;
