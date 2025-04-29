@@ -24,7 +24,7 @@ const gameStateAtom = atom<IGameState>(initialGameState);
  * It integrates the core game logic and world management.
  */
 export function useGameState() {
-  const [gameState, setGameStateInternal] = useAtom(gameStateAtom); // Use Jotai atom for state management
+  const [gameState, setGameStateInternal] = useAtom(gameStateAtom);
   const worldManager = useMemo(() => new InfiniteWorldManager({}), []);
   const saveIntervalId = useRef<number | null>(null);
 
@@ -72,26 +72,6 @@ export function useGameState() {
         // console.log("SETTING MARKET TO", newMarket); // Reduced logging noise
         return { ...prev, market: newMarket };
       });
-    },
-    [setGameStateInternal]
-  );
-
-  // --- State Transition Actions ---
-  const initiateDocking = useCallback(
-    (stationId: string) => {
-      console.log("Action: Initiate Docking with", stationId);
-      console.log("SETTING MARKET TO NULL"); // Keep this for clarity
-      setGameStateInternal((prev) => ({
-        ...prev,
-        gameView: "docking",
-        dockingStationId: stationId,
-        animationState: {
-          type: "docking", // Set type specifically
-          progress: 0, // Reset progress
-          duration: prev.animationState.duration, // Keep duration
-        },
-        market: null, // Clear previous market on docking start
-      }));
     },
     [setGameStateInternal]
   );
@@ -148,53 +128,6 @@ export function useGameState() {
     }));
   }, [setGameStateInternal]);
 
-  // completeUndocking also reads ID from state
-  const completeUndocking = useCallback(() => {
-    console.log("Action: Complete Undocking");
-    setGameStateInternal((prev) => {
-      // <-- prev has the dockingStationId
-      let playerX = prev.player.x;
-      let playerY = prev.player.y;
-      let playerAngle = prev.player.angle;
-
-      const station = prev.dockingStationId
-        ? worldManager.getStationById(prev.dockingStationId)
-        : null;
-
-      if (station) {
-        const undockDist = station.radius + prev.player.radius + 20;
-        const exitAngle = station.angle + Math.PI; // Appear opposite docking entrance
-        playerX = station.x + Math.cos(exitAngle) * undockDist;
-        playerY = station.y + Math.sin(exitAngle) * undockDist;
-        playerAngle = exitAngle - Math.PI / 2; // Face away from station entrance (adjust based on ship sprite)
-      } else {
-        console.warn("Undocking: Station not found for repositioning.");
-      }
-
-      // Ensure player is an instance before updating
-      const updatedPlayer =
-        prev.player instanceof Player
-          ? prev.player // Reuse instance if possible
-          : new Player(prev.player.x, prev.player.y); // Or create new if needed
-
-      updatedPlayer.x = playerX;
-      updatedPlayer.y = playerY;
-      updatedPlayer.vx = 0; // Reset velocity
-      updatedPlayer.vy = 0;
-      updatedPlayer.angle = playerAngle;
-
-      console.log("SETTING MARKET TO NULL"); // Ensure market is cleared
-      return {
-        ...prev,
-        player: updatedPlayer,
-        gameView: "playing",
-        dockingStationId: null, // Clear station ID
-        market: null, // Ensure market is null
-        animationState: { ...prev.animationState, type: null, progress: 0 }, // Ensure animation state is reset
-      };
-    });
-  }, [setGameStateInternal, worldManager]);
-
   // --- Initialization ---
   const initializeGameState = useCallback(() => {
     console.log("Initializing game state...");
@@ -238,83 +171,147 @@ export function useGameState() {
       now: number,
       currentTouchState: ITouchState | undefined
     ) => {
-      // Use setGameStateInternal with function form to ensure we base logic on the *actual* current state atom value
       setGameStateInternal((currentGameState) => {
         if (!currentGameState.isInitialized) {
-          return currentGameState; // Not ready yet
+          return currentGameState;
         }
 
         // --- Run the core game logic ---
-        // This function now ONLY calculates the next physical state
         const nextLogicState = updateGameStateLogic(
           currentGameState,
           currentTouchState,
           worldManager,
           deltaTime,
           now
-          // No actions passed anymore
         );
 
         // --- Check for State Transitions based on logic results ---
-        let stateToReturn = nextLogicState; // Start with the logic result
 
         // 1. Docking Initiation Triggered?
-        // Check if logic set a dockingStationId when previously there wasn't one, and view is 'playing'
         if (
           currentGameState.gameView === "playing" &&
-          !currentGameState.dockingStationId && // We weren't trying to dock before
-          nextLogicState.dockingStationId // But the logic result indicates we should
+          !currentGameState.dockingStationId &&
+          nextLogicState.dockingStationId
         ) {
-          console.log("Hook: Detected docking initiation signal.");
-          // Logic indicated a docking collision occurred. Initiate docking.
-          // This schedules the state change to gameView: 'docking' etc.
-          initiateDocking(nextLogicState.dockingStationId);
-          // We return the state from logic *before* docking starts visually.
-          // initiateDocking's state update will handle the view switch.
+          console.log(
+            "Hook: Detected docking initiation signal. Applying state change directly."
+          );
+          // Return the new state for docking directly
+          return {
+            ...nextLogicState, // Base on logic results (includes dockingStationId, stopped player velocity)
+            gameView: "docking", // Set the view
+            animationState: {
+              type: "docking",
+              progress: 0,
+              duration: currentGameState.animationState.duration, // Use duration from current state
+            },
+            market: null, // Clear market
+          };
         }
         // 2. Docking Animation Finished?
-        // Check if the animation type changed from 'docking' to null
         else if (
-          // Use 'else if' to avoid potential concurrent triggers
-          currentGameState.gameView === "docking" && // We were docking
-          currentGameState.animationState.type === "docking" && // Animation was running
-          nextLogicState.animationState.type === null // Logic says animation just finished
+          currentGameState.gameView === "docking" &&
+          currentGameState.animationState.type === "docking" &&
+          nextLogicState.animationState.type === null
         ) {
-          console.log("Hook: Detected docking animation completion.");
-          // Animation finished in logic. Complete the docking process.
-          // This schedules the state change to gameView: 'buy_cargo', generates market etc.
-          completeDocking(); // Reads ID from state internally now
-          // Return the logic state (which has animationState.type = null).
-          // completeDocking's state update will handle the view/market switch.
+          console.log(
+            "Hook: Detected docking animation completion. Applying state change directly."
+          );
+          const stationId = currentGameState.dockingStationId; // Get ID from the state *before* logic potentially cleared it
+          const station = stationId
+            ? worldManager.getStationById(stationId)
+            : null;
+          let newMarket: MarketSnapshot | null = null;
+          if (station) {
+            const stationIdentifier = station.name || `ID ${stationId}`;
+            console.log(`Generating market for ${stationIdentifier}`);
+            newMarket = MarketGenerator.generate(
+              station,
+              WORLD_SEED,
+              Date.now()
+            );
+          } else {
+            console.error(
+              `Cannot complete docking: Station ${stationId} not found!`
+            );
+          }
+
+          console.log("SETTING MARKET TO", newMarket);
+          // Return the new state for completed docking
+          return {
+            ...nextLogicState, // Base on logic results (animation type is null)
+            gameView: "buy_cargo", // Transition to docked view (e.g., buy screen)
+            market: newMarket,
+            // dockingStationId remains from nextLogicState (which should be same as current)
+            animationState: {
+              ...nextLogicState.animationState,
+              type: null,
+              progress: 0,
+            }, // Ensure clean animation state
+          };
         }
         // 3. Undocking Animation Finished?
-        // Check if animation type changed from 'undocking' to null
         else if (
-          // Use 'else if'
-          currentGameState.gameView === "undocking" && // We were undocking
-          currentGameState.animationState.type === "undocking" && // Animation was running
-          nextLogicState.animationState.type === null // Logic says animation just finished
+          currentGameState.gameView === "undocking" &&
+          currentGameState.animationState.type === "undocking" &&
+          nextLogicState.animationState.type === null
         ) {
-          console.log("Hook: Detected undocking animation completion.");
-          // Complete the undocking process.
-          // This schedules the state change to gameView: 'playing', repositions player etc.
-          completeUndocking(); // Reads ID from state internally now
-          // Return the logic state (which has animationState.type = null).
-          // completeUndocking's state update will handle the view/position switch.
+          console.log(
+            "Hook: Detected undocking animation completion. Applying state change directly."
+          );
+          // Reposition player logic
+          let playerX = nextLogicState.player.x;
+          let playerY = nextLogicState.player.y;
+          let playerAngle = nextLogicState.player.angle;
+          const stationId = currentGameState.dockingStationId; // Get ID from state *before* logic potentially cleared it
+          const station = stationId
+            ? worldManager.getStationById(stationId)
+            : null;
+
+          if (station) {
+            const undockDist =
+              station.radius + currentGameState.player.radius + 20; // Use current radius vals
+            const exitAngle = station.angle + Math.PI; // Opposite docking entrance
+            playerX = station.x + Math.cos(exitAngle) * undockDist;
+            playerY = station.y + Math.sin(exitAngle) * undockDist;
+            playerAngle = exitAngle + Math.PI / 2; // Face away from station center (sprite dependent)
+          } else {
+            console.warn("Undocking: Station not found for repositioning.");
+          }
+
+          // Ensure player is an instance and update its properties
+          const updatedPlayer =
+            nextLogicState.player instanceof Player
+              ? nextLogicState.player // Reuse if already instance
+              : new Player(nextLogicState.player.x, nextLogicState.player.y); // Create if plain object
+
+          updatedPlayer.x = playerX;
+          updatedPlayer.y = playerY;
+          updatedPlayer.vx = 0;
+          updatedPlayer.vy = 0;
+          updatedPlayer.angle = playerAngle;
+
+          console.log("SETTING MARKET TO NULL"); // Confirm market clear
+          // Return the new state for completed undocking
+          return {
+            ...nextLogicState, // Base on logic results (animation type is null)
+            player: updatedPlayer, // Use the updated player object
+            gameView: "playing",
+            dockingStationId: null, // Clear station ID
+            market: null, // Ensure market is cleared
+            animationState: {
+              ...nextLogicState.animationState,
+              type: null,
+              progress: 0,
+            }, // Ensure clean animation state
+          };
         }
 
         // --- No major state transition detected, just return logic results ---
-        return stateToReturn;
+        return nextLogicState; // Return the state from logic if no transitions occurred
       }); // End setGameStateInternal
     },
-    [
-      // Add the actions as dependencies now, as they are called directly within updateGame
-      setGameStateInternal,
-      worldManager,
-      initiateDocking,
-      completeDocking,
-      completeUndocking,
-    ]
+    [setGameStateInternal, worldManager]
   ); // End updateGame useCallback
 
   // --- Helper Function ---
@@ -332,14 +329,11 @@ export function useGameState() {
     gameState,
     updateGame,
     isInitialized: gameState.isInitialized,
-    // Actions / Setters
-    initiateDocking,
     completeDocking,
     initiateUndocking,
-    completeUndocking,
-    setGameView, // Expose the view setter
-    updatePlayerState, // Expose generic updater
-    updateMarketQuantity, // Expose market updater
+    setGameView,
+    updatePlayerState,
+    updateMarketQuantity,
     // Helpers
     findStationById,
   };
