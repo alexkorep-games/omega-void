@@ -185,40 +185,80 @@ function drawStation(
 
 // --- HUD and Controls Drawing ---
 
-function drawHUD(ctx: Ctx, state: IGameState): void {
+function drawHUD(ctx: Ctx, player: IPlayer, cash: number): void {
   const hudY = C.GAME_VIEW_HEIGHT;
   const padding = 5;
-  const sectionWidth = C.GAME_WIDTH / 3 - padding * 4;
+  // const sectionWidth = C.GAME_WIDTH / 3 - padding * 4; // Not directly used now
   const scannerCenterX = C.GAME_WIDTH / 2;
   const scannerCenterY = hudY + C.HUD_HEIGHT / 2 + 5;
   const scannerRadius = C.HUD_HEIGHT / 2 - padding * 2;
-  const scannerMaxDist = C.SCANNER_MAX_DIST;
+  // const scannerMaxDist = C.SCANNER_MAX_DIST; // Moved to main drawGame
 
   ctx.strokeStyle = C.HUD_COLOR;
   ctx.fillStyle = C.HUD_COLOR;
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 1.5; // Slightly thinner HUD lines
   ctx.strokeRect(
     padding,
     hudY + padding,
     C.GAME_WIDTH - 2 * padding,
     C.HUD_HEIGHT - 2 * padding
   );
+  // Separator lines
+  ctx.beginPath();
+  ctx.moveTo(C.GAME_WIDTH / 3, hudY + padding);
+  ctx.lineTo(C.GAME_WIDTH / 3, C.GAME_HEIGHT - padding);
+  ctx.moveTo((C.GAME_WIDTH * 2) / 3, hudY + padding);
+  ctx.lineTo((C.GAME_WIDTH * 2) / 3, C.GAME_HEIGHT - padding);
+  ctx.stroke();
 
   // --- Left Panel (simplified) ---
   const leftX = padding * 2;
   let currentLeftY = hudY + padding * 4;
-  ctx.font = "12px monospace";
-  ctx.fillText("SYSTEMS", leftX, currentLeftY);
-  currentLeftY += 20;
-  ctx.lineWidth = 1;
+  ctx.font = "10px monospace";
+  ctx.fillText("CASH:", leftX, currentLeftY);
+  ctx.fillStyle = "#00FF00"; // Green cash
+  ctx.fillText(`${cash.toFixed(1)} CR`, leftX + 40, currentLeftY);
+  ctx.fillStyle = C.HUD_COLOR; // Reset fill color
+  currentLeftY += 15;
+  ctx.fillText("NAV:", leftX, currentLeftY);
   ctx.fillStyle = C.HUD_ACCENT_COLOR;
-  for (let i = 0; i < 3; i++) {
-    ctx.fillRect(leftX, currentLeftY + i * 15, sectionWidth * 0.6, 8);
-  }
+  ctx.fillText("LOCAL", leftX + 40, currentLeftY);
+  ctx.fillStyle = C.HUD_COLOR; // Reset fill color
+  currentLeftY += 15;
+
+  // Shield Bar
+  ctx.fillText("SHIELD:", leftX, currentLeftY);
+  currentLeftY += 12;
+  const shieldBarWidth = C.GAME_WIDTH / 3 - padding * 6;
+  const shieldBarHeight = 10;
+  // Background
+  ctx.fillStyle = C.HUD_SHIELD_BAR_EMPTY_COLOR;
+  ctx.fillRect(leftX, currentLeftY, shieldBarWidth, shieldBarHeight);
+  // Fill
+  const shieldFillWidth = Math.max(
+    0,
+    (player.shieldLevel / 100) * shieldBarWidth
+  ); // Ensure non-negative width
+  ctx.fillStyle = C.HUD_SHIELD_BAR_COLOR;
+  ctx.fillRect(leftX, currentLeftY, shieldFillWidth, shieldBarHeight);
+  // Border
+  ctx.strokeStyle = C.HUD_COLOR;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(leftX, currentLeftY, shieldBarWidth, shieldBarHeight);
+  // Percentage Text (optional, centered on bar)
+  ctx.fillStyle = C.HUD_COLOR;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = "8px monospace";
+  ctx.fillText(
+    `${Math.max(0, player.shieldLevel).toFixed(0)}%`,
+    leftX + shieldBarWidth / 2,
+    currentLeftY + shieldBarHeight / 2 + 1
+  ); // Ensure non-negative display
+  ctx.textAlign = "left"; // Reset alignment
+  ctx.textBaseline = "alphabetic"; // Reset baseline
 
   // --- Center Panel (Scanner) ---
-  ctx.font = "16px monospace";
-
   // Scanner Ellipse
   ctx.strokeStyle = C.HUD_COLOR;
   ctx.lineWidth = 1.5;
@@ -242,60 +282,24 @@ function drawHUD(ctx: Ctx, state: IGameState): void {
   ctx.lineTo(scannerCenterX + scannerRadius * 1.2, scannerCenterY);
   ctx.moveTo(scannerCenterX, scannerCenterY - scannerRadius * 0.8);
   ctx.lineTo(scannerCenterX, scannerCenterY + scannerRadius * 0.8);
-  // Diagonals removed for simplicity compared to original
   ctx.stroke();
   ctx.setLineDash([]); // Reset dashes
 
-  // Scanner Objects
-  const drawScannerObject = (
-    objX: number,
-    objY: number,
-    color: string,
-    size: number
-  ) => {
-    const dx = objX - state.player.x;
-    const dy = objY - state.player.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    if (dist < scannerMaxDist) {
-      const angle = Math.atan2(dy, dx);
-      // Project onto ellipse shape
-      const displayDist = dist / scannerMaxDist;
-      const displayX =
-        scannerCenterX + Math.cos(angle) * displayDist * scannerRadius * 1.2;
-      const displayY =
-        scannerCenterY + Math.sin(angle) * displayDist * scannerRadius * 0.8;
-
-      // Check if inside the ellipse bounds before drawing
-      const normalizedX = (displayX - scannerCenterX) / (scannerRadius * 1.2);
-      const normalizedY = (displayY - scannerCenterY) / (scannerRadius * 0.8);
-      if (normalizedX * normalizedX + normalizedY * normalizedY <= 1) {
-        ctx.fillStyle = color;
-        ctx.fillRect(
-          Math.floor(displayX - size / 2),
-          Math.floor(displayY - size / 2),
-          size,
-          size
-        );
-      }
-    }
-  };
-  state.enemies.forEach((e) => drawScannerObject(e.x, e.y, C.ENEMY_COLOR, 3));
-  state.visibleBackgroundObjects.forEach((bgObj) => {
-    if (bgObj.type === "station") {
-      drawScannerObject(bgObj.x, bgObj.y, bgObj.color || C.STATION_COLOR, 5);
-    }
-  });
+  // --- Draw player in center of scanner (always) ---
+  ctx.fillStyle = C.PLAYER_COLOR;
+  ctx.fillRect(scannerCenterX - 1, scannerCenterY - 1, 3, 3);
 
   // --- Right Panel (simplified) ---
-  const rightX = C.GAME_WIDTH - padding * 2 - sectionWidth;
+  const rightX = (C.GAME_WIDTH * 2) / 3 + padding * 2;
   let currentRightY = hudY + padding * 4;
-  ctx.font = "12px monospace";
-  ctx.fillText("STATUS", rightX, currentRightY);
-  currentRightY += 20;
   ctx.font = "10px monospace";
-  ctx.fillText("Shield: 100%", rightX, currentRightY);
+  ctx.fillText("STATUS", rightX, currentRightY);
   currentRightY += 15;
-  ctx.fillText("Laser: READY", rightX, currentRightY);
+  ctx.fillText("Target:", rightX, currentRightY);
+  ctx.fillStyle = C.HUD_ACCENT_COLOR;
+  ctx.fillText("NONE", rightX + 50, currentRightY);
+  ctx.fillStyle = C.HUD_COLOR; // Reset fill color
+  currentRightY += 15;
 }
 
 function drawTouchControls(ctx: Ctx, touchState: ITouchState): void {
@@ -360,6 +364,7 @@ export function drawGame(
   state: IGameState,
   touchState: ITouchState
 ): void {
+  const scannerMaxDist = C.SCANNER_MAX_DIST; // Define here for scanner drawing access
   // Clear canvas
   ctx.fillStyle = "#000000";
   ctx.fillRect(0, 0, C.GAME_WIDTH, C.GAME_HEIGHT);
@@ -374,6 +379,13 @@ export function drawGame(
 
   const offsetX = state.camera.x;
   const offsetY = state.camera.y;
+
+  // --- Handle Destroyed View ---
+  if (state.gameView === "destroyed") {
+    // Only draw background? Or nothing in game view?
+    // Explosion is drawn by DestructionAnimation component now.
+    // We can draw stars/stations still.
+  }
 
   // Draw Background Objects (Stars and Stations)
   state.visibleBackgroundObjects.forEach((obj) => {
@@ -395,18 +407,83 @@ export function drawGame(
     }
   });
 
-  // Draw Game Entities
-  state.enemies.forEach((enemy) => drawEnemy(ctx, enemy, offsetX, offsetY));
-  state.projectiles.forEach((proj) =>
-    drawProjectile(ctx, proj, offsetX, offsetY)
-  );
-  drawPlayer(ctx, state.player, offsetX, offsetY);
+  // Draw Game Entities (only if not destroyed)
+  if (state.gameView !== "destroyed") {
+    state.enemies.forEach((enemy) => drawEnemy(ctx, enemy, offsetX, offsetY));
+    state.projectiles.forEach((proj) =>
+      drawProjectile(ctx, proj, offsetX, offsetY)
+    );
+    // Ensure player object exists before drawing
+    if (state.player) {
+      drawPlayer(ctx, state.player, offsetX, offsetY);
+    }
+  }
 
   ctx.restore(); // Remove clipping
 
-  // --- Draw HUD ---
-  drawHUD(ctx, state);
+  // --- Draw HUD (only if not destroyed and player exists) ---
+  if (state.gameView !== "destroyed" && state.player) {
+    // Moved Scanner Drawing Logic Here from drawHUD
+    const hudY = C.GAME_VIEW_HEIGHT;
+    const padding = 5;
+    const scannerCenterX = C.GAME_WIDTH / 2;
+    const scannerCenterY = hudY + C.HUD_HEIGHT / 2 + 5;
+    const scannerRadius = C.HUD_HEIGHT / 2 - padding * 2;
 
-  // --- Draw Touch Controls ---
-  drawTouchControls(ctx, touchState);
+    const drawScannerObject = (
+      objX: number,
+      objY: number,
+      color: string,
+      size: number
+    ) => {
+      const dx = objX - state.player.x;
+      const dy = objY - state.player.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist < scannerMaxDist && dist > 0) {
+        // Don't draw player self on scanner
+        const angle = Math.atan2(dy, dx);
+        // Project onto ellipse shape
+        const displayDist = dist / scannerMaxDist;
+        const displayX =
+          scannerCenterX + Math.cos(angle) * displayDist * scannerRadius * 1.2;
+        const displayY =
+          scannerCenterY + Math.sin(angle) * displayDist * scannerRadius * 0.8;
+
+        // Check if inside the ellipse bounds before drawing
+        const normalizedX = (displayX - scannerCenterX) / (scannerRadius * 1.2);
+        const normalizedY = (displayY - scannerCenterY) / (scannerRadius * 0.8);
+        if (normalizedX * normalizedX + normalizedY * normalizedY <= 1) {
+          ctx.fillStyle = color;
+          ctx.fillRect(
+            Math.floor(displayX - size / 2),
+            Math.floor(displayY - size / 2),
+            size,
+            size
+          );
+        }
+      }
+    };
+
+    // Clear previous scanner objects (needed if drawn every frame)
+    // Alternatively, redraw the scanner background elements in drawHUD
+
+    // Draw Objects
+    state.enemies.forEach((e) => drawScannerObject(e.x, e.y, C.ENEMY_COLOR, 3));
+    state.projectiles.forEach((p) =>
+      drawScannerObject(p.x, p.y, C.PROJECTILE_COLOR, 1)
+    );
+    state.visibleBackgroundObjects.forEach((bgObj) => {
+      if (bgObj.type === "station") {
+        drawScannerObject(bgObj.x, bgObj.y, bgObj.color || C.STATION_COLOR, 5);
+      }
+    });
+
+    // Draw HUD Frame and Info Panels
+    drawHUD(ctx, state.player, state.cash);
+  }
+
+  // --- Draw Touch Controls (only if playing) ---
+  if (state.gameView === "playing") {
+    drawTouchControls(ctx, touchState);
+  }
 }

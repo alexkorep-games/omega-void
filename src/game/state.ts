@@ -1,9 +1,15 @@
 // src/game/state.ts
 import { IGameState, IPlayer, ITouchState } from "./types";
 import { Player } from "./entities/Player";
-import { GAME_WIDTH, GAME_VIEW_HEIGHT, DEFAULT_STARTING_CASH } from "./config";
+import {
+  GAME_WIDTH,
+  GAME_VIEW_HEIGHT,
+  DEFAULT_STARTING_CASH,
+  DEFAULT_STARTING_SHIELD,
+} from "./config";
 
-export const initialPlayerState: IPlayer = new Player(0, 0); // Position will be loaded
+// Create default player instance
+export const initialPlayerState: IPlayer = new Player(0, 0);
 
 export const initialTouchState: ITouchState = {
   move: {
@@ -26,8 +32,7 @@ export const initialGameState: IGameState = {
   lastEnemySpawnTime: 0,
   lastShotTime: 0,
   enemyIdCounter: 0,
-  isInitialized: false,
-  // New state properties
+  // Game Flow properties
   gameView: "playing", // Start in playing mode
   dockingStationId: null, // No station docked initially
   animationState: {
@@ -35,10 +40,13 @@ export const initialGameState: IGameState = {
     progress: 0, // Milliseconds elapsed
     duration: 1500, // Total duration in ms
   },
-  // --- Initialize Trading State ---
+  // Player Resource properties
   cash: DEFAULT_STARTING_CASH, // Starting cash
   cargoHold: new Map<string, number>(), // Start with empty cargo
   cargoCapacity: 10, // Start with 10t capacity
+  lastDockedStationId: null, // Track last station for respawn
+  respawnTimer: 0, // Timer for respawn delay
+  isInitialized: false,
   market: null, // No market data initially
 };
 
@@ -48,7 +56,8 @@ export function updateCamera(state: IGameState): IGameState {
   if (
     state.gameView === "playing" ||
     state.gameView === "docking" ||
-    state.gameView === "undocking"
+    state.gameView === "undocking" ||
+    state.gameView === "destroyed" // Keep camera potentially updated during destruction/respawn
   ) {
     // Ensure player position is considered
     const playerX = state.player?.x ?? 0;

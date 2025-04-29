@@ -56,21 +56,29 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     if (
       ctxRef.current &&
       gameState.isInitialized &&
-      gameState.gameView === "playing"
+      (gameState.gameView === "playing" || gameState.gameView === "destroyed") // Draw during destruction too (for explosion bg maybe)
     ) {
       // console.log("Drawing game state frame..."); // Debug log (can be noisy)
       drawGame(ctxRef.current, gameState, touchState);
-    } else if (ctxRef.current && gameState.gameView !== "playing") {
+    } else if (
+      ctxRef.current &&
+      gameState.gameView !== "playing" &&
+      gameState.gameView !== "destroyed"
+    ) {
       // Clear canvas if not playing to avoid stale graphics
       ctxRef.current.fillStyle = "#000";
       ctxRef.current.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
     }
-  }, [gameState, touchState]); // Re-draw when game or touch state changes
+  }, [gameState, touchState]); // Re-draw when game or touch state changes or game view
 
-  // Dynamic style to hide canvas when not playing
+  // Dynamic style to hide canvas when not playing OR destroyed (to let overlay show)
+  // Let's keep canvas visible during 'destroyed' so background/stars are visible
   const canvasStyle: React.CSSProperties = {
     ...canvasStyleBase,
-    visibility: gameState.gameView === "playing" ? "visible" : "hidden",
+    visibility:
+      gameState.gameView === "playing" || gameState.gameView === "destroyed"
+        ? "visible"
+        : "hidden",
   };
 
   return (

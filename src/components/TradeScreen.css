@@ -3,7 +3,12 @@
 /* Inherit general layout from Market.css */
 .trade-select-screen {
   border: 2px solid #00ffff; /* Cyan border - Keep */
-  background-color: rgba(0, 25, 25, 0.9); /* Darker cyan background for less clash */
+  background-color: rgba(
+    0,
+    25,
+    25,
+    0.9
+  ); /* Darker cyan background for less clash */
   /* Keep padding and flex direction from .market-container */
 }
 
@@ -26,7 +31,7 @@
   border: 1px solid #00aaaa; /* Dimmer cyan border */
   padding: 12px 25px; /* Adjust padding */
   cursor: pointer;
-  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s, opacity 0.2s; /* Added opacity transition */
   text-transform: uppercase;
   min-width: 180px; /* Adjust min-width */
   text-align: center;
@@ -40,7 +45,7 @@
 }
 
 /* Hover effect like toolbar */
-.trade-select-button:hover {
+.trade-select-button:hover:not(:disabled) {
   background-color: rgba(0, 255, 255, 0.15); /* Slight cyan glow */
   border-color: #00ffff; /* Brighten border on hover */
   color: #ffffff; /* White text on hover */
@@ -48,10 +53,20 @@
 }
 
 /* Active effect like toolbar */
-.trade-select-button:active {
+.trade-select-button:active:not(:disabled) {
   background-color: rgba(0, 255, 255, 0.3);
   transform: none; /* Remove previous transform */
   box-shadow: none; /* Remove previous shadow */
+}
+
+/* Disabled state for replenish button */
+.trade-select-button.disabled,
+.trade-select-button:disabled {
+  border-color: #005555; /* Very dim cyan */
+  color: #008888; /* Dimmer cyan text */
+  cursor: not-allowed;
+  background-color: transparent; /* Ensure no hover effect background */
+  opacity: 0.6; /* Fade disabled buttons */
 }
 
 /* Remove specific Buy/Sell background colors unless desired for subtle difference */

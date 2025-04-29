@@ -5,6 +5,7 @@ import GameCanvas from "./GameCanvas";
 import CoordinatesDisplay from "./CoordinatesDisplay";
 // import StationScreen from "./StationScreen"; // No longer needed directly here
 import DockingAnimation from "./DockingAnimation";
+import DestructionAnimation from "./DestructionAnimation"; // Import new component
 import BuyCargoScreen from "./BuyCargoScreen"; // Import Buy screen
 import SellCargoScreen from "./SellCargoScreen"; // Import Sell screen
 import StationInfoScreen from "./StationInfoScreen"; // Import Station Info screen
@@ -37,7 +38,8 @@ const Game: React.FC = () => {
       gameState.gameView === "station_info" ||
       gameState.gameView === "sell_cargo" ||
       gameState.gameView === "trade_select" ||
-      gameState.gameView === "chat_log"
+      gameState.gameView === "chat_log" ||
+      gameState.gameView === "destroyed" // Reset touch when destroyed
     ) {
       resetTouchState();
     }
@@ -57,7 +59,8 @@ const Game: React.FC = () => {
     isInitialized &&
     (gameState.gameView === "playing" ||
       gameState.gameView === "docking" ||
-      gameState.gameView === "undocking");
+      gameState.gameView === "undocking" ||
+      gameState.gameView === "destroyed"); // Keep loop for destroyed timer/animation
 
   useGameLoop(gameLoopUpdate, isLoopRunning);
 
@@ -108,7 +111,7 @@ const Game: React.FC = () => {
       <SettingsMenu />
 
       {/* Game Canvas (only visible when playing) */}
-      <GameCanvas
+      <GameCanvas // Pass destruction state? No, drawing handles view.
         gameState={gameState}
         touchState={touchState}
         canvasRef={canvasRef}
@@ -125,12 +128,25 @@ const Game: React.FC = () => {
         isInitialized && (
           <DockingAnimation
             type={gameState.gameView}
+            // Ensure division by zero is avoided if duration is 0 (shouldn't happen)
             progress={
-              gameState.animationState.progress /
-              gameState.animationState.duration
+              gameState.animationState.duration > 0
+                ? gameState.animationState.progress /
+                  gameState.animationState.duration
+                : 0
             }
           />
         )}
+
+      {/* Destruction Animation Overlay */}
+      {gameState.gameView === "destroyed" && isInitialized && (
+        <DestructionAnimation
+          x={gameState.player.x - gameState.camera.x} // Pass screen coordinates
+          y={gameState.player.y - gameState.camera.y}
+          // Pass relative progress of the respawn timer
+          progress={Math.max(0, 1 - gameState.respawnTimer / 3000)} // 3000ms respawn time
+        />
+      )}
 
       {/* Docked Screens (Buy/Sell, Info, Trade Select, Chat) */}
       {showDockedUI && isInitialized && renderDockedUI()}

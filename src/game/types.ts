@@ -20,6 +20,7 @@ export interface IPlayer extends IGameObject {
   angle: number;
   vx: number;
   vy: number;
+  shieldLevel: number; // Player shield percentage (0-100)
 }
 
 // Enemy specific
@@ -116,7 +117,8 @@ export type GameView =
   | "buy_cargo"
   | "sell_cargo"
   | "station_info"
-  | "trade_select"
+  | "trade_select" // Selection screen (Buy/Sell/Replenish)
+  | "destroyed" // Player ship destroyed state
   | "chat_log";
 
 // Animation State
@@ -136,13 +138,15 @@ export interface IGameState {
   lastEnemySpawnTime: number;
   lastShotTime: number;
   enemyIdCounter: number; // Keep track of unique IDs
-  isInitialized: boolean; // Flag to check if initial load is done
   // New properties for docking/station interaction
   gameView: GameView;
   dockingStationId: string | null; // ID of the station the player is docking/docked with
   animationState: IAnimationState; // State for docking/undocking animations
   // --- Added properties for Trading ---
   cash: number;
+  lastDockedStationId: string | null; // For respawning
+  respawnTimer: number; // Countdown after destruction
+  isInitialized: boolean; // Flag to check if initial load is done
   cargoHold: Map<string, number>; // Commodity Key -> Quantity Held
   cargoCapacity: number; // Max tonnes
   market: MarketSnapshot | null; // Current market data when docked

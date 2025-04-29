@@ -1,12 +1,18 @@
 // src/hooks/useGameState.ts
 import { useCallback, useMemo, useRef } from "react";
 import { atom, useAtom } from "jotai";
-import { IGameState, ITouchState, IStation, GameView } from "../game/types";
+import {
+  IGameState,
+  ITouchState,
+  IStation,
+  GameView,
+  IPlayer,
+} from "../game/types"; // Added IPlayer
 import { initialGameState } from "../game/state"; // Still used for base structure
 import { updateGameStateLogic, createPlayer } from "../game/logic";
 import { InfiniteWorldManager } from "../game/world/InfiniteWorldManager";
 import { loadGameState, saveGameState } from "../utils/storage"; // Use new functions
-import { SAVE_STATE_INTERVAL } from "../game/config"; // Renamed constant
+import { SAVE_STATE_INTERVAL, DEFAULT_STARTING_SHIELD } from "../game/config"; // Added shield
 import { Player } from "../game/entities/Player";
 import {
   MarketGenerator,
@@ -48,6 +54,18 @@ export function useGameState() {
     (updater: (prevState: IGameState) => Partial<IGameState>) => {
       setGameStateInternal((prev) => {
         const changes = updater(prev);
+        // If the player object itself is being updated, ensure it's merged correctly
+        if (changes.player && typeof changes.player === "object") {
+          return {
+            ...prev,
+            ...changes,
+            player: {
+              ...(prev.player as IPlayer), // Spread existing player state
+              ...(changes.player as Partial<IPlayer>), // Apply partial updates
+            },
+          };
+        }
+        // Otherwise, just apply the top-level changes
         return { ...prev, ...changes };
       });
     },
@@ -109,6 +127,7 @@ export function useGameState() {
         gameView: "trade_select",
         animationState: { ...prev.animationState, type: null, progress: 0 }, // Ensure animation state is reset
         market: newMarket,
+        lastDockedStationId: prev.dockingStationId, // Store the last docked station
       };
     });
   }, [setGameStateInternal, worldManager]); // Depends on worldManager
@@ -132,29 +151,41 @@ export function useGameState() {
   // --- Initialization ---
   const initializeGameState = useCallback(() => {
     if (gameState.isInitialized) {
-      console.log("Initialization already done, skipping.");
+      // console.log("Initialization already done, skipping."); // Less noisy
       return;
     }
-
+    let cleanupSaveInterval: (() => void) | undefined;
     console.log("Initializing game state...");
     const loadedData = loadGameState();
 
-    setGameStateInternal((prevState) => ({
-      ...prevState,
-      player: createPlayer(loadedData.coordinates.x, loadedData.coordinates.y), // Use loaded coords
-      cash: loadedData.cash, // Use loaded cash
-      cargoHold: loadedData.cargoHold, // Use loaded cargo (already a Map)
-      isInitialized: true,
-      // Reset other dynamic parts of state if necessary
-      enemies: [],
-      projectiles: [],
-      visibleBackgroundObjects: [],
-      camera: { x: 0, y: 0 }, // Will be updated by logic soon
-      gameView: "playing", // Assume start in playing view unless docking/undocking state is also persisted (not done here)
-      dockingStationId: null,
-      animationState: { ...initialGameState.animationState }, // Reset animation
-      market: null,
-    }));
+    setGameStateInternal((prevState) => {
+      const loadedPlayer = createPlayer(
+        loadedData.coordinates.x,
+        loadedData.coordinates.y
+      );
+      // Preserve loaded shield level if it existed, otherwise use default
+      // Note: Shield level isn't saved currently, so this will always use default on fresh load
+      // loadedPlayer.shieldLevel = loadedData.shieldLevel ?? DEFAULT_STARTING_SHIELD;
+
+      return {
+        ...prevState,
+        player: loadedPlayer, // Use loaded coords
+        cash: loadedData.cash, // Use loaded cash
+        cargoHold: loadedData.cargoHold, // Use loaded cargo (already a Map)
+        lastDockedStationId: loadedData.lastDockedStationId, // Use loaded last docked station
+        isInitialized: true,
+        // Reset other dynamic parts of state if necessary
+        enemies: [],
+        projectiles: [],
+        visibleBackgroundObjects: [],
+        camera: { x: 0, y: 0 }, // Will be updated by logic soon
+        gameView: "playing", // Assume start in playing view unless docking/undocking state is also persisted (not done here)
+        dockingStationId: null,
+        animationState: { ...initialGameState.animationState }, // Reset animation
+        respawnTimer: 0,
+        market: null,
+      };
+    });
 
     // Clear any existing interval before starting a new one
     if (saveIntervalId.current) clearInterval(saveIntervalId.current);
@@ -178,8 +209,11 @@ export function useGameState() {
             },
             cash: currentSyncState.cash,
             cargoHold: currentSyncState.cargoHold,
+            lastDockedStationId: currentSyncState.lastDockedStationId,
+            // shieldLevel: currentSyncState.player.shieldLevel, // Save shield level if needed
           });
         } else {
+          // Should not happen after initialization
           console.warn("Attempted to save state but player data was invalid.");
         }
         return currentSyncState; // Interval must return the state for Jotai's setter
@@ -187,13 +221,15 @@ export function useGameState() {
     }, SAVE_STATE_INTERVAL); // Use the renamed constant
 
     // Return cleanup function for the interval
-    return () => {
+    cleanupSaveInterval = () => {
       if (saveIntervalId.current) {
         clearInterval(saveIntervalId.current);
         console.log("Cleaned up save interval.");
         saveIntervalId.current = null; // Ensure ref is cleared
       }
     };
+    // Cleanup function is not directly returned but can be called if needed
+    // return cleanupSaveInterval;
   }, [setGameStateInternal, gameState.isInitialized]); // Add gameState.isInitialized dependency to prevent re-running if already initialized
 
   // --- Core Update Callback ---
@@ -223,32 +259,34 @@ export function useGameState() {
         if (
           currentGameState.gameView === "playing" &&
           !currentGameState.dockingStationId &&
-          nextLogicState.dockingStationId
+          nextLogicState.dockingStationId && // Logic signals docking start
+          nextLogicState.gameView === "playing" // Ensure logic didn't already change view (e.g. to destroyed)
         ) {
-          console.log(
-            "Hook: Detected docking initiation signal. Applying state change directly."
-          );
-          // Ensure player velocity is stopped *immediately* in the logic state
-          if (nextLogicState.player instanceof Player) {
-            nextLogicState.player.vx = 0;
-            nextLogicState.player.vy = 0; // Correctly assign to the logic state's player
-          } else {
-            // If player is not an instance, create a new one with stopped velocity
-            nextLogicState.player = new Player(
-              nextLogicState.player.x,
-              nextLogicState.player.y
-            );
-            nextLogicState.player.angle = currentGameState.player.angle; // Preserve angle
-            nextLogicState.player.vx = 0;
-            nextLogicState.player.vy = 0;
+          console.log("Hook: Detected docking initiation signal.");
+
+          // Ensure player object and velocity stop is correctly handled
+          let updatedPlayer = nextLogicState.player;
+          if (updatedPlayer instanceof Player) {
+            updatedPlayer.vx = 0;
+            updatedPlayer.vy = 0;
+          } else if (updatedPlayer) {
+            // Check existence
+            updatedPlayer = new Player(updatedPlayer.x, updatedPlayer.y);
+            updatedPlayer.angle =
+              currentGameState.player?.angle ?? -Math.PI / 2;
+            updatedPlayer.shieldLevel =
+              currentGameState.player?.shieldLevel ?? DEFAULT_STARTING_SHIELD;
+            updatedPlayer.vx = 0;
+            updatedPlayer.vy = 0;
             console.warn(
-              "Player object was not an instance during docking collision check. Recreated."
+              "Player object was not an instance during docking check. Recreated."
             );
           }
 
           // Return the new state for docking directly
           return {
-            ...nextLogicState, // Includes the mutated player and dockingStationId
+            ...nextLogicState, // Includes the dockingStationId from logic
+            player: updatedPlayer, // Use the potentially recreated/updated player
             gameView: "docking", // Set the view
             animationState: {
               type: "docking", // Set animation type
@@ -262,11 +300,9 @@ export function useGameState() {
         else if (
           currentGameState.gameView === "docking" &&
           currentGameState.animationState.type === "docking" &&
-          nextLogicState.animationState.type === null
+          nextLogicState.animationState.type === null // Logic signaled animation end
         ) {
-          console.log(
-            "Hook: Detected docking animation completion. Applying state change directly."
-          );
+          console.log("Hook: Detected docking animation completion.");
           const stationId = currentGameState.dockingStationId; // Get ID from the state *before* logic potentially cleared it
           const station = stationId
             ? worldManager.getStationById(stationId)
@@ -292,6 +328,7 @@ export function useGameState() {
             ...nextLogicState, // Base on logic results (animation type is null)
             gameView: "trade_select", // Transition to neutral docked view
             market: newMarket,
+            lastDockedStationId: currentGameState.dockingStationId, // Store last docked station ID *here*
             // dockingStationId remains from nextLogicState (which should be same as current)
             animationState: {
               ...nextLogicState.animationState,
@@ -304,15 +341,13 @@ export function useGameState() {
         else if (
           currentGameState.gameView === "undocking" &&
           currentGameState.animationState.type === "undocking" &&
-          nextLogicState.animationState.type === null
+          nextLogicState.animationState.type === null // Logic signaled animation end
         ) {
-          console.log(
-            "Hook: Detected undocking animation completion. Applying state change directly."
-          );
+          console.log("Hook: Detected undocking animation completion.");
           // Reposition player logic
-          let playerX = nextLogicState.player.x;
-          let playerY = nextLogicState.player.y;
-          let playerAngle = nextLogicState.player.angle;
+          let playerX = nextLogicState.player?.x ?? 0;
+          let playerY = nextLogicState.player?.y ?? 0;
+          let playerAngle = nextLogicState.player?.angle ?? -Math.PI / 2;
           const stationId = currentGameState.dockingStationId; // Get ID from state *before* logic potentially cleared it
           const station = stationId
             ? worldManager.getStationById(stationId)
@@ -320,20 +355,27 @@ export function useGameState() {
 
           if (station) {
             const undockDist =
-              station.radius + currentGameState.player.radius + 20; // Use current radius vals
+              station.radius +
+              (currentGameState.player?.radius ?? C.PLAYER_SIZE / 2) +
+              20; // Use current radius vals or default
             const exitAngle = station.angle + Math.PI; // Opposite docking entrance
             playerX = station.x + Math.cos(exitAngle) * undockDist;
             playerY = station.y + Math.sin(exitAngle) * undockDist;
-            playerAngle = exitAngle + Math.PI / 2; // Face away from station center (sprite dependent)
+            playerAngle = exitAngle; // Face away from station center
           } else {
             console.warn("Undocking: Station not found for repositioning.");
           }
 
           // Ensure player is an instance and update its properties
-          const updatedPlayer =
-            nextLogicState.player instanceof Player
-              ? nextLogicState.player // Reuse if already instance
-              : new Player(nextLogicState.player.x, nextLogicState.player.y); // Create if plain object
+          let updatedPlayer = nextLogicState.player;
+          if (!(updatedPlayer instanceof Player) && updatedPlayer) {
+            updatedPlayer = new Player(updatedPlayer.x, updatedPlayer.y);
+            updatedPlayer.shieldLevel =
+              currentGameState.player?.shieldLevel ?? DEFAULT_STARTING_SHIELD;
+          } else if (!updatedPlayer) {
+            // Should not happen if logic returns a player state
+            updatedPlayer = createPlayer(playerX, playerY);
+          }
 
           updatedPlayer.x = playerX;
           updatedPlayer.y = playerY;
@@ -355,6 +397,33 @@ export function useGameState() {
               progress: 0,
             }, // Ensure clean animation state
           };
+        }
+        // 4. Destruction sequence detected by logic
+        else if (
+          currentGameState.gameView === "playing" &&
+          nextLogicState.gameView === "destroyed"
+        ) {
+          console.log("Hook: Detected destruction transition from logic.");
+          // Logic already set the view and respawn timer.
+          // We might want to clear touch state here immediately.
+          // resetTouchState(); // Assuming resetTouchState is available in scope or passed in
+          return {
+            ...nextLogicState,
+            // Ensure other state is consistent with destruction
+            projectiles: [],
+            enemies: [],
+            // Keep player object for position reference during animation
+          };
+        }
+        // 5. Respawn completed by logic
+        else if (
+          currentGameState.gameView === "destroyed" &&
+          nextLogicState.gameView === "playing"
+        ) {
+          console.log("Hook: Detected respawn completion from logic.");
+          // Logic already reset player, view, etc.
+          // Just return the state from logic.
+          return nextLogicState;
         }
 
         // --- No major state transition detected, just return logic results ---
@@ -387,6 +456,7 @@ export function useGameState() {
     const defaultPosition = { x: 0, y: 0 };
     const defaultCash = initialGameState.cash; // Get default from initial state
     const defaultCargo = new Map<string, number>(); // Empty map
+    const defaultLastDocked = null;
 
     setGameStateInternal((prev) => ({
       ...initialGameState, // Start with initial structure and defaults
@@ -394,19 +464,21 @@ export function useGameState() {
       player: createPlayer(defaultPosition.x, defaultPosition.y),
       cash: defaultCash,
       cargoHold: defaultCargo,
+      lastDockedStationId: defaultLastDocked,
       gameView: "playing", // Start directly in playing view
       isInitialized: true, // It's now initialized with new game state
       // Clear any lingering dynamic state
       enemies: [],
       projectiles: [],
       visibleBackgroundObjects: [],
-      camera: { x: 0 - 360 / 2, y: 0 - (640 - 120) / 2 }, // Center camera on 0,0
+      camera: { x: 0 - GAME_WIDTH / 2, y: 0 - GAME_VIEW_HEIGHT / 2 }, // Center camera on 0,0
       dockingStationId: null,
       animationState: {
         type: null,
         progress: 0,
         duration: prev.animationState.duration,
       },
+      respawnTimer: 0,
       market: null,
       lastEnemySpawnTime: 0, // Reset timers/counters if needed
       lastShotTime: 0,
@@ -418,6 +490,7 @@ export function useGameState() {
       coordinates: defaultPosition,
       cash: defaultCash,
       cargoHold: defaultCargo,
+      lastDockedStationId: defaultLastDocked,
     });
 
     // Restart the save interval
@@ -434,6 +507,8 @@ export function useGameState() {
             },
             cash: currentSyncState.cash,
             cargoHold: currentSyncState.cargoHold,
+            lastDockedStationId: currentSyncState.lastDockedStationId,
+            // shieldLevel: currentSyncState.player.shieldLevel, // Save shield if needed
           });
         }
         return currentSyncState;

@@ -7,6 +7,7 @@ export const GAME_VIEW_HEIGHT = GAME_HEIGHT - HUD_HEIGHT;
 // Spawning / Despawning
 export const INITIAL_SPAWN_AREA_WIDTH = 1000; // Used conceptually for initial placement if needed
 export const INITIAL_SPAWN_AREA_HEIGHT = 1000;
+export const WORLD_ORIGIN_STATION_ID = "station_0_0"; // ID of the station at cell 0,0 (if it exists)
 export const ENEMY_DESPAWN_RADIUS = GAME_WIDTH * 2.5;
 export const PROJECTILE_DESPAWN_RADIUS_FACTOR = 1.5; // Projectiles despawn further out
 export const MAX_ENEMIES = 8;
@@ -19,6 +20,8 @@ export const ENEMY_COLOR = "#00FFFF"; // Cyan
 export const PROJECTILE_COLOR = "#FFFFFF"; // White
 export const HUD_COLOR = "#00FFFF";
 export const HUD_ACCENT_COLOR = "#FF00FF";
+export const HUD_SHIELD_BAR_COLOR = "#00AAFF"; // Light Blue for shield bar
+export const HUD_SHIELD_BAR_EMPTY_COLOR = "#333355"; // Dim background for shield bar
 export const STAR_COLOR = "#FFFFFF";
 export const STATION_COLOR = "#00FFFF";
 
@@ -55,5 +58,9 @@ export const LOCAL_STORAGE_GAME_STATE_KEY = "omegaVoidGameState"; // New combine
 // Drawing
 export const SCANNER_MAX_DIST = 800;
 
-
 export const DEFAULT_STARTING_CASH = 100.0;
+export const DEFAULT_STARTING_SHIELD = 100;
+
+// Gameplay Tuning
+export const ENEMY_SHIELD_DAMAGE = 10; // % shield damage per hit
+export const RESPAWN_DELAY_MS = 3000; // Time in ms before respawn

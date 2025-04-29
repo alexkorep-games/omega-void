@@ -6,15 +6,18 @@ import {
   PLAYER_COLOR,
   PLAYER_SPEED,
   TOUCH_MOVE_MAX_DIST,
+  DEFAULT_STARTING_SHIELD,
 } from "../config";
 
 export class Player extends GameObject implements IPlayer {
   angle: number;
   vx: number;
   vy: number;
+  shieldLevel: number; // Add shield level
 
   constructor(x: number, y: number) {
     super(x, y, PLAYER_SIZE, PLAYER_COLOR, "player");
+    this.shieldLevel = DEFAULT_STARTING_SHIELD; // Initialize shields
     this.angle = -Math.PI / 2; // Pointing up
     this.vx = 0;
     this.vy = 0;

@@ -9,24 +9,30 @@ import { IPosition } from "../game/types";
 interface SavedGameState {
   coordinates: IPosition;
   cash: number;
-  cargoHold: [string, number][]; // Store Map as array of [key, value] pairs
+  cargoHold: [string, number][]; // Map as array of [key, value] pairs
+  lastDockedStationId: string | null; // Added
+  // shieldLevel?: number; // Optional: Save shield level if needed
 }
 
 // Define the structure of the loaded state (including defaults)
 interface LoadedGameState {
   coordinates: IPosition;
+  lastDockedStationId: string | null; // Added
   cash: number;
   cargoHold: Map<string, number>;
+  // shieldLevel?: number; // Optional: Load shield level
 }
 
 /**
  * Saves the relevant player game state to local storage.
- * @param stateToSave - An object containing coordinates, cash, and cargoHold Map.
+ * @param stateToSave - An object containing coordinates, cash, cargoHold Map, and lastDockedStationId.
  */
 export function saveGameState(stateToSave: {
   coordinates: IPosition;
   cash: number;
+  lastDockedStationId: string | null;
   cargoHold: Map<string, number>;
+  // shieldLevel?: number; // Optional
 }): void {
   try {
     // Convert Map to array for JSON serialization
@@ -35,6 +41,8 @@ export function saveGameState(stateToSave: {
       coordinates: stateToSave.coordinates,
       cash: stateToSave.cash,
       cargoHold: cargoArray,
+      lastDockedStationId: stateToSave.lastDockedStationId,
+      // shieldLevel: stateToSave.shieldLevel, // Optional
     };
     localStorage.setItem(
       LOCAL_STORAGE_GAME_STATE_KEY,
@@ -48,13 +56,15 @@ export function saveGameState(stateToSave: {
 
 /**
  * Loads the player's game state from local storage.
- * @returns The loaded state with coordinates, cash, and cargoHold Map, or defaults if not found/invalid.
+ * @returns The loaded state with coordinates, cash, cargoHold Map, lastDockedStationId, or defaults if not found/invalid.
  */
 export function loadGameState(): LoadedGameState {
   const defaultState: LoadedGameState = {
     coordinates: { x: 0, y: 0 },
     cash: DEFAULT_STARTING_CASH, // Default starting cash
+    lastDockedStationId: null, // Default no last station
     cargoHold: new Map<string, number>(), // Default empty cargo
+    // shieldLevel: DEFAULT_STARTING_SHIELD, // Default full shield if loading
   };
 
   try {
@@ -77,6 +87,16 @@ export function loadGameState(): LoadedGameState {
           ? parsedData.cash
           : defaultState.cash;
 
+      const loadedLastDockedId =
+        typeof parsedData.lastDockedStationId === "string"
+          ? parsedData.lastDockedStationId
+          : defaultState.lastDockedStationId;
+
+      // const loadedShieldLevel =
+      //  typeof parsedData.shieldLevel === "number" && parsedData.shieldLevel >= 0 && parsedData.shieldLevel <= 100
+      //    ? parsedData.shieldLevel
+      //    : defaultState.shieldLevel;
+
       let loadedCargoHold = defaultState.cargoHold;
       if (
         Array.isArray(parsedData.cargoHold) &&
@@ -98,13 +118,15 @@ export function loadGameState(): LoadedGameState {
       }
 
       console.log(
-        `Loaded game state: Coords=(${loadedCoordinates.x},${loadedCoordinates.y}), Cash=${loadedCash}, Cargo=${loadedCargoHold.size} items`
+        `Loaded game state: Coords=(${loadedCoordinates.x},${loadedCoordinates.y}), Cash=${loadedCash}, Cargo=${loadedCargoHold.size} items, LastDocked=${loadedLastDockedId}` // Added LastDocked
       );
 
       return {
         coordinates: loadedCoordinates,
         cash: loadedCash,
+        lastDockedStationId: loadedLastDockedId, // Return loaded ID
         cargoHold: loadedCargoHold,
+        // shieldLevel: loadedShieldLevel, // Return loaded shield
       };
     } else {
       console.log("No saved game state found. Starting with default state.");
