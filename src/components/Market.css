@@ -13,15 +13,15 @@
   width: 100%;
   height: 100%;
   padding: 15px;
-  padding-bottom: var(--bottom-offset); /* Leave space for bottom toolbar */
-  color: #00ffff; /* Cyan text - Game 2 style */
+  padding-bottom: var(--bottom-offset);
+  color: #00ffff;
   display: flex;
   flex-direction: column;
-  font-family: monospace; /* Game 2 style */
-  font-size: 14px; /* Slightly larger base font */
+  font-family: monospace;
+  font-size: 14px;
   box-sizing: border-box;
-  overflow: hidden; /* Prevent content overflow */
-  z-index: 15; /* Above canvas, below docking animation */
+  overflow: hidden;
+  z-index: 15;
 }
 
 .buy-screen {
@@ -56,7 +56,7 @@
 
 .market-credits {
   color: #00ff00; /* Green credits */
-  padding-right: 42px;;
+  padding-right: 42px;
 }
 
 .market-instructions {
