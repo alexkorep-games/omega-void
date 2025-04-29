@@ -1,20 +1,20 @@
 // src/components/SellCargoScreen.tsx
 import React from "react";
-import { useSellCargoLogic } from "../hooks/useSellCargoLogic"; // Adapted hook path
+import { useTradeCargoLogic } from "../hooks/useTradeCargoLogic"; // Adapted hook path
 import { getCommodityUnit } from "../game/Market"; // Adapted path
 import "./Market.css"; // Shared Market CSS
 
 const SellCargoScreen: React.FC = () => {
   const {
-    cargoToSell, // Get items directly from the hook
-    handleItemClick, // Sell all on click
+    tradeItems,
+    handleItemPrimaryAction,
     selectedCommodityKey,
     quantityInput,
     isEnteringQuantity,
     playerCash,
     statusMessage,
     isProcessingInput, // Use this to disable interaction during debounce
-  } = useSellCargoLogic();
+  } = useTradeCargoLogic("sell");
 
   return (
     <div className="market-container sell-screen">
@@ -37,25 +37,27 @@ const SellCargoScreen: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {cargoToSell.map(({ key, holding, sellPrice }) => {
+            {tradeItems.map(({ key, playerHolding, marketPrice }) => {
               const unit = getCommodityUnit(key);
               return (
                 <tr
                   key={key}
                   className={key === selectedCommodityKey ? "selected" : ""}
-                  onClick={() => !isProcessingInput && handleItemClick(key)} // Prevent clicks during debounce
+                  onClick={() =>
+                    !isProcessingInput && handleItemPrimaryAction(key)
+                  } // Prevent clicks during debounce
                 >
                   <td>{key}</td>
                   <td>{unit}</td>
-                  <td>{sellPrice > 0 ? sellPrice.toFixed(1) : "-"}</td>
+                  <td>{marketPrice > 0 ? marketPrice.toFixed(1) : "-"}</td>
                   <td>
-                    {holding}
+                    {playerHolding}
                     {unit}
                   </td>
                 </tr>
               );
             })}
-            {cargoToSell.length === 0 && (
+            {tradeItems.length === 0 && (
               <tr>
                 <td
                   colSpan={4}

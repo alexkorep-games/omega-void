@@ -1,14 +1,14 @@
 // src/components/BuyCargoScreen.tsx
 import React from "react";
-import { useBuyCargoLogic } from "../hooks/useBuyCargoLogic"; // Adapted hook path
+import { useTradeCargoLogic } from "../hooks/useTradeCargoLogic"; // Adapted hook path
 import { getCommodityUnit } from "../game/Market"; // Adapted path
 import "./Market.css"; // Shared Market CSS
 
 const BuyCargoScreen: React.FC = () => {
   const {
     market,
-    cargoItems, // Use cargoItems from hook (includes price/qty from market)
-    handleItemClick, // Buy one unit on click
+    tradeItems, // Use cargoItems from hook (includes price/qty from market)
+    handleItemPrimaryAction, // Buy one unit on click
     selectedCommodityKey,
     quantityInput,
     isEnteringQuantity,
@@ -16,7 +16,7 @@ const BuyCargoScreen: React.FC = () => {
     playerCash, // Get cash directly from hook
     statusMessage, // Get status message
     isProcessingInput, // Use this to disable interaction during debounce
-  } = useBuyCargoLogic();
+  } = useTradeCargoLogic('buy');
 
   if (!market) {
     return (
@@ -48,21 +48,21 @@ const BuyCargoScreen: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {cargoItems.map(({ key, price, quantity }) => (
+            {tradeItems.map(({ key, marketPrice, marketQuantity }) => (
               <tr
                 key={key}
                 className={key === selectedCommodityKey ? "selected" : ""}
-                onClick={() => !isProcessingInput && handleItemClick(key)} // Prevent clicks during debounce
+                onClick={() => !isProcessingInput && handleItemPrimaryAction(key)} // Prevent clicks during debounce
               >
                 <td>{key}</td>
                 <td>{getCommodityUnit(key)}</td>
-                <td>{price.toFixed(1)}</td>
+                <td>{marketPrice.toFixed(1)}</td>
                 <td>
-                  {quantity > 0 ? `${quantity}${getCommodityUnit(key)}` : "-"}
+                  {marketQuantity > 0 ? `${marketQuantity}${getCommodityUnit(key)}` : "-"}
                 </td>
               </tr>
             ))}
-            {cargoItems.length === 0 && (
+            {tradeItems.length === 0 && (
               <tr>
                 <td colSpan={4} style={{ textAlign: "center", color: "#888" }}>
                   No commodities available to buy at this station.

@@ -74,16 +74,23 @@ export function useGameState() {
   }, []);
 
   // --- State Transition Actions ---
-  const initiateDocking = useCallback((stationId: string) => {
-    console.log("Action: Initiate Docking with", stationId);
-    setGameStateInternal((prev) => ({
-      ...prev,
-      gameView: "docking",
-      dockingStationId: stationId,
-      animationState: { ...prev.animationState, type: "docking", progress: 0 },
-      market: null, // Clear previous market on docking start
-    }));
-  }, []);
+  const initiateDocking = useCallback(
+    (stationId: string) => {
+      console.log("Action: Initiate Docking with", stationId);
+      setGameStateInternal((prev) => ({
+        ...prev,
+        gameView: "docking",
+        dockingStationId: stationId,
+        animationState: {
+          ...prev.animationState,
+          type: "docking",
+          progress: 0,
+        },
+        market: null, // Clear previous market on docking start
+      }));
+    },
+    [setGameStateInternal]
+  );
 
   const completeDocking = useCallback(() => {
     console.log("Action: Complete Docking");
