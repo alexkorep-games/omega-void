@@ -252,45 +252,14 @@ export function updateGameStateLogic( // Renamed to avoid conflict if imported d
     newState.animationState.progress += deltaTime;
     if (newState.animationState.progress >= newState.animationState.duration) {
       if (newState.gameView === "docking") {
-        actions.completeDocking(); // Call action from hook
+        actions.completeDocking();
       } else {
-        // undocking
-        actions.completeUndocking(); // Call action from hook
+        actions.completeUndocking();
       }
-      // Return early after completing animation, state is updated by actions
-      // We need to return the *result* of the action, which happens in useGameState's setState
-      // So, just return the current state here, the hook will handle the transition.
-      // Or better: Modify the state directly here for the next frame render before hook updates.
-      if (newState.gameView === "docking") {
-        newState.gameView = "docked";
-        newState.animationState = {
-          ...newState.animationState,
-          type: null,
-          progress: 0,
-        };
-      } else {
-        newState.gameView = "playing";
-        newState.dockingStationId = null; // Clear station ID
-        newState.animationState = {
-          ...newState.animationState,
-          type: null,
-          progress: 0,
-        };
 
-        // Find the station player just undocked from to reposition player
-        const station = newState.visibleBackgroundObjects.find(
-          (obj) =>
-            obj.type === "station" && obj.id === currentState.dockingStationId
-        ) as IStation | undefined;
-        if (station) {
-          const undockDist = station.radius + newState.player.radius + 20; // Appear slightly away
-          const angle = Math.random() * Math.PI * 2; // Appear at a random angle
-          newState.player.x = station.x + Math.cos(angle) * undockDist;
-          newState.player.y = station.y + Math.sin(angle) * undockDist;
-        }
-      }
+      return newState;
     }
-    // Return the state with updated animation progress
+
     return newState;
   }
 
