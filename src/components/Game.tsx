@@ -1,5 +1,5 @@
 // src/components/Game.tsx
-import React, { useRef, useCallback, useMemo } from "react";
+import React, { useRef, useCallback, useMemo, useEffect } from "react";
 import GameCanvas from "./GameCanvas";
 import CoordinatesDisplay from "./CoordinatesDisplay";
 import StationScreen from "./StationScreen"; // Import StationScreen
@@ -18,7 +18,14 @@ const Game: React.FC = () => {
     findStationById, // Get helper function
   } = useGameState(); // Get state and functions from hook
 
-  const touchState = useTouchInput(canvasRef);
+  const { touchState, resetTouchState } = useTouchInput(canvasRef);
+
+  // Reset touch controls when docking starts
+  useEffect(() => {
+    if (gameState.gameView === "docking") {
+      resetTouchState();
+    }
+  }, [gameState.gameView, resetTouchState]);
 
   // Memoize the game update callback
   const gameLoopUpdate = useCallback(

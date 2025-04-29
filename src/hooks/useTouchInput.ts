@@ -4,6 +4,11 @@ import { ITouchState } from "../game/types";
 import { initialTouchState } from "../game/state";
 import { GAME_WIDTH, GAME_VIEW_HEIGHT } from "../game/config";
 
+type UseTouchStateResult = {
+  touchState: ITouchState;
+  resetTouchState: () => void;
+};
+
 /**
  * Hook to manage touch input state for the game canvas.
  * @param canvasRef - Ref object pointing to the HTMLCanvasElement.
@@ -11,8 +16,13 @@ import { GAME_WIDTH, GAME_VIEW_HEIGHT } from "../game/config";
  */
 export function useTouchInput(
   canvasRef: RefObject<HTMLCanvasElement | null>
-): ITouchState {
+): UseTouchStateResult {
   const [touchState, setTouchState] = useState<ITouchState>(initialTouchState);
+
+  const resetTouchState = useCallback(() => {
+    console.log("Resetting touch state...");
+    setTouchState(initialTouchState);
+  }, []);
 
   const getTouchPosition = useCallback(
     (
@@ -192,5 +202,8 @@ export function useTouchInput(
     }
   }, [handleTouchStart, handleTouchMove, handleTouchEnd, canvasElement]);
 
-  return touchState;
+  return {
+    touchState,
+    resetTouchState,
+  };
 }
