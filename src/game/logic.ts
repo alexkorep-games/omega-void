@@ -10,11 +10,8 @@ import * as C from "./config"; // Use C for brevity
 
 // --- Constants for Hexagon Docking ---
 // A hexagon side spans 60 degrees (PI / 3 radians).
-// We'll define the "entrance" as the side centered around the station's local "up" direction.
-// Assuming local "up" is -PI/2 relative to the station's angle=0 (pointing right),
-// the entrance spans +/- 30 degrees (PI / 6 radians) around -PI/2.
-const DOCKING_ENTRANCE_CENTER_ANGLE = -Math.PI / 2; // Station's local "up" direction
-const DOCKING_ENTRANCE_HALF_SPAN = Math.PI / 6; // +/- 30 degrees tolerance
+const DOCKING_ENTRANCE_CENTER_ANGLE = Math.PI; // Entrance
+const DOCKING_ENTRANCE_HALF_SPAN = Math.PI / 12;
 const DOCKING_MIN_RELATIVE_ANGLE =
   DOCKING_ENTRANCE_CENTER_ANGLE - DOCKING_ENTRANCE_HALF_SPAN; // -2*PI/3 or -120 deg
 const DOCKING_MAX_RELATIVE_ANGLE =
