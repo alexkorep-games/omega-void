@@ -80,7 +80,8 @@ const Game: React.FC = () => {
     gameState.gameView === "buy_cargo" ||
     gameState.gameView === "station_info" ||
     gameState.gameView === "sell_cargo" ||
-    gameState.gameView === "trade_select";
+    gameState.gameView === "trade_select" ||
+    gameState.gameView === "chat_log";
 
   return (
     <div
