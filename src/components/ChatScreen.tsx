@@ -51,8 +51,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
               }`}
             >
               <div className="message-text">{message.text}</div>
-              {/* Optional: Add timestamp or sender label here */}
-              {/* <span className="message-sender-label">{message.sender}</span> */}
+              <span className="message-sender-label">{message.sender}</span>
             </div>
           ))
         )}
@@ -60,10 +59,9 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Footer (Optional) - No input field as requested */}
-      {/* <div className="market-footer chat-footer">
-                <span>End of log.</span>
-            </div> */}
+      <div className="market-footer chat-footer">
+        <span>End of log.</span>
+      </div>
     </div>
   );
 };
