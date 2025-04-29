@@ -1,5 +1,6 @@
 // src/hooks/useGameState.ts
-import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { useCallback, useMemo, useEffect, useRef } from "react";
+import { atom, useAtom } from "jotai";
 import { IGameState, ITouchState, IStation, GameView } from "../game/types";
 import { initialGameState } from "../game/state";
 import { updateGameStateLogic, createPlayer } from "../game/logic";
@@ -16,13 +17,14 @@ import {
 // Simple world seed for market generation for now
 const WORLD_SEED = 12345;
 
+const gameStateAtom = atom<IGameState>(initialGameState);
+
 /**
  * Hook to manage the overall game state, including entities, world, and updates.
  * It integrates the core game logic and world management.
  */
 export function useGameState() {
-  const [gameState, setGameStateInternal] =
-    useState<IGameState>(initialGameState);
+  const [gameState, setGameStateInternal] = useAtom(gameStateAtom); // Use Jotai atom for state management
   const worldManager = useMemo(() => new InfiniteWorldManager({}), []);
   const saveIntervalId = useRef<number | null>(null);
 
