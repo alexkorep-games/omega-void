@@ -1,4 +1,5 @@
 // src/components/Game.tsx
+import SettingsMenu from "./SettingsMenu";
 import React, { useRef, useCallback, useEffect } from "react";
 import GameCanvas from "./GameCanvas";
 import CoordinatesDisplay from "./CoordinatesDisplay";
@@ -34,7 +35,9 @@ const Game: React.FC = () => {
       gameState.gameView === "docking" ||
       gameState.gameView === "buy_cargo" ||
       gameState.gameView === "station_info" ||
-      gameState.gameView === "sell_cargo"
+      gameState.gameView === "sell_cargo" ||
+      gameState.gameView === "trade_select" ||
+      gameState.gameView === "chat_log"
     ) {
       resetTouchState();
     }
@@ -60,7 +63,7 @@ const Game: React.FC = () => {
 
   // --- Determine which docked UI component to show ---
   const renderDockedUI = () => {
-    console.log(`Rendering UI for game view: ${gameState.gameView}`);
+    // console.log(`Rendering UI for game view: ${gameState.gameView}`); // Less noisy log
     switch (gameState.gameView) {
       case "buy_cargo":
         return <BuyCargoScreen />;
@@ -70,6 +73,23 @@ const Game: React.FC = () => {
         return <StationInfoScreen />;
       case "trade_select":
         return <TradeScreen />;
+      case "chat_log":
+        return (
+          <ChatScreen
+            messages={[
+              {
+                id: 1,
+                sender: "user",
+                text: "Hello, this is a test message.",
+              },
+              {
+                id: 2,
+                sender: "ai",
+                text: "Hello, how can I assist you today?",
+              },
+            ]}
+          />
+        );
       default:
         return null; // Should not happen in a docked state with toolbar
     }
@@ -99,6 +119,8 @@ const Game: React.FC = () => {
         background: "#000", // Black background
       }}
     >
+      <SettingsMenu />
+
       {/* Game Canvas (only visible when playing) */}
       <GameCanvas
         gameState={gameState}
@@ -124,24 +146,7 @@ const Game: React.FC = () => {
           />
         )}
 
-      {gameState.gameView === "chat_log" && isInitialized && (
-        <ChatScreen
-          messages={[
-            {
-              id: 1,
-              sender: "user",
-              text: "Hello, this is a test message.",
-            },
-            {
-              id: 2,
-              sender: "ai",
-              text: "Hello, how can I assist you today?",
-            },
-          ]}
-        />
-      )}
-
-      {/* Docked Screens (Buy/Sell, etc.) */}
+      {/* Docked Screens (Buy/Sell, Info, Trade Select, Chat) */}
       {showDockedUI && isInitialized && renderDockedUI()}
 
       {/* Bottom Toolbar (shown when docked UI is visible) */}

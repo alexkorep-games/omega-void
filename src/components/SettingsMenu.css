@@ -1,0 +1,121 @@
+/* src/components/SettingsMenu.css */
+
+.settings-icon-button {
+  position: fixed; /* Position relative to the viewport */
+  top: 10px;
+  right: 10px;
+  background-color: rgba(0, 20, 40, 0.8); /* Dark blue background */
+  border: 1px solid #00ffff; /* Cyan border */
+  color: #00ffff; /* Cyan icon */
+  font-size: 1.5rem; /* Adjust size as needed */
+  width: 40px;
+  height: 40px;
+  border-radius: 50%; /* Make it circular */
+  cursor: pointer;
+  z-index: 50; /* Ensure it's above most other elements */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0;
+  line-height: 1; /* Helps center the icon */
+  transition: background-color 0.2s, border-color 0.2s;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.settings-icon-button:hover {
+  background-color: rgba(0, 50, 80, 0.9);
+  border-color: #ffffff; /* White border on hover */
+}
+
+.settings-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.7); /* Semi-transparent black overlay */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 45; /* Below the icon but above other content */
+  font-family: monospace; /* Match game style */
+}
+
+.settings-popup-content {
+  background-color: rgba(0, 15, 30, 0.95); /* Dark blue background */
+  border: 2px solid #00ffff; /* Cyan border */
+  color: #00ffff; /* Cyan text */
+  padding: 20px 30px;
+  border-radius: 5px;
+  min-width: 250px;
+  max-width: 90%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+}
+
+.settings-popup-title {
+  color: #ffffff; /* White title */
+  font-size: 1.4em;
+  margin: 0 0 10px 0;
+  border-bottom: 1px solid #008888; /* Dim cyan separator */
+  padding-bottom: 10px;
+  width: 100%;
+  text-align: center;
+}
+
+.settings-popup-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%; /* Make buttons take full width */
+  margin-bottom: 15px;
+}
+
+.settings-popup-button,
+.settings-popup-close-button {
+  /* Style similar to toolbar buttons */
+  font-family: inherit;
+  font-size: 13px;
+  color: #00ffff; /* Cyan text */
+  background-color: transparent;
+  border: 1px solid #00aaaa; /* Dimmer cyan border */
+  padding: 8px 15px; /* Adjusted padding */
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+  text-transform: uppercase;
+  text-align: center;
+  flex-shrink: 0;
+  border-radius: 3px; /* Slightly rounded */
+  user-select: none;
+  -webkit-user-select: none;
+  width: 100%; /* Take full width within the options container */
+}
+
+.settings-popup-button:hover:not(:disabled),
+.settings-popup-close-button:hover:not(:disabled) {
+  background-color: rgba(0, 255, 255, 0.15); /* Slight cyan glow */
+  border-color: #00ffff; /* Brighten border on hover */
+  color: #ffffff; /* White text on hover */
+}
+
+.settings-popup-button:active:not(:disabled),
+.settings-popup-close-button:active:not(:disabled) {
+  background-color: rgba(0, 255, 255, 0.3);
+}
+
+/* Specific style for close button if needed, e.g., different border */
+.settings-popup-close-button {
+  margin-top: 10px; /* Add some space above close button */
+  border-color: #aaaaaa; /* Greyer border */
+  color: #aaaaaa;
+}
+
+.settings-popup-close-button:hover {
+  border-color: #ffffff;
+  color: #ffffff;
+  background-color: rgba(150, 150, 150, 0.15);
+}
