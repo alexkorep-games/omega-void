@@ -1,0 +1,72 @@
+/* src/components/TradeScreen.css */
+
+/* Inherit general layout from Market.css */
+.trade-select-screen {
+  border: 2px solid #00ffff; /* Cyan border - Keep */
+  background-color: rgba(0, 25, 25, 0.9); /* Darker cyan background for less clash */
+  /* Keep padding and flex direction from .market-container */
+}
+
+.trade-select-content {
+  flex-grow: 1; /* Take remaining vertical space */
+  display: flex;
+  flex-direction: column; /* Stack buttons vertically */
+  justify-content: center; /* Center vertically */
+  align-items: center; /* Center horizontally */
+  gap: 20px; /* Space between buttons */
+  padding: 20px;
+}
+
+/* Style buttons like the toolbar buttons */
+.trade-select-button {
+  font-family: inherit; /* Use monospace from parent */
+  font-size: 14px; /* Match toolbar button size or slightly larger */
+  color: #00ffff; /* Cyan text */
+  background-color: transparent; /* No background */
+  border: 1px solid #00aaaa; /* Dimmer cyan border */
+  padding: 12px 25px; /* Adjust padding */
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+  text-transform: uppercase;
+  min-width: 180px; /* Adjust min-width */
+  text-align: center;
+  border-radius: 3px; /* Slightly rounded like toolbar */
+  /* Ensure touch interaction doesn't select text */
+  user-select: none;
+  -webkit-user-select: none;
+  /* Remove previous bold/shadow */
+  font-weight: normal;
+  box-shadow: none;
+}
+
+/* Hover effect like toolbar */
+.trade-select-button:hover {
+  background-color: rgba(0, 255, 255, 0.15); /* Slight cyan glow */
+  border-color: #00ffff; /* Brighten border on hover */
+  color: #ffffff; /* White text on hover */
+  transform: none; /* Remove previous transform */
+}
+
+/* Active effect like toolbar */
+.trade-select-button:active {
+  background-color: rgba(0, 255, 255, 0.3);
+  transform: none; /* Remove previous transform */
+  box-shadow: none; /* Remove previous shadow */
+}
+
+/* Remove specific Buy/Sell background colors unless desired for subtle difference */
+/* Keep if you want a slight color hint: */
+/*
+.trade-select-button.buy-button {
+    border-color: #aa00aa;
+}
+.trade-select-button.sell-button {
+    border-color: #00aa00;
+}
+.trade-select-button.buy-button:hover {
+    border-color: #ff00ff;
+}
+.trade-select-button.sell-button:hover {
+    border-color: #00ff00;
+}
+*/

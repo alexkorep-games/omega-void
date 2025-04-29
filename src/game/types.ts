@@ -112,12 +112,11 @@ export interface ITouchState {
 export type GameView =
   | "playing"
   | "docking"
-  | "docked" // General docked overview (could show StationScreen)
   | "undocking"
   | "buy_cargo"
   | "sell_cargo"
   | "station_info"
-  | "trade_screen";
+  | "trade_select";
 
 // Animation State
 export interface IAnimationState {

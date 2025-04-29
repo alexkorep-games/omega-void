@@ -106,7 +106,7 @@ export function useGameState() {
       console.log("SETTING MARKET TO", newMarket);
       return {
         ...prev, // Use the state before animation finished to get dockingStationId
-        gameView: "docked", // Go to neutral docked view
+        gameView: "trade_select",
         animationState: { ...prev.animationState, type: null, progress: 0 }, // Ensure animation state is reset
         market: newMarket,
       };
@@ -290,7 +290,7 @@ export function useGameState() {
           // Return the new state for completed docking
           return {
             ...nextLogicState, // Base on logic results (animation type is null)
-            gameView: "docked", // Transition to neutral docked view
+            gameView: "trade_select", // Transition to neutral docked view
             market: newMarket,
             // dockingStationId remains from nextLogicState (which should be same as current)
             animationState: {

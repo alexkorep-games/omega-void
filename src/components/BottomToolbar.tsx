@@ -64,7 +64,7 @@ const BottomToolbar: React.FC = () => {
     targetView: GameView;
     action?: () => void;
   }> = [
-    { label: "Trade", targetView: "trade_screen", action: () => setGameView("trade_screen") },
+    { label: "Trade", targetView: "trade_select", action: () => setGameView("trade_select") },
     { label: "Undock", targetView: "undocking", action: initiateUndocking },
     { label: "Info", targetView: "station_info" },
     {
@@ -76,8 +76,7 @@ const BottomToolbar: React.FC = () => {
 
   // Determine which views show the toolbar
   const toolbarVisibleViews: GameView[] = [
-    "docked", // Show on the initial docked screen
-    "trade_screen",
+    "trade_select",
     "buy_cargo",
     "sell_cargo",
     "station_info",

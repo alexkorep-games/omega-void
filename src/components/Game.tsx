@@ -31,7 +31,6 @@ const Game: React.FC = () => {
     // Reset touch if docking starts or if we enter a non-playing view
     if (
       gameState.gameView === "docking" ||
-      gameState.gameView === "docked" ||
       gameState.gameView === "buy_cargo" ||
       gameState.gameView === "station_info" ||
       gameState.gameView === "sell_cargo"
@@ -68,10 +67,8 @@ const Game: React.FC = () => {
         return <SellCargoScreen />;
       case "station_info":
         return <StationInfoScreen />;
-      case "trade_screen":
+      case "trade_select":
         return <TradeScreen />;
-      // case "docked": // If you have a main station overview screen later
-      //   return <StationScreen station={currentStation} />; // Assuming currentStation is fetched
       default:
         return null; // Should not happen in a docked state with toolbar
     }
@@ -82,8 +79,7 @@ const Game: React.FC = () => {
     gameState.gameView === "buy_cargo" ||
     gameState.gameView === "station_info" ||
     gameState.gameView === "sell_cargo" ||
-    gameState.gameView === "trade_screen" ||
-    gameState.gameView === "docked"; // Add 'docked' if created
+    gameState.gameView === "trade_select";
 
   return (
     <div
