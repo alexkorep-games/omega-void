@@ -5,14 +5,8 @@ import { getCommodityUnit } from "../game/Market"; // Adapted path
 import "./Market.css"; // Shared Market CSS
 
 const SellCargoScreen: React.FC = () => {
-  const {
-    tradeItems,
-    handleItemPrimaryAction,
-    quantityInput,
-    isEnteringQuantity,
-    playerCash,
-    statusMessage,
-  } = useTradeCargoLogic("sell");
+  const { tradeItems, handleItemPrimaryAction, playerCash, statusMessage } =
+    useTradeCargoLogic("sell");
 
   return (
     <div className="market-container sell-screen">
@@ -41,9 +35,7 @@ const SellCargoScreen: React.FC = () => {
               return (
                 <tr
                   key={key}
-                  onClick={() =>
-                    handleItemPrimaryAction(key)
-                  } // Prevent clicks during debounce
+                  onClick={() => handleItemPrimaryAction(key)} // Prevent clicks during debounce
                 >
                   <td>{key}</td>
                   <td>{unit}</td>
@@ -73,16 +65,7 @@ const SellCargoScreen: React.FC = () => {
         </table>
       </div>
       <div className="market-footer">
-        {/* Removed 'Selected:' display */}
-        {isEnteringQuantity && (
-          <div className="quantity-prompt">
-            Quantity? <span className="quantity-input">{quantityInput}</span>
-            <span className="quantity-hint">
-              (ESC to cancel, ENTER to sell)
-            </span>
-          </div>
-        )}
-        {!isEnteringQuantity && statusMessage && (
+        {statusMessage && (
           <div
             className="status-message"
             style={{

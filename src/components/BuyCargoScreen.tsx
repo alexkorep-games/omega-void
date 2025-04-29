@@ -9,8 +9,6 @@ const BuyCargoScreen: React.FC = () => {
     market,
     tradeItems, // Use cargoItems from hook (includes price/qty from market)
     handleItemPrimaryAction, // Buy one unit on click
-    quantityInput,
-    isEnteringQuantity,
     cargoSpaceLeft,
     playerCash, // Get cash directly from hook
     statusMessage, // Get status message
@@ -50,9 +48,7 @@ const BuyCargoScreen: React.FC = () => {
             {tradeItems.map(({ key, marketPrice, marketQuantity }) => (
               <tr
                 key={key}
-                onClick={() =>
-                  handleItemPrimaryAction(key)
-                } // Prevent clicks during debounce
+                onClick={() => handleItemPrimaryAction(key)} // Prevent clicks during debounce
               >
                 <td>{key}</td>
                 <td>{getCommodityUnit(key)}</td>
@@ -78,13 +74,7 @@ const BuyCargoScreen: React.FC = () => {
         <span style={{ color: "#00FF00" /* Green */ }}>
           Cargo Space: {cargoSpaceLeft.toFixed(3)}t
         </span>
-        {isEnteringQuantity && (
-          <div className="quantity-prompt">
-            Quantity? <span className="quantity-input">{quantityInput}</span>
-            <span className="quantity-hint">(ESC to cancel, ENTER to buy)</span>
-          </div>
-        )}
-        {!isEnteringQuantity && statusMessage && (
+        {statusMessage && (
           <div
             className="status-message"
             style={{
