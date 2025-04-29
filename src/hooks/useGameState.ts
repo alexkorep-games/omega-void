@@ -1,5 +1,5 @@
 // src/hooks/useGameState.ts
-import { useCallback, useMemo, useEffect, useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { atom, useAtom } from "jotai";
 import { IGameState, ITouchState, IStation, GameView } from "../game/types";
 import { initialGameState } from "../game/state";
@@ -38,7 +38,7 @@ export function useGameState() {
         return { ...prev, gameView: newView };
       });
     },
-    [] // No dependencies needed for setGameView itself
+    [setGameStateInternal]
   );
 
   // --- Helper to Update Player State Fields ---
@@ -50,33 +50,41 @@ export function useGameState() {
         return { ...prev, ...changes };
       });
     },
-    []
+    [setGameStateInternal]
   );
 
   // --- Helper to Update Market Quantity ---
-  const updateMarketQuantity = useCallback((key: string, change: number) => {
-    setGameStateInternal((prev) => {
-      if (!prev.market) return prev; // No market to update
+  const updateMarketQuantity = useCallback(
+    (key: string, change: number) => {
+      setGameStateInternal((prev) => {
+        if (!prev.market) return prev; // No market to update
 
-      const currentTable = prev.market.table;
-      const currentState = currentTable.get(key);
+        const currentTable = prev.market.table;
+        const currentState = currentTable.get(key);
 
-      if (!currentState) return prev; // Commodity not found
+        if (!currentState) return prev; // Commodity not found
 
-      const newTable = new Map<string, CommodityState>(currentTable);
-      const newQuantity = Math.max(0, currentState.quantity + change);
+        const newTable = new Map<string, CommodityState>(currentTable);
+        const newQuantity = Math.max(0, currentState.quantity + change);
 
-      newTable.set(key, { ...currentState, quantity: newQuantity });
-      const newMarket = new MarketSnapshot(prev.market.timestamp, newTable);
+        newTable.set(key, { ...currentState, quantity: newQuantity });
+        const newMarket = new MarketSnapshot(prev.market.timestamp, newTable);
+        console.log("SETTING MARKET TO", newMarket);
+        return { ...prev, market: newMarket };
+      });
+    },
+    [setGameStateInternal]
+  );
 
-      return { ...prev, market: newMarket };
-    });
-  }, []);
+  if (gameState.market) {
+    console.log("gameState.market", gameState.market);
+  }
 
   // --- State Transition Actions ---
   const initiateDocking = useCallback(
     (stationId: string) => {
       console.log("Action: Initiate Docking with", stationId);
+      console.log("SETTING MARKET TO NULL");
       setGameStateInternal((prev) => ({
         ...prev,
         gameView: "docking",
@@ -113,6 +121,7 @@ export function useGameState() {
         );
       }
 
+      console.log("SETTING MARKET TO", newMarket);
       return {
         ...prev,
         gameView: "buy_cargo", // Go directly to buy screen after docking
@@ -120,10 +129,11 @@ export function useGameState() {
         market: newMarket, // Set the generated market data
       };
     });
-  }, [worldManager]); // Depends on worldManager
+  }, [setGameStateInternal, worldManager]); // Depends on worldManager
 
   const initiateUndocking = useCallback(() => {
     console.log("Action: Initiate Undocking");
+    console.log("SETTING MARKET TO NULL");
     setGameStateInternal((prev) => ({
       ...prev,
       gameView: "undocking",
@@ -135,7 +145,7 @@ export function useGameState() {
         progress: 0,
       },
     }));
-  }, []);
+  }, [setGameStateInternal]);
 
   const completeUndocking = useCallback(() => {
     console.log("Action: Complete Undocking");
@@ -164,6 +174,7 @@ export function useGameState() {
       updatedPlayer.vy = 0;
       updatedPlayer.angle = (station?.angle ?? 0) + Math.PI - Math.PI / 2; // Face away from station
 
+      console.log("SETTING MARKET TO NULL");
       return {
         ...prev,
         player: updatedPlayer,
@@ -173,10 +184,11 @@ export function useGameState() {
         animationState: { ...prev.animationState, type: null, progress: 0 },
       };
     });
-  }, [worldManager]);
+  }, [setGameStateInternal, worldManager]);
 
   // --- Initialization ---
-  useEffect(() => {
+  const initializeGameState = useCallback(() => {
+    console.log("Initializing game state...");
     const initialPosition = loadPlayerPosition();
     setGameStateInternal((prevState) => ({
       ...prevState,
@@ -206,7 +218,7 @@ export function useGameState() {
         console.log("Cleaned up save interval.");
       }
     };
-  }, [worldManager]);
+  }, [setGameStateInternal]);
 
   // --- Core Update Callback ---
   const updateGame = useCallback(
@@ -231,7 +243,13 @@ export function useGameState() {
         );
       });
     },
-    [worldManager, initiateDocking, completeDocking, completeUndocking]
+    [
+      setGameStateInternal,
+      initiateDocking,
+      completeDocking,
+      completeUndocking,
+      worldManager,
+    ]
   );
 
   // --- Helper Function ---
@@ -245,6 +263,7 @@ export function useGameState() {
   );
 
   return {
+    initializeGameState,
     gameState,
     updateGame,
     isInitialized: gameState.isInitialized,

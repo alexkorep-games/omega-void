@@ -37,6 +37,9 @@ export function useTradeCargoLogic(mode: TradeMode) {
     cargoCapacity,
     gameView,
   } = gameState;
+  if (market) {
+    console.log("Market loaded:", market);
+  }
 
   // --- Internal State ---
   const [tradeItems, setTradeItems] = useState<TradeItemDisplay[]>([]);

@@ -13,9 +13,17 @@ import { useTouchInput } from "../hooks/useTouchInput";
 
 const Game: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { gameState, updateGame, isInitialized } = useGameState();
+  const { gameState, updateGame, isInitialized, initializeGameState } =
+    useGameState();
 
   const { touchState, resetTouchState } = useTouchInput(canvasRef);
+
+  // Initialize game state on first render
+  useEffect(() => {
+    if (!isInitialized) {
+      initializeGameState();
+    }
+  }, [isInitialized, initializeGameState]);
 
   useEffect(() => {
     // Reset touch if docking starts or if we enter a non-playing view
