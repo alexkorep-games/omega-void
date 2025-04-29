@@ -154,7 +154,6 @@ function handleCollisions(
   }
 
   // Player vs Enemy
-  let playerHitThisFrame = false;
   let playerDestroyed = false;
 
   if (playerInstance) {
@@ -165,7 +164,6 @@ function handleCollisions(
         distance(playerInstance.x, playerInstance.y, enemy.x, enemy.y) <
         playerInstance.radius + enemy.radius
       ) {
-        playerHitThisFrame = true;
         // Create ENEMY destruction animation on PLAYER collision
         newAnimations.push({
           id: `destroy-enemy-player-${enemy.id}-${now}`,

@@ -12,7 +12,13 @@ import { initialGameState } from "../game/state"; // Still used for base structu
 import { updateGameStateLogic, createPlayer } from "../game/logic";
 import { InfiniteWorldManager } from "../game/world/InfiniteWorldManager";
 import { loadGameState, saveGameState } from "../utils/storage"; // Use new functions
-import { SAVE_STATE_INTERVAL, DEFAULT_STARTING_SHIELD } from "../game/config"; // Added shield
+import {
+  SAVE_STATE_INTERVAL,
+  DEFAULT_STARTING_SHIELD,
+  GAME_WIDTH,
+  GAME_VIEW_HEIGHT,
+  PLAYER_SIZE,
+} from "../game/config"; // Added shield
 import { Player } from "../game/entities/Player";
 import {
   MarketGenerator,
@@ -154,7 +160,6 @@ export function useGameState() {
       // console.log("Initialization already done, skipping."); // Less noisy
       return;
     }
-    let cleanupSaveInterval: (() => void) | undefined;
     console.log("Initializing game state...");
     const loadedData = loadGameState();
 
@@ -221,15 +226,13 @@ export function useGameState() {
     }, SAVE_STATE_INTERVAL); // Use the renamed constant
 
     // Return cleanup function for the interval
-    cleanupSaveInterval = () => {
+    return () => {
       if (saveIntervalId.current) {
         clearInterval(saveIntervalId.current);
         console.log("Cleaned up save interval.");
         saveIntervalId.current = null; // Ensure ref is cleared
       }
     };
-    // Cleanup function is not directly returned but can be called if needed
-    // return cleanupSaveInterval;
   }, [setGameStateInternal, gameState.isInitialized]); // Add gameState.isInitialized dependency to prevent re-running if already initialized
 
   // --- Core Update Callback ---
@@ -356,7 +359,7 @@ export function useGameState() {
           if (station) {
             const undockDist =
               station.radius +
-              (currentGameState.player?.radius ?? C.PLAYER_SIZE / 2) +
+              (currentGameState.player?.radius ?? PLAYER_SIZE / 2) +
               20; // Use current radius vals or default
             const exitAngle = station.angle + Math.PI; // Opposite docking entrance
             playerX = station.x + Math.cos(exitAngle) * undockDist;

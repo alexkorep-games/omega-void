@@ -1,17 +1,7 @@
 // src/game/state.ts
-import {
-  IGameState,
-  IPlayer,
-  ITouchState,
-  DestructionAnimationData,
-} from "./types"; // Added DestructionAnimationData
+import { IGameState, IPlayer, ITouchState } from "./types"; // Added DestructionAnimationData
 import { Player } from "./entities/Player";
-import {
-  GAME_WIDTH,
-  GAME_VIEW_HEIGHT,
-  DEFAULT_STARTING_CASH,
-  DEFAULT_STARTING_SHIELD,
-} from "./config";
+import { GAME_WIDTH, GAME_VIEW_HEIGHT, DEFAULT_STARTING_CASH } from "./config";
 
 // Create default player instance
 export const initialPlayerState: IPlayer = new Player(0, 0);
