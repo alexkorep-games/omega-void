@@ -1,0 +1,216 @@
+/* src/components/Market.css */
+
+/* Define bottom offset based on toolbar height */
+:root {
+  --bottom-toolbar-height: 45px; /* Adjusted height for Game 2 */
+  --bottom-offset: calc(var(--bottom-toolbar-height) + 10px); /* 10px margin */
+}
+
+.market-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  padding: 15px;
+  padding-bottom: var(--bottom-offset); /* Leave space for bottom toolbar */
+  color: #00ffff; /* Cyan text - Game 2 style */
+  display: flex;
+  flex-direction: column;
+  font-family: monospace; /* Game 2 style */
+  font-size: 14px; /* Slightly larger base font */
+  box-sizing: border-box;
+  overflow: hidden; /* Prevent content overflow */
+  z-index: 15; /* Above canvas, below docking animation */
+}
+
+.buy-screen {
+  border: 2px solid #ff00ff; /* Magenta border for Buy */
+  background-color: rgba(40, 0, 40, 0.9); /* Dark magenta background */
+}
+
+.sell-screen {
+  border: 2px solid #00ff00; /* Green border for Sell */
+  background-color: rgba(0, 40, 0, 0.9); /* Dark green background */
+}
+
+.market-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #00ffff; /* Cyan border */
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+
+.market-title {
+  color: #ffffff; /* White title */
+  font-size: 1.3em;
+}
+
+.market-credits {
+  color: #00ff00; /* Green credits */
+}
+
+.market-instructions {
+  font-size: 0.9em;
+  margin-bottom: 15px;
+  color: #bbbbff; /* Lighter cyan/blue */
+  line-height: 1.4;
+  flex-shrink: 0;
+}
+
+.market-table-container {
+  flex-grow: 1;
+  overflow-y: auto; /* Enable scrolling for the table body */
+  border: 1px solid #008888; /* Dim cyan border */
+  margin-bottom: 10px;
+  min-height: 150px; /* Ensure some minimum height */
+  /* Custom Scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: #00ffff rgba(0, 20, 40, 0.95);
+}
+
+/* Webkit Scrollbar */
+.market-table-container::-webkit-scrollbar {
+  width: 8px;
+}
+.market-table-container::-webkit-scrollbar-track {
+  background: rgba(0, 20, 40, 0.95); /* Dark background */
+}
+.market-table-container::-webkit-scrollbar-thumb {
+  background-color: #00ffff; /* Cyan thumb */
+  border-radius: 4px;
+  border: 1px solid #008888; /* Dim cyan border */
+}
+
+.market-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed; /* Helps keep columns aligned */
+}
+
+.market-table th,
+.market-table td {
+  padding: 4px 8px; /* Slightly more padding */
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: 1px solid #005555; /* Darker cyan separator */
+}
+
+.market-table th {
+  color: #ffffff; /* White headers */
+  border-bottom: 2px solid #00ffff; /* Stronger cyan border for header */
+  position: sticky; /* Make header sticky */
+  top: 0; /* Stick to the top of the container */
+  /* Adjust background based on buy/sell screen */
+  background-color: rgba(0, 0, 0, 0.8); /* Fallback background for header */
+  z-index: 1; /* Ensure header is above table content */
+}
+.buy-screen .market-table th {
+  background-color: rgba(40, 0, 40, 0.9); /* Match buy screen bg */
+}
+.sell-screen .market-table th {
+  background-color: rgba(0, 40, 0, 0.9); /* Match sell screen bg */
+}
+
+/* Align columns */
+.market-table th:nth-child(1),
+td:nth-child(1) {
+  width: 35%;
+} /* Product */
+.market-table th:nth-child(2),
+td:nth-child(2) {
+  width: 15%;
+  text-align: center;
+} /* Unit */
+.market-table th:nth-child(3),
+td:nth-child(3) {
+  width: 25%;
+  text-align: right;
+} /* Price */
+.market-table th:nth-child(4),
+td:nth-child(4) {
+  width: 25%;
+  text-align: right;
+} /* Qty */
+
+.market-table tbody tr {
+  transition: background-color 0.15s ease-in-out;
+}
+
+.market-table tbody tr:hover {
+  background-color: rgba(0, 255, 255, 0.1); /* Subtle cyan hover */
+  cursor: pointer;
+}
+
+.market-table tbody tr.selected {
+  background-color: #00ffff; /* Cyan background */
+  color: #001122; /* Dark blue text */
+}
+.market-table tbody tr.selected td {
+  color: #001122; /* Ensure all cells in selected row are dark */
+  border-bottom-color: #008888; /* Keep separator visible */
+}
+
+/* Styling for empty cargo state in sell screen */
+.market-table tbody tr td[colspan="4"] {
+  text-align: center;
+  font-style: italic;
+  color: #aaaaaa;
+  padding: 20px 0; /* Add some padding */
+  border-bottom: none; /* No separator for this row */
+}
+
+.market-footer {
+  border-top: 1px solid #00ffff; /* Cyan border */
+  padding-top: 10px;
+  font-size: 0.95em;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0; /* Prevent footer from shrinking */
+  min-height: 20px; /* Ensure footer has some height */
+}
+
+.quantity-prompt {
+  color: #ffffff;
+  font-weight: bold;
+  white-space: nowrap;
+}
+.quantity-input {
+  display: inline-block;
+  min-width: 40px; /* Ensure space for cursor */
+  border-bottom: 1px solid #00ffff; /* Cyan underline */
+  padding: 0 3px;
+  margin: 0 5px;
+  color: #ffff00; /* Yellow input text */
+  animation: market-blink-animation 1s step-start infinite; /* Blinking cursor effect */
+}
+.quantity-hint {
+  font-size: 0.8em;
+  color: #aaaaaa;
+  margin-left: 10px;
+}
+
+.status-message {
+  font-weight: bold;
+  text-align: right;
+  flex-grow: 1;
+  padding-left: 15px;
+}
+
+.market-loading {
+  text-align: center;
+  margin-top: 50px;
+  font-style: italic;
+  color: #aaaaaa;
+}
+
+/* Blinking animation for quantity input */
+@keyframes market-blink-animation {
+  50% {
+    border-bottom-color: transparent;
+  }
+}

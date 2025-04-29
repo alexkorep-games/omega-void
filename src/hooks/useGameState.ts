@@ -1,47 +1,124 @@
 // src/hooks/useGameState.ts
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
-import { IGameState, ITouchState, IStation } from "../game/types";
+import { IGameState, ITouchState, IStation, GameView } from "../game/types";
 import { initialGameState } from "../game/state";
-import { updateGameStateLogic, createPlayer } from "../game/logic"; // Renamed import
+import { updateGameStateLogic, createPlayer } from "../game/logic";
 import { InfiniteWorldManager } from "../game/world/InfiniteWorldManager";
 import { loadPlayerPosition, savePlayerPosition } from "../utils/storage";
 import { SAVE_COORDS_INTERVAL } from "../game/config";
-import { Player } from "../game/entities/Player"; // Import Player class for repositioning
+import { Player } from "../game/entities/Player";
+import {
+  MarketGenerator,
+  MarketSnapshot,
+  CommodityState,
+} from "../game/Market"; // Import Market components
+
+// Simple world seed for market generation for now
+const WORLD_SEED = 12345;
 
 /**
  * Hook to manage the overall game state, including entities, world, and updates.
  * It integrates the core game logic and world management.
  */
 export function useGameState() {
-  const [gameState, setGameState] = useState<IGameState>(initialGameState);
+  const [gameState, setGameStateInternal] =
+    useState<IGameState>(initialGameState);
   const worldManager = useMemo(() => new InfiniteWorldManager({}), []);
   const saveIntervalId = useRef<number | null>(null);
+
+  // --- Helper to Set Game View ---
+  const setGameView = useCallback(
+    (newView: GameView) => {
+      console.log(`Setting game view to: ${newView}`);
+      setGameStateInternal((prev) => {
+        // Prevent unnecessary state changes if view is the same
+        if (prev.gameView === newView) return prev;
+        return { ...prev, gameView: newView };
+      });
+    },
+    [] // No dependencies needed for setGameView itself
+  );
+
+  // --- Helper to Update Player State Fields ---
+  // Provides a simpler way to update cash, cargo etc. from logic hooks
+  const updatePlayerState = useCallback(
+    (updater: (prevState: IGameState) => Partial<IGameState>) => {
+      setGameStateInternal((prev) => {
+        const changes = updater(prev);
+        return { ...prev, ...changes };
+      });
+    },
+    []
+  );
+
+  // --- Helper to Update Market Quantity ---
+  const updateMarketQuantity = useCallback((key: string, change: number) => {
+    setGameStateInternal((prev) => {
+      if (!prev.market) return prev; // No market to update
+
+      const currentTable = prev.market.table;
+      const currentState = currentTable.get(key);
+
+      if (!currentState) return prev; // Commodity not found
+
+      const newTable = new Map<string, CommodityState>(currentTable);
+      const newQuantity = Math.max(0, currentState.quantity + change);
+
+      newTable.set(key, { ...currentState, quantity: newQuantity });
+      const newMarket = new MarketSnapshot(prev.market.timestamp, newTable);
+
+      return { ...prev, market: newMarket };
+    });
+  }, []);
 
   // --- State Transition Actions ---
   const initiateDocking = useCallback((stationId: string) => {
     console.log("Action: Initiate Docking with", stationId);
-    setGameState((prev) => ({
+    setGameStateInternal((prev) => ({
       ...prev,
       gameView: "docking",
       dockingStationId: stationId,
       animationState: { ...prev.animationState, type: "docking", progress: 0 },
+      market: null, // Clear previous market on docking start
     }));
   }, []);
 
   const completeDocking = useCallback(() => {
     console.log("Action: Complete Docking");
-    setGameState((prev) => ({
-      ...prev,
-      gameView: "docked",
-      animationState: { ...prev.animationState, type: null, progress: 0 },
-    }));
-  }, []);
+    setGameStateInternal((prev) => {
+      if (!prev.dockingStationId) {
+        console.error("Cannot complete docking without a station ID!");
+        return { ...prev, gameView: "playing" }; // Fallback?
+      }
+      // Find the station using its ID
+      const station = worldManager.getStationById(prev.dockingStationId);
+      let newMarket: MarketSnapshot | null = null;
+      if (station) {
+        console.log(`Generating market for ${station.name}`);
+        // Generate market data for the docked station
+        // Using Date.now() as a simple visit serial for jitter
+        newMarket = MarketGenerator.generate(station, WORLD_SEED, Date.now());
+      } else {
+        console.error(
+          `Could not find station ${prev.dockingStationId} to generate market!`
+        );
+      }
+
+      return {
+        ...prev,
+        gameView: "buy_cargo", // Go directly to buy screen after docking
+        animationState: { ...prev.animationState, type: null, progress: 0 },
+        market: newMarket, // Set the generated market data
+      };
+    });
+  }, [worldManager]); // Depends on worldManager
 
   const initiateUndocking = useCallback(() => {
     console.log("Action: Initiate Undocking");
-    setGameState((prev) => ({
+    setGameStateInternal((prev) => ({
       ...prev,
       gameView: "undocking",
+      market: null, // Clear market data on undocking start
       // Keep dockingStationId during animation
       animationState: {
         ...prev.animationState,
@@ -53,65 +130,57 @@ export function useGameState() {
 
   const completeUndocking = useCallback(() => {
     console.log("Action: Complete Undocking");
-    setGameState((prev) => {
+    setGameStateInternal((prev) => {
       let playerX = prev.player.x;
       let playerY = prev.player.y;
 
-      // Find the station player just undocked from to reposition player
-      const station = prev.visibleBackgroundObjects.find(
-        (obj) => obj.type === "station" && obj.id === prev.dockingStationId
-      ) as IStation | undefined;
+      const station = worldManager.getStationById(prev.dockingStationId);
       if (station) {
-        const undockDist = station.radius + prev.player.radius + 20; // Appear slightly away
-        const angle = Math.random() * Math.PI * 2; // Appear at a random angle
+        const undockDist = station.radius + prev.player.radius + 20;
+        const angle = station.angle + Math.PI; // Appear opposite docking entrance
         playerX = station.x + Math.cos(angle) * undockDist;
         playerY = station.y + Math.sin(angle) * undockDist;
       } else {
-        console.warn(
-          "Could not find station",
-          prev.dockingStationId,
-          "to reposition player after undocking."
-        );
+        console.warn("Undocking: Station not found for repositioning.");
       }
 
-      // Ensure player is still an instance
       const updatedPlayer =
         prev.player instanceof Player
           ? prev.player
-          : new Player(prev.player.x, prev.player.y); // Re-instantiate if needed
+          : new Player(prev.player.x, prev.player.y);
 
       updatedPlayer.x = playerX;
       updatedPlayer.y = playerY;
-      updatedPlayer.vx = 0; // Reset velocity
+      updatedPlayer.vx = 0;
       updatedPlayer.vy = 0;
+      updatedPlayer.angle = (station?.angle ?? 0) + Math.PI - Math.PI / 2; // Face away from station
 
       return {
         ...prev,
-        player: updatedPlayer, // Place the updated player back into state
+        player: updatedPlayer,
         gameView: "playing",
-        dockingStationId: null, // Clear station ID
+        dockingStationId: null,
+        market: null, // Ensure market is null
         animationState: { ...prev.animationState, type: null, progress: 0 },
       };
     });
-  }, []); // Add dependencies if needed, but should be stable
+  }, [worldManager]);
 
   // --- Initialization ---
   useEffect(() => {
     const initialPosition = loadPlayerPosition();
-    setGameState((prevState) => ({
+    setGameStateInternal((prevState) => ({
       ...prevState,
       player: createPlayer(initialPosition.x, initialPosition.y),
       isInitialized: true,
     }));
 
-    // Setup periodic saving
     if (saveIntervalId.current) clearInterval(saveIntervalId.current);
     saveIntervalId.current = setInterval(() => {
-      setGameState((currentSyncState) => {
-        // Only save if the game is in a state where player coords are relevant
+      setGameStateInternal((currentSyncState) => {
         if (
           currentSyncState.gameView === "playing" ||
-          currentSyncState.gameView === "docked"
+          currentSyncState.gameView === "docked" // Also save when docked
         ) {
           savePlayerPosition({
             x: currentSyncState.player.x,
@@ -128,65 +197,57 @@ export function useGameState() {
         console.log("Cleaned up save interval.");
       }
     };
-  }, [worldManager]); // worldManager is stable
+  }, [worldManager]);
 
   // --- Core Update Callback ---
   const updateGame = useCallback(
     (
       deltaTime: number,
       now: number,
-      currentTouchState: ITouchState | undefined // Now optional
+      currentTouchState: ITouchState | undefined
     ) => {
-      setGameState((prevGameState) => {
+      // We use setGameStateInternal here because updateGameStateLogic returns the *entire* next state
+      setGameStateInternal((prevGameState) => {
         if (!prevGameState.isInitialized) {
           return prevGameState;
         }
-
-        // Pass state modification actions to the logic function
-        const actions = {
-          initiateDocking,
-          completeDocking,
-          completeUndocking,
-        };
-
-        // Call the core game logic update function
+        const actions = { initiateDocking, completeDocking, completeUndocking };
         return updateGameStateLogic(
           prevGameState,
-          currentTouchState, // Pass touch state only if playing
+          currentTouchState,
           worldManager,
           deltaTime,
           now,
-          actions // Provide actions to the logic
+          actions
         );
       });
     },
-    [worldManager, initiateDocking, completeDocking, completeUndocking] // Include actions in dependencies
+    [worldManager, initiateDocking, completeDocking, completeUndocking]
   );
 
   // --- Helper Function ---
   const findStationById = useCallback(
     (stationId: string | null): IStation | null => {
       if (!stationId) return null;
-      // Search within the currently visible objects first for efficiency
-      const station = gameState.visibleBackgroundObjects.find(
-        (obj): obj is IStation => obj.type === "station" && obj.id === stationId
-      );
-      // TODO: If not found in visible, potentially search cached cells in worldManager?
-      // For now, assume it should be visible if docked/docking.
-      return station || null;
+      // Use worldManager to get the station directly
+      return worldManager.getStationById(stationId);
     },
-    [gameState.visibleBackgroundObjects]
-  ); // Dependency on visible objects
+    [worldManager] // Depends only on worldManager
+  );
 
-  // Return state, update function, and actions/helpers
   return {
     gameState,
     updateGame,
     isInitialized: gameState.isInitialized,
+    // Actions / Setters
     initiateDocking,
     completeDocking,
     initiateUndocking,
     completeUndocking,
-    findStationById, // Expose the helper
+    setGameView, // Expose the view setter
+    updatePlayerState, // Expose generic updater
+    updateMarketQuantity, // Expose market updater
+    // Helpers
+    findStationById,
   };
 }

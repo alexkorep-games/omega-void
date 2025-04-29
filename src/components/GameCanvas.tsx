@@ -10,6 +10,25 @@ interface GameCanvasProps {
   canvasRef: React.RefObject<HTMLCanvasElement | null>; // Receive ref from parent
 }
 
+const canvasStyleBase: React.CSSProperties = {
+  display: "block",
+  backgroundColor: "#000",
+  imageRendering: "pixelated",
+  // imageRendering: '-moz-crisp-edges', // Firefox might need this
+  // imageRendering: 'crisp-edges', // More modern browsers
+  touchAction: "none", // Prevent default touch actions like scroll/zoom
+  userSelect: "none", // Prevent text selection
+  WebkitUserSelect: "none", // Safari
+  msUserSelect: "none", // IE
+  width: "100%", // Use CSS to control display size
+  height: "100%",
+  objectFit: "contain", // Scale the canvas content while maintaining aspect ratio
+  maxWidth: `${GAME_WIDTH}px`, // Limit max CSS size to native res
+  maxHeight: `${GAME_HEIGHT}px`, // Limit max CSS size to native res
+  position: "relative", // Needed for absolute positioning of children like CoordinatesDisplay if inside GameCanvas
+  zIndex: 1, // Base layer
+};
+
 const GameCanvas: React.FC<GameCanvasProps> = ({
   gameState,
   touchState,
@@ -23,32 +42,46 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       const ctx = canvasRef.current.getContext("2d");
       if (ctx) {
         ctxRef.current = ctx;
-        console.log("Canvas context obtained.");
+        // Disable smoothing for pixelated look - set it once context is obtained
+        ctx.imageSmoothingEnabled = false;
+        console.log("Canvas context obtained, smoothing disabled.");
       } else {
         console.error("Failed to get 2D context");
       }
     }
   }, [canvasRef]); // Only depends on canvasRef
 
-  // Drawing effect - runs whenever gameState changes
+  // Drawing effect - runs whenever gameState changes *or* touchState changes (for controls)
   useEffect(() => {
-    if (ctxRef.current && gameState.isInitialized) {
+    if (
+      ctxRef.current &&
+      gameState.isInitialized &&
+      gameState.gameView === "playing"
+    ) {
       // console.log("Drawing game state frame..."); // Debug log (can be noisy)
       drawGame(ctxRef.current, gameState, touchState);
+    } else if (ctxRef.current && gameState.gameView !== "playing") {
+      // Clear canvas if not playing to avoid stale graphics
+      ctxRef.current.fillStyle = "#000";
+      ctxRef.current.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
     }
   }, [gameState, touchState]); // Re-draw when game or touch state changes
+
+  // Dynamic style to hide canvas when not playing
+  const canvasStyle: React.CSSProperties = {
+    ...canvasStyleBase,
+    visibility: gameState.gameView === "playing" ? "visible" : "hidden",
+  };
 
   return (
     <canvas
       ref={canvasRef}
       width={GAME_WIDTH}
       height={GAME_HEIGHT}
-      style={{ touchAction: "none" }} // Reinforce touch action style
+      style={canvasStyle} // Apply dynamic style
     />
   );
 };
 
-// Memoize the component to prevent re-renders if props haven't changed.
-// Note: gameState *will* change every frame, causing re-renders, which is expected.
-// The main benefit here is if the parent component re-renders for other reasons.
+// Memoize the component
 export default memo(GameCanvas);

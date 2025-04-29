@@ -1,0 +1,76 @@
+/* src/components/BottomToolbar.css */
+.bottom-toolbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--bottom-toolbar-height, 45px); /* Use variable from Market.css */
+  background-color: rgba(0, 0, 15, 0.9); /* Dark blue background */
+  border-top: 2px solid #00ffff; /* Cyan border */
+  display: flex;
+  /* justify-content: space-between; /* Distribute space BETWEEN buttons */
+  justify-content: space-around; /* Distribute space AROUND buttons - better for fewer items */
+  align-items: center;
+  padding: 0 10px;
+  box-sizing: border-box;
+  z-index: 20; /* Ensure it's above market screen content */
+  pointer-events: auto; /* Enable clicks on the toolbar */
+  font-family: monospace; /* Game 2 style */
+}
+
+.toolbar-button {
+  font-family: inherit;
+  font-size: 12px; /* Match Market.css base size */
+  color: #00ffff; /* Cyan text */
+  background-color: transparent;
+  border: 1px solid #00aaaa; /* Dimmer cyan border */
+  padding: 5px 15px; /* Adjusted padding */
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+  text-transform: uppercase;
+  min-width: 80px; /* Adjusted min-width */
+  text-align: center;
+  flex-shrink: 0;
+  border-radius: 3px; /* Slightly rounded */
+  /* Ensure touch interaction doesn't select text */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.toolbar-button:hover:not(.disabled) {
+  background-color: rgba(0, 255, 255, 0.15); /* Slight cyan glow */
+  border-color: #00ffff; /* Brighten border on hover */
+  color: #ffffff; /* White text on hover */
+}
+
+/* Active state for touch feedback (optional but good) */
+.toolbar-button:active:not(.disabled) {
+  background-color: rgba(0, 255, 255, 0.3);
+}
+
+.toolbar-button.active {
+  background-color: #00ffff; /* Solid cyan background */
+  color: #001122; /* Dark blue text */
+  border-color: #ffffff; /* White border */
+}
+
+.toolbar-button.disabled,
+.toolbar-button:disabled {
+  /* Target both class and attribute */
+  border-color: #005555; /* Very dim cyan */
+  color: #008888; /* Dimmer cyan text */
+  cursor: not-allowed;
+  background-color: transparent; /* Ensure no hover effect background */
+  opacity: 0.6; /* Fade disabled buttons */
+}
+
+.toolbar-button.disabled:hover,
+.toolbar-button:disabled:hover {
+  background-color: transparent; /* Prevent hover effect */
+  color: #008888; /* Keep text color */
+  border-color: #005555; /* Keep border color */
+}
+.toolbar-button.disabled:active,
+.toolbar-button:disabled:active {
+  background-color: transparent; /* Prevent active effect */
+}

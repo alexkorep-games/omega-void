@@ -1,6 +1,13 @@
 // src/game/world/InfiniteWorldManager.ts
 import { SeedablePRNG } from "./SeedablePRNG";
-import { IWorldManagerConfig, BackgroundObject, IEnemy } from "../types";
+import {
+  IWorldManagerConfig,
+  BackgroundObject,
+  IEnemy,
+  EconomyType,
+  TechLevel,
+  IStation,
+} from "../types";
 import {
   WORLD_CELL_SIZE,
   STAR_BASE_DENSITY,
@@ -12,6 +19,27 @@ import {
   MAX_STATION_SIZE,
   STATION_COLOR,
 } from "../config";
+
+// Add defaults for Economy and Tech Level if not provided in config
+const DEFAULT_ECONOMY_TYPES: EconomyType[] = [
+  "Poor Agricultural",
+  "Agricultural",
+  "Rich Agricultural",
+  "Poor Industrial",
+  "Industrial",
+  "Rich Industrial",
+  "High Tech",
+];
+const DEFAULT_TECH_LEVELS: TechLevel[] = [
+  "TL0",
+  "TL1",
+  "TL2",
+  "TL3",
+  "TL4",
+  "TL5",
+  "TL6",
+  "TL7",
+];
 
 /**
  * Manages the procedural generation of objects in an infinite world.
@@ -141,6 +169,9 @@ export class InfiniteWorldManager {
       stationColor: config.stationColor ?? STATION_COLOR,
       stationTypes: config.stationTypes ?? ["coriolis"],
       viewBufferFactor: config.viewBufferFactor ?? 1.5,
+      // --- Add defaults for new config options ---
+      economyTypes: config.economyTypes ?? DEFAULT_ECONOMY_TYPES,
+      techLevels: config.techLevels ?? DEFAULT_TECH_LEVELS,
     };
 
     this.prng = new SeedablePRNG();
@@ -151,12 +182,18 @@ export class InfiniteWorldManager {
   private _getCellSeed(cellX: number, cellY: number): number {
     const x = Math.floor(cellX);
     const y = Math.floor(cellY);
-    let hash =
-      Math.imul(x, this.config.seedPrime1) ^
-      Math.imul(y, this.config.seedPrime2);
-    hash = Math.imul(hash, this.config.seedPrime3);
-    hash = Math.abs(hash % 2147483647) + 1;
-    return hash;
+    // Ensure input values are treated as integers for hashing consistency
+    const ix = x | 0;
+    const iy = y | 0;
+
+    // Simple hashing combining cell coordinates and seed primes
+    let hash = this.config.seedPrime3; // Start with a base prime
+    hash = Math.imul(hash ^ ix, this.config.seedPrime1); // Mix in x
+    hash = Math.imul(hash ^ iy, this.config.seedPrime2); // Mix in y
+    hash = hash ^ (hash >>> 16); // Final mixing step
+
+    // Ensure the result is a positive integer for the PRNG seed
+    return ((hash >>> 0) % 2147483647) + 1; // Make positive and non-zero
   }
 
   private _generateObjectsForCell(
@@ -170,7 +207,7 @@ export class InfiniteWorldManager {
 
     const objects: BackgroundObject[] = [];
     const cellSeed = this._getCellSeed(cellX, cellY);
-    this.prng.setSeed(cellSeed);
+    this.prng.setSeed(cellSeed); // Use the deterministic cell seed
 
     const cellWorldX = cellX * this.config.cellSize;
     const cellWorldY = cellY * this.config.cellSize;
@@ -201,6 +238,8 @@ export class InfiniteWorldManager {
     if (this.prng.random() < this.config.stationProbability) {
       const offsetX = this.prng.randomFloat(0.3, 0.7) * this.config.cellSize;
       const offsetY = this.prng.randomFloat(0.3, 0.7) * this.config.cellSize;
+      const stationX = cellWorldX + offsetX;
+      const stationY = cellWorldY + offsetY;
       const size = this.prng.randomFloat(
         this.config.minStationSize,
         this.config.maxStationSize
@@ -211,6 +250,18 @@ export class InfiniteWorldManager {
       );
       const stationType = this.config.stationTypes[stationTypeIndex];
       const id = `station_${cellX}_${cellY}`;
+
+      // --- Generate Economy & Tech Level (Deterministically) ---
+      const economyIndex = this.prng.randomInt(
+        0,
+        this.config.economyTypes.length
+      );
+      const techLevelIndex = this.prng.randomInt(
+        0,
+        this.config.techLevels.length
+      );
+      const economyType = this.config.economyTypes[economyIndex];
+      const techLevel = this.config.techLevels[techLevelIndex];
 
       // Generate Name (using static arrays and PRNG)
       let stationName = "";
@@ -260,8 +311,8 @@ export class InfiniteWorldManager {
         id: id,
         type: "station",
         name: stationName,
-        x: cellWorldX + offsetX,
-        y: cellWorldY + offsetY,
+        x: stationX,
+        y: stationY,
         size: size,
         radius: size / 2,
         color: this.config.stationColor,
@@ -270,6 +321,10 @@ export class InfiniteWorldManager {
         rotationSpeed:
           this.prng.randomFloat(0.1, 1.6) * (this.prng.random() < 0.5 ? 1 : -1),
         angle: 0, // Initial angle will be set based on initialAngle later
+        // --- Assign generated market properties ---
+        economyType: economyType,
+        techLevel: techLevel,
+        coordinates: { x: stationX, y: stationY }, // Store coordinates
       });
     }
 
@@ -317,10 +372,6 @@ export class InfiniteWorldManager {
     const currentTimeSeconds = Date.now() / 1000.0;
     visibleObjects.forEach((obj) => {
       if (obj.type === "station") {
-        // Ensure initial angle is set if just generated
-        if (obj.angle === 0 && obj.initialAngle !== 0) {
-          obj.angle = obj.initialAngle;
-        }
         // Update angle based on time
         obj.angle =
           (obj.initialAngle + currentTimeSeconds * obj.rotationSpeed) %
@@ -332,6 +383,42 @@ export class InfiniteWorldManager {
     });
 
     return visibleObjects;
+  }
+
+  /**
+   * Retrieves a specific station by its ID, generating the cell if necessary.
+   * Returns null if the ID format is incorrect or the station doesn't exist in that cell.
+   */
+  getStationById(stationId: string): IStation | null {
+    if (!stationId || !stationId.startsWith("station_")) {
+      return null;
+    }
+    try {
+      const parts = stationId.split("_");
+      if (parts.length !== 3) return null;
+      const cellX = parseInt(parts[1], 10);
+      const cellY = parseInt(parts[2], 10);
+      if (isNaN(cellX) || isNaN(cellY)) return null;
+
+      const cellObjects = this._generateObjectsForCell(cellX, cellY);
+      const station = cellObjects.find((obj) => obj.id === stationId);
+
+      // Update angle for the specific station before returning
+      if (station && station.type === "station") {
+        const currentTimeSeconds = Date.now() / 1000.0;
+        station.angle =
+          (station.initialAngle + currentTimeSeconds * station.rotationSpeed) %
+          (Math.PI * 2);
+        if (station.angle < 0) {
+          station.angle += Math.PI * 2;
+        }
+        return station;
+      }
+      return null; // Station not found in its designated cell
+    } catch (e) {
+      console.error(`Error getting station by ID ${stationId}:`, e);
+      return null;
+    }
   }
 
   /**

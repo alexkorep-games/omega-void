@@ -35,6 +35,11 @@ export const initialGameState: IGameState = {
     progress: 0, // Milliseconds elapsed
     duration: 1500, // Total duration in ms
   },
+  // --- Initialize Trading State ---
+  cash: 1000.0, // Starting cash
+  cargoHold: new Map<string, number>(), // Start with empty cargo
+  cargoCapacity: 10, // Start with 10t capacity
+  market: null, // No market data initially
 };
 
 // updateCamera function remains the same
@@ -45,13 +50,16 @@ export function updateCamera(state: IGameState): IGameState {
     state.gameView === "docking" ||
     state.gameView === "undocking"
   ) {
+    // Ensure player position is considered
+    const playerX = state.player?.x ?? 0;
+    const playerY = state.player?.y ?? 0;
     return {
       ...state,
       camera: {
-        x: state.player.x - GAME_WIDTH / 2,
-        y: state.player.y - GAME_VIEW_HEIGHT / 2,
+        x: playerX - GAME_WIDTH / 2,
+        y: playerY - GAME_VIEW_HEIGHT / 2,
       },
     };
   }
-  return state; // No camera change when docked
+  return state; // No camera change when docked or in other UI screens
 }
