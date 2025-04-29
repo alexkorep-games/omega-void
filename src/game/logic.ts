@@ -56,7 +56,7 @@ function spawnEnemyNearPlayer(state: IGameState): IGameState {
     ...state,
     enemies: [...state.enemies, newEnemy],
     enemyIdCounter: state.enemyIdCounter + 1,
-    lastEnemySpawnTime: Date.now(),
+    lastEnemySpawnTime: performance.now(),
   };
 }
 
@@ -64,7 +64,7 @@ function spawnEnemyNearPlayer(state: IGameState): IGameState {
  * Creates a new projectile if cooldown allows.
  */
 function shootProjectile(state: IGameState): IGameState {
-  const now = Date.now();
+  const now = performance.now();
   if (now - state.lastShotTime > C.SHOOT_COOLDOWN) {
     const newProjectile = new Projectile(
       state.player.x,
