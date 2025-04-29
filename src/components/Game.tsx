@@ -1,6 +1,6 @@
 // src/components/Game.tsx
 import SettingsMenu from "./SettingsMenu";
-import React, { useRef, useCallback, useEffect } from "react";
+import React, { useRef, useCallback, useEffect } from "react"; // Remove useRef
 import GameCanvas from "./GameCanvas";
 import CoordinatesDisplay from "./CoordinatesDisplay";
 import DockingAnimation from "./DockingAnimation";
@@ -125,7 +125,6 @@ const Game: React.FC = () => {
     <div className="GameContainer">
       <SettingsMenu />
 
-      {/* Game Canvas (visible when playing or destroyed) */}
       <GameCanvas
         gameState={gameState}
         touchState={touchState}
@@ -133,21 +132,22 @@ const Game: React.FC = () => {
       />
 
       {/* Coordinate Display (only visible when playing) */}
-      {gameState.gameView === "playing" && isInitialized && (
-        <CoordinatesDisplay x={gameState.player.x} y={gameState.player.y} />
-      )}
+      {gameState.gameView === "playing" &&
+        isInitialized &&
+        gameState.player && (
+          <CoordinatesDisplay x={gameState.player.x} y={gameState.player.y} />
+        )}
 
       {/* Docking/Undocking Animations */}
       {(gameState.gameView === "docking" ||
         gameState.gameView === "undocking") &&
-        isInitialized && (
+        isInitialized &&
+        gameState.animationState.duration > 0 && (
           <DockingAnimation
             type={gameState.gameView}
             progress={
-              gameState.animationState.duration > 0
-                ? gameState.animationState.progress /
-                  gameState.animationState.duration
-                : 0
+              gameState.animationState.progress /
+              gameState.animationState.duration
             }
           />
         )}

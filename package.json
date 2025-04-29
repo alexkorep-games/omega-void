@@ -12,8 +12,10 @@
   },
   "dependencies": {
     "jotai": "^2.12.3",
+    "konva": "^9.3.20",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-konva": "^19.0.3"
   },
   "devDependencies": {
     "@eslint/js": "^9.22.0",
