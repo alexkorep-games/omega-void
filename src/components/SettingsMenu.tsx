@@ -25,7 +25,7 @@ const SettingsMenu: React.FC = () => {
     <>
       {/* Settings Icon Button */}
       <button className="settings-icon-button" onClick={togglePopup}>
-        ⚙️
+        +
       </button>
 
       {/* Settings Popup */}

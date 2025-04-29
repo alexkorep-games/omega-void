@@ -2,14 +2,14 @@
 
 .settings-icon-button {
   position: fixed; /* Position relative to the viewport */
-  top: 10px;
-  right: 10px;
+  top: 14px;
+  right: 16px;
   background-color: rgba(0, 20, 40, 0.8); /* Dark blue background */
   border: 1px solid #00ffff; /* Cyan border */
   color: #00ffff; /* Cyan icon */
   font-size: 1.5rem; /* Adjust size as needed */
-  width: 40px;
-  height: 40px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%; /* Make it circular */
   cursor: pointer;
   z-index: 50; /* Ensure it's above most other elements */

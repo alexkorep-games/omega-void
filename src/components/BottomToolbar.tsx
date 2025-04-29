@@ -37,8 +37,7 @@ const ToolbarButton: React.FC<ToolbarButtonProps> = ({
 };
 
 const BottomToolbar: React.FC = () => {
-  const { gameState, setGameView, initiateUndocking, startNewGame } =
-    useGameState();
+  const { gameState, setGameView, initiateUndocking } = useGameState();
 
   const handleNavigate = useCallback(
     (targetView: GameView) => {
@@ -47,16 +46,6 @@ const BottomToolbar: React.FC = () => {
     },
     [setGameView]
   );
-
-  // Define the action for the New Game button
-  const handleNewGameClick = useCallback(() => {
-    const confirmed = window.confirm(
-      "Start a new game? This will erase your current progress (coordinates, cash, cargo)."
-    );
-    if (confirmed) {
-      startNewGame();
-    }
-  }, [startNewGame]);
 
   // Define the buttons and their target game views or actions
   const buttons: Array<{
@@ -71,11 +60,6 @@ const BottomToolbar: React.FC = () => {
     },
     { label: "Undock", targetView: "undocking", action: initiateUndocking },
     { label: "Info", targetView: "station_info" },
-    {
-      label: "New Game",
-      targetView: "undocking",
-      action: handleNewGameClick,
-    },
     {
       label: "Messages",
       targetView: "chat_log",
