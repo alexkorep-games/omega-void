@@ -219,6 +219,44 @@ function handleCollisions(
     }
   }
 
+  // --- Enemy vs Asteroid Collision ---
+  for (let i = newEnemies.length - 1; i >= 0; i--) {
+    const enemy = newEnemies[i];
+    let enemyHitAsteroid = false;
+
+    for (const bgObj of state.visibleBackgroundObjects) {
+      if (bgObj.type === "asteroid") {
+        const asteroid = bgObj as IAsteroid;
+        if (
+          distance(enemy.x, enemy.y, asteroid.x, asteroid.y) <
+          enemy.radius + asteroid.radius
+        ) {
+          console.log(
+            `Enemy ${enemy.id} collided with asteroid ${asteroid.id}`
+          );
+          // *** Generate enemy destruction animation data ***
+          const { particles, duration } = generateParticleStates("small");
+          newAnimations.push({
+            id: `destroy-enemy-asteroid-${enemy.id}-${now}`,
+            x: enemy.x,
+            y: enemy.y,
+            color: enemy.color,
+            size: "small",
+            startTime: now,
+            particles: particles,
+            duration: duration,
+          });
+          newEnemies.splice(i, 1); // Remove the enemy
+          enemyHitAsteroid = true;
+          break; // Enemy is destroyed, no need to check against other asteroids
+        }
+      }
+    }
+    // If the enemy hit an asteroid, continue to the next enemy (outer loop)
+    if (enemyHitAsteroid) continue;
+  }
+  // --- End Enemy vs Asteroid Collision ---
+
   // Player vs Enemy
   let playerDestroyed = false;
 
@@ -259,7 +297,7 @@ function handleCollisions(
   }
 
   // Player vs Asteroid (only if not already destroyed by enemy)
-  if (!playerDestroyed) {
+  if (playerInstance && !playerDestroyed) {
     for (const bgObj of state.visibleBackgroundObjects) {
       if (bgObj.type === "asteroid") {
         if (
@@ -273,12 +311,12 @@ function handleCollisions(
       }
     }
   }
-  if (playerDestroyed) {
+  if (playerInstance && playerDestroyed) {
     playerInstance.shieldLevel = 0;
   }
 
   // If player was destroyed
-  if (playerDestroyed) {
+  if (playerInstance && playerDestroyed) {
     console.log("Player shield depleted! Ship destroyed.");
     // *** Generate PLAYER destruction animation data ***
     const { particles, duration } = generateParticleStates("large");
