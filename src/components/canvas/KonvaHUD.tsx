@@ -94,9 +94,7 @@ const KonvaHUD: React.FC<KonvaHUDProps> = ({
   );
 
   // --- Nav Indicator ---
-  const navIndicatorSize = 10; // Adjust size as needed
-  const navIndicatorY = hudY + padding * 4 + 15 + 12; // Below NAV text line
-  const navIndicatorX = leftX + 15; // Centered roughly under NAV text
+  const navIndicatorSize = 8; // Adjust size as needed
 
   return (
     <Group listening={false}>
@@ -168,38 +166,34 @@ const KonvaHUD: React.FC<KonvaHUDProps> = ({
         width={C.GAME_WIDTH / 3 - leftX - 45} // Prevent overflow
       />
 
-      {/* --- Navigation Indicator (Triangle/Chevron) --- */}
-      {navTargetInfo && ( // Only draw if there is a nav target
-        <Group
-          x={navIndicatorX} // Position the group
-          y={navIndicatorY}
-          // Rotate the group based on target direction (radians to degrees)
-          rotation={(navTargetInfo.direction * 180) / Math.PI}
-          listening={false}
-        >
-          <Line
-            // Define the shape points relative to the group's origin (0,0)
-            // This creates a triangle pointing right (0 degrees rotation)
-            // Size is controlled by navIndicatorSize
-            points={[
-              navIndicatorSize * 0.6,
-              0, // Pointy tip
-              -navIndicatorSize * 0.4,
-              -navIndicatorSize * 0.4, // Bottom-left base
-              -navIndicatorSize * 0.2,
-              0, // Optional: Small indent at the back center
-              -navIndicatorSize * 0.4,
-              navIndicatorSize * 0.4, // Top-left base
-            ]}
-            fill={C.NAV_TARGET_COLOR} // Fill with navigation target color
-            stroke={C.NAV_TARGET_COLOR} // Outline with the same color
-            strokeWidth={1} // Thin outline
-            closed={true} // Connect the last point to the first
-            perfectDrawEnabled={false} // Optimization for simple shapes
-          />
-        </Group>
-      )}
-      {/* --- End Navigation Indicator --- */}
+      {/* --- Navigation Indicator (Dot on Circle) --- */}
+      {navTargetInfo && // Only draw if there is a nav target
+        (() => {
+          const angle = navTargetInfo.direction; // Direction in radians
+          const displayX = scannerCenterX + Math.cos(angle) * scannerRadiusX;
+          const displayY = scannerCenterY + Math.sin(angle) * scannerRadiusY;
+
+          // Check if the target station is visible on the scanner
+          const isTargetVisible = gameState.visibleBackgroundObjects.some(
+            (bg) => bg.id === navTargetInfo.id
+          );
+
+          if (isTargetVisible) return null; // Hide the indicator if the target is visible
+
+          return (
+            <Rect
+              x={displayX - navIndicatorSize / 2} // Center the dot
+              y={displayY - navIndicatorSize / 2}
+              width={navIndicatorSize}
+              height={navIndicatorSize}
+              fill={C.NAV_TARGET_COLOR} // Fill with navigation target color
+              stroke={C.NAV_TARGET_COLOR} // Outline with the same color
+              strokeWidth={1} // Thin outline
+              perfectDrawEnabled={false} // Optimization for simple shapes
+              listening={false}
+            />
+          );
+        })()}
 
       <Text
         text={`SHIELD:`}
@@ -271,7 +265,6 @@ const KonvaHUD: React.FC<KonvaHUDProps> = ({
           scannerCenterX - scannerRadiusX,
           scannerCenterY,
           scannerCenterX + scannerRadiusX,
-          scannerCenterY,
         ]}
         stroke={C.HUD_COLOR}
         strokeWidth={1}
