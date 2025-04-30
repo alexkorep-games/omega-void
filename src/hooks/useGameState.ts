@@ -658,7 +658,6 @@ export function useGameState() {
         if (!config) return prev; // Invalid key
 
         let currentLevel = 0;
-        let isBooleanUpgrade = false;
         switch (upgradeKey) {
           case "cargoPod":
             currentLevel = prev.cargoPodLevel;
@@ -671,11 +670,9 @@ export function useGameState() {
             break;
           case "autoloader":
             currentLevel = prev.hasAutoloader ? 1 : 0;
-            isBooleanUpgrade = true;
             break;
           case "navComputer":
             currentLevel = prev.hasNavComputer ? 1 : 0;
-            isBooleanUpgrade = true;
             break;
         }
 

@@ -12,7 +12,19 @@ describe("GameObject", () => {
   test("should move correctly", () => {
     const obj = new Enemy(0, 0, 1);
     // Ensure player is far enough for movement
-    obj.update({ x: 100, y: 100, radius: 5, angle: 0, vx: 0, vy: 0, shieldLevel: 100, id: "player_1", size: 10, color: "blue" });
+    obj.update({
+      x: 100,
+      y: 100,
+      radius: 5,
+      angle: 0,
+      vx: 0,
+      vy: 0,
+      shieldLevel: 100,
+      id: "player_1",
+      size: 10,
+      color: "blue",
+      maxShield: 0,
+    });
     // Adjust angle to match the calculated movement
     const angle = Math.atan2(100 - 0, 100 - 0);
     expect(obj.x).toBeCloseTo(0 + Math.cos(angle) * ENEMY_SPEED);
