@@ -1,7 +1,7 @@
 /* src/components/canvas/KonvaHUD.tsx */
 import React from "react";
-import { Rect, Line, Text, Group, Shape, Arrow } from "react-konva"; // Added Arrow
-import { IGameState, IPlayer, IPosition } from "../../game/types"; // Added IPosition
+import { Rect, Line, Text, Group, Shape } from "react-konva";
+import { IGameState, IPlayer, IPosition } from "../../game/types";
 import * as C from "../../game/config";
 
 interface NavTargetInfo {
@@ -93,10 +93,10 @@ const KonvaHUD: React.FC<KonvaHUDProps> = ({
     (player.shieldLevel / 100) * shieldBarWidth
   );
 
-  // --- Nav Arrow ---
-  const navArrowSize = 10;
-  const navArrowY = hudY + padding * 4 + 15 + 12; // Below NAV text
-  const navArrowX = leftX + 15; // Centered roughly under NAV
+  // --- Nav Indicator ---
+  const navIndicatorSize = 10; // Adjust size as needed
+  const navIndicatorY = hudY + padding * 4 + 15 + 12; // Below NAV text line
+  const navIndicatorX = leftX + 15; // Centered roughly under NAV text
 
   return (
     <Group listening={false}>
@@ -167,21 +167,39 @@ const KonvaHUD: React.FC<KonvaHUDProps> = ({
         ellipsis={true}
         width={C.GAME_WIDTH / 3 - leftX - 45} // Prevent overflow
       />
-      {/* Navigation Arrow */}
-      {navTargetInfo && (
-        <Arrow
-          x={navArrowX}
-          y={navArrowY}
-          points={[0, 0, 0, 0]} // Points don't matter for rotation with offset
-          pointerLength={navArrowSize * 0.6}
-          pointerWidth={navArrowSize * 0.8}
-          fill={C.NAV_TARGET_COLOR}
-          stroke={C.NAV_TARGET_COLOR}
-          strokeWidth={1}
-          rotation={(navTargetInfo.direction * 180) / Math.PI} // Convert radians to degrees for Konva
-          offsetY={navArrowSize * 0.3} // Adjust offset to rotate around base center
-        />
+
+      {/* --- Navigation Indicator (Triangle/Chevron) --- */}
+      {navTargetInfo && ( // Only draw if there is a nav target
+        <Group
+          x={navIndicatorX} // Position the group
+          y={navIndicatorY}
+          // Rotate the group based on target direction (radians to degrees)
+          rotation={(navTargetInfo.direction * 180) / Math.PI}
+          listening={false}
+        >
+          <Line
+            // Define the shape points relative to the group's origin (0,0)
+            // This creates a triangle pointing right (0 degrees rotation)
+            // Size is controlled by navIndicatorSize
+            points={[
+              navIndicatorSize * 0.6,
+              0, // Pointy tip
+              -navIndicatorSize * 0.4,
+              -navIndicatorSize * 0.4, // Bottom-left base
+              -navIndicatorSize * 0.2,
+              0, // Optional: Small indent at the back center
+              -navIndicatorSize * 0.4,
+              navIndicatorSize * 0.4, // Top-left base
+            ]}
+            fill={C.NAV_TARGET_COLOR} // Fill with navigation target color
+            stroke={C.NAV_TARGET_COLOR} // Outline with the same color
+            strokeWidth={1} // Thin outline
+            closed={true} // Connect the last point to the first
+            perfectDrawEnabled={false} // Optimization for simple shapes
+          />
+        </Group>
       )}
+      {/* --- End Navigation Indicator --- */}
 
       <Text
         text={`SHIELD:`}
