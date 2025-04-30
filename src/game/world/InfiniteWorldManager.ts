@@ -298,10 +298,11 @@ export class InfiniteWorldManager {
         case 3:
           stationName = `${prefix} ${shortNum}`;
           break;
-        case 4:
+        case 4: {
           const letter = String.fromCharCode(65 + this.prng.randomInt(0, 5));
           stationName = `${coreName} ${shortNum}-${letter}`;
           break;
+        }
         default:
           stationName = `${coreName} Station ${number}`;
           break;
