@@ -1,5 +1,6 @@
 // src/game/world/InfiniteWorldManager.ts
 import { SeedablePRNG } from "./SeedablePRNG";
+import { Asteroid } from "../entities/Asteroid";
 import {
   IWorldManagerConfig,
   BackgroundObject,
@@ -327,6 +328,33 @@ export class InfiniteWorldManager {
         techLevel: techLevel,
         coordinates: { x: stationX, y: stationY }, // Store coordinates
       });
+    }
+
+    // --- Generate Asteroids ---
+    const densityNoise = this.prng.random(); // 0 to 1
+    const highDensity = densityNoise > 0.45; // Threshold for high density belts
+    const baseChance = highDensity ? 0.9 : 0.3; // Base chance of spawning any asteroids
+
+    if (this.prng.random() < baseChance) {
+      const n = highDensity ? this.prng.randomInt(8, 16) : 1; // Cluster (8-15) vs. singleton
+      for (let i = 0; i < n; i++) {
+        const localX =
+          cellWorldX + this.prng.randomFloat(0, this.config.cellSize);
+        const localY =
+          cellWorldY + this.prng.randomFloat(0, this.config.cellSize);
+
+        const orbitRadius = this.prng.randomFloat(10, 50);
+        const initialAngle = this.prng.randomFloat(0, Math.PI * 2);
+
+        const asteroid = new Asteroid(
+          localX, // Center X of orbit
+          localY, // Center Y of orbit
+          initialAngle, // Initial angular position on orbit
+          orbitRadius, // Radius of the orbit
+          this.prng.randomFloat(10, 28) // Size (diameter) of the asteroid
+        );
+        objects.push(asteroid);
+      }
     }
 
     this.generatedObjectsCache.set(cellKey, objects);

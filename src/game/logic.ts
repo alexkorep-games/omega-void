@@ -5,7 +5,8 @@ import {
   IPlayer,
   IStation,
   DestructionAnimationData,
-  ParticleState, // Import ParticleState type
+  ParticleState,
+  IAsteroid,
 } from "./types";
 import { Player } from "./entities/Player";
 import { Enemy } from "./entities/Enemy";
@@ -192,9 +193,20 @@ function handleCollisions(
     }
     if (projHit) continue;
 
-    // Vs Stations
+    // Vs Stations & Asteroids
     for (const bgObj of state.visibleBackgroundObjects) {
       if (bgObj.type === "station") {
+        if (
+          distance(proj.x, proj.y, bgObj.x, bgObj.y) <
+          proj.radius + bgObj.radius
+        ) {
+          newProjectiles.splice(i, 1);
+          projHit = true;
+          break;
+        }
+      }
+      // Projectiles vs Asteroids (projectiles just disappear)
+      if (bgObj.type === "asteroid") {
         if (
           distance(proj.x, proj.y, bgObj.x, bgObj.y) <
           proj.radius + bgObj.radius
@@ -244,6 +256,25 @@ function handleCollisions(
         }
       }
     }
+  }
+
+  // Player vs Asteroid (only if not already destroyed by enemy)
+  if (!playerDestroyed) {
+    for (const bgObj of state.visibleBackgroundObjects) {
+      if (bgObj.type === "asteroid") {
+        if (
+          distance(playerInstance.x, playerInstance.y, bgObj.x, bgObj.y) <
+          playerInstance.radius + bgObj.radius
+        ) {
+          console.log("Collision with asteroid! Player destroyed.");
+          playerDestroyed = true;
+          break;
+        }
+      }
+    }
+  }
+  if (playerDestroyed) {
+    playerInstance.shieldLevel = 0;
   }
 
   // If player was destroyed
@@ -326,6 +357,27 @@ function handleCollisions(
             player.vx = 0;
             player.vy = 0;
           }
+        }
+      }
+      // Player vs Asteroid (Pushback - already handled destruction above)
+      if (bgObj.type === "asteroid") {
+        const asteroid = bgObj as IAsteroid; // Ensure correct type
+        const player = playerInstance;
+        const distToCenter = distance(
+          player.x,
+          player.y,
+          asteroid.x,
+          asteroid.y
+        );
+        const pushbackThreshold = player.radius + asteroid.radius;
+        if (distToCenter < pushbackThreshold) {
+          const pushAngle = Math.atan2(
+            player.y - asteroid.y,
+            player.x - asteroid.x
+          );
+          const overlap = pushbackThreshold - distToCenter;
+          player.x += Math.cos(pushAngle) * (overlap + 0.5);
+          player.y += Math.sin(pushAngle) * (overlap + 0.5);
         }
       }
     }

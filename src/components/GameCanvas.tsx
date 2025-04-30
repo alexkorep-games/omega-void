@@ -18,6 +18,7 @@ import KonvaProjectile from "./canvas/KonvaProjectile";
 import KonvaHUD from "./canvas/KonvaHUD";
 import KonvaTouchControls from "./canvas/KonvaTouchControls";
 import KonvaDestructionParticle from "./canvas/KonvaDestructionParticle";
+import KonvaAsteroid from "./canvas/KonvaAsteroid"; // Import Asteroid renderer
 
 // --- Interfaces ---
 interface GameCanvasProps {
@@ -129,6 +130,17 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
               offsetX={offsetX}
               offsetY={offsetY}
               isNavTarget={station.id === gameState.navTargetStationId}
+            />
+          ))}
+        {/* Asteroids */}
+        {gameState.visibleBackgroundObjects
+          .filter((obj) => obj.type === "asteroid")
+          .map((asteroid) => (
+            <KonvaAsteroid
+              key={asteroid.id}
+              asteroid={asteroid}
+              offsetX={offsetX}
+              offsetY={offsetY}
             />
           ))}
         {/* Station Names (Rendered separately for no rotation) */}

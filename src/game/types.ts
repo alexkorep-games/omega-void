@@ -80,7 +80,16 @@ export interface IStation extends IPosition {
   coordinates: IPosition;
 }
 
-export type BackgroundObject = IStar | IStation;
+export interface IAsteroid extends IPosition, IGameObject {
+  type: "asteroid";
+  spin: number; // radians per frame
+  orbitR: number; // big radius – gives “straight line” illusion
+  orbitAngle: number;
+  orbitSpeed: number; // tiny – e.g. 0.0002
+  angle: number; // Visual rotation angle, updated by spin
+}
+
+export type BackgroundObject = IStar | IStation | IAsteroid;
 
 // Camera
 export type ICamera = IPosition;
