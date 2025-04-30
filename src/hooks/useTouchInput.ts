@@ -238,39 +238,41 @@ export function useTouchInput(
 
       // Need to determine if the ending touch was a game touch *before* preventDefault
       const touches = event.changedTouches;
-      let nextState = touchState; // Start with current state
 
-      for (let i = 0; i < touches.length; i++) {
-        const touch = touches[i];
-        const touchId = touch.identifier;
+      setTouchState((prevState) => {
+        let nextState = prevState;
 
-        const isMoveTouch =
-          nextState.move.active && nextState.move.id === touchId;
-        const isShootTouch =
-          nextState.shoot.active && nextState.shoot.id === touchId;
+        for (let i = 0; i < touches.length; i++) {
+          const touch = touches[i];
+          const touchId = touch.identifier;
 
-        if (isMoveTouch || isShootTouch) {
-          if (!preventDefaultCalled) {
-            event.preventDefault(); // Prevent default for the ended game touch
-            preventDefaultCalled = true;
+          const isMoveTouch =
+            nextState.move.active && nextState.move.id === touchId;
+          const isShootTouch =
+            nextState.shoot.active && nextState.shoot.id === touchId;
+
+          if (isMoveTouch || isShootTouch) {
+            if (!preventDefaultCalled) {
+              event.preventDefault(); // Prevent default for the ended game touch
+              preventDefaultCalled = true;
+            }
+            // Update the state locally to reset the ended touch
+            nextState = {
+              ...nextState,
+              move: isMoveTouch
+                ? { ...initialTouchState.move }
+                : nextState.move,
+              shoot: isShootTouch
+                ? { ...initialTouchState.shoot }
+                : nextState.shoot,
+            };
           }
-          // Update the state locally to reset the ended touch
-          nextState = {
-            ...nextState,
-            move: isMoveTouch ? { ...initialTouchState.move } : nextState.move,
-            shoot: isShootTouch
-              ? { ...initialTouchState.shoot }
-              : nextState.shoot,
-          };
         }
-      }
 
-      // Apply the accumulated state changes
-      if (nextState !== touchState) {
-        setTouchState(nextState);
-      }
+        return nextState;
+      });
     },
-    [containerRef, touchState] // Depend on touchState to check active touches
+    [containerRef]
   );
 
   const containerElement = containerRef?.current;
