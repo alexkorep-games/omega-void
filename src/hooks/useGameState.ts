@@ -498,7 +498,7 @@ export function useGameState() {
           let newMarket: MarketSnapshot | null = null;
 
           // Add to discovered list (using ID from current state before logic)
-          let updatedDiscoveredStations = [
+          const updatedDiscoveredStations = [
             ...currentGameState.discoveredStations,
           ];
           if (stationId && !updatedDiscoveredStations.includes(stationId)) {
