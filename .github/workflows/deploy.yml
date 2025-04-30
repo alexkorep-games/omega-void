@@ -35,6 +35,8 @@ jobs:
           cache: "yarn"
       - name: Install dependencies
         run: yarn install --frozen-lockfile
+      - name: Run Tests
+        run: yarn test
       - name: Build
         run: yarn build
         # Ensure your build script correctly uses the base path from vite.config.ts
