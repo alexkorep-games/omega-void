@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "list:src": "node filelist.js > files.tmp"
+    "list:src": "node filelist.js > files.tmp",
+    "test": "vitest"
   },
   "dependencies": {
     "jotai": "^2.12.3",
@@ -28,6 +29,7 @@
     "globals": "^16.0.0",
     "typescript": "~5.7.2",
     "typescript-eslint": "^8.26.1",
-    "vite": "^6.3.1"
+    "vite": "^6.3.1",
+    "vitest": "^3.1.2"
   }
 }
