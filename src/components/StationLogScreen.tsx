@@ -4,6 +4,7 @@ import React, { useCallback, useState, useEffect } from "react";
 import { useGameState } from "../hooks/useGameState";
 import { IStation } from "../game/types";
 import "./Market.css"; // Reuse styles
+import { distance } from "../utils/geometry"; // Import utility for distance calculation
 
 const StationLogScreen: React.FC = () => {
   const { gameState, findStationById, setGameView, setViewTargetStationId } =
@@ -12,29 +13,45 @@ const StationLogScreen: React.FC = () => {
 
   // Local state to hold station details fetched for the log
   const [logEntries, setLogEntries] = useState<
-    Array<IStation & { discoveredIndex: number }>
+    Array<IStation & { discoveredIndex: number; distance: number }>
   >([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     setIsLoading(true);
-    const entries: Array<IStation & { discoveredIndex: number }> = [];
-    // Fetch details for each discovered station ID
-    // Note: This assumes findStationById is reasonably fast or stations are cached.
-    // For very large logs, pagination or virtual scrolling might be needed.
+    const entries: Array<
+      IStation & { discoveredIndex: number; distance: number }
+    > = [];
+    const playerPosition = {
+      x: gameState.player?.x || 0,
+      y: gameState.player?.y || 0,
+    }; // Default to origin if player position is unavailable
+
     discoveredStations.forEach((id, index) => {
       const station = findStationById(id);
       if (station) {
-        entries.push({ ...station, discoveredIndex: index });
+        const dist = distance(
+          playerPosition.x,
+          playerPosition.y,
+          station.coordinates.x,
+          station.coordinates.y
+        );
+        entries.push({
+          ...station,
+          discoveredIndex: index,
+          distance: dist < 50 ? 0 : dist,
+        }); // Set distance to 0 if within 50 units
       } else {
-        // Handle case where station data might not be available (should be rare)
         console.warn(`Could not find station data for logged ID: ${id}`);
       }
     });
-    // Set entries based on the order in discoveredStations array
+
+    // Sort entries by distance
+    entries.sort((a, b) => a.distance - b.distance);
+
     setLogEntries(entries);
     setIsLoading(false);
-  }, [discoveredStations, findStationById]);
+  }, [discoveredStations, findStationById, gameState.player]);
 
   const handleStationClick = useCallback(
     (stationId: string) => {
@@ -63,7 +80,7 @@ const StationLogScreen: React.FC = () => {
             <thead>
               <tr>
                 <th>STATION NAME</th>
-                <th>COORDINATES</th>
+                <th>DISTANCE</th>
                 {/* Hide other columns */}
                 <th style={{ display: "none" }}></th>
                 <th style={{ display: "none" }}></th>
@@ -76,9 +93,9 @@ const StationLogScreen: React.FC = () => {
                   onClick={() => handleStationClick(station.id)}
                 >
                   <td>{station.name}</td>
-                  <td>{`(${Math.floor(station.coordinates.x)}, ${Math.floor(
-                    station.coordinates.y
-                  )})`}</td>
+                  <td>{`${station.distance.toFixed(0)} (${Math.floor(
+                    station.coordinates.x
+                  )}, ${Math.floor(station.coordinates.y)})`}</td>
                   {/* Hide other columns */}
                   <td style={{ display: "none" }}></td>
                   <td style={{ display: "none" }}></td>
