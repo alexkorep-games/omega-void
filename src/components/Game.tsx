@@ -1,3 +1,4 @@
+/* src/components/Game.tsx */
 // src/components/Game.tsx
 import SettingsMenu from "./SettingsMenu";
 import React, { useRef, useCallback, useEffect } from "react";
@@ -7,6 +8,8 @@ import DockingAnimation from "./DockingAnimation";
 import BuyCargoScreen from "./BuyCargoScreen";
 import SellCargoScreen from "./SellCargoScreen";
 import StationInfoScreen from "./StationInfoScreen";
+import StationLogScreen from "./StationLogScreen"; // Import new screen
+import StationDetailsScreen from "./StationDetailsScreen"; // Import new screen
 import BottomToolbar from "./BottomToolbar";
 import { useGameState } from "../hooks/useGameState";
 import { useGameLoop } from "../hooks/useGameLoop";
@@ -57,8 +60,14 @@ const Game: React.FC = () => {
         return <BuyCargoScreen />;
       case "sell_cargo":
         return <SellCargoScreen />;
-      case "station_info":
+      case "station_info": // Info for currently docked station
         return <StationInfoScreen />;
+      case "station_log": // New station log screen
+        return <StationLogScreen />;
+      case "station_details": // New screen for viewing specific station details from log
+        return (
+          <StationDetailsScreen stationId={gameState.viewTargetStationId} />
+        );
       case "trade_select":
         return <TradeScreen />;
       case "chat_log":
@@ -84,7 +93,9 @@ const Game: React.FC = () => {
     gameState.gameView === "station_info" ||
     gameState.gameView === "sell_cargo" ||
     gameState.gameView === "trade_select" ||
-    gameState.gameView === "chat_log";
+    gameState.gameView === "chat_log" ||
+    gameState.gameView === "station_log" || // Show toolbar on station log
+    gameState.gameView === "station_details"; // Show toolbar on station details
 
   return (
     <div className="GameContainer" ref={containerRef}>
@@ -113,7 +124,7 @@ const Game: React.FC = () => {
           />
         )}
 
-      {/* Docked Screens (Buy/Sell, Info, Trade Select, Chat) */}
+      {/* Docked Screens (Buy/Sell, Info, Trade Select, Chat, Log, Details) */}
       {showDockedUI && isInitialized && renderDockedUI()}
 
       {/* Bottom Toolbar (shown when docked UI is visible) */}

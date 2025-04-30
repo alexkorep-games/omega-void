@@ -1,3 +1,4 @@
+/* src/components/BottomToolbar.tsx */
 // src/components/BottomToolbar.tsx
 import React, { useCallback } from "react";
 import { GameView } from "../game/types"; // Use Game 2 types
@@ -21,7 +22,23 @@ const ToolbarButton: React.FC<ToolbarButtonProps> = ({
   disabled = false,
   title = "",
 }) => {
-  const isActive = currentView === targetView;
+  // Determine if active based on related views
+  let isActive = false;
+  if (targetView === "station_info") {
+    // "Info" button is active for both docked station info and details view from log
+    isActive =
+      currentView === "station_info" || currentView === "station_details";
+  } else if (targetView === "trade_select") {
+    // "Trade" button is active for trade select, buy, and sell screens
+    isActive =
+      currentView === "trade_select" ||
+      currentView === "buy_cargo" ||
+      currentView === "sell_cargo";
+  } else {
+    // Default: active only if exact match
+    isActive = currentView === targetView;
+  }
+
   return (
     <button
       className={`toolbar-button ${isActive ? "active" : ""} ${
@@ -41,8 +58,12 @@ const BottomToolbar: React.FC = () => {
 
   const handleNavigate = useCallback(
     (targetView: GameView) => {
-      // Logic to regenerate market is handled within useGameState on docking
-      setGameView(targetView);
+      // Always navigate to the *docked* station info when clicking the main Info button
+      if (targetView === "station_info") {
+        setGameView("station_info");
+      } else {
+        setGameView(targetView);
+      }
     },
     [setGameView]
   );
@@ -59,7 +80,7 @@ const BottomToolbar: React.FC = () => {
       action: () => setGameView("trade_select"),
     },
     { label: "Undock", targetView: "undocking", action: initiateUndocking },
-    { label: "Info", targetView: "station_info" },
+    { label: "Info", targetView: "station_info" }, // Always targets the main info screen
     {
       label: "Messages",
       targetView: "chat_log",
@@ -74,6 +95,8 @@ const BottomToolbar: React.FC = () => {
     "sell_cargo",
     "station_info",
     "chat_log",
+    "station_log", // Show on Station Log
+    "station_details", // Show on Station Details
   ];
 
   // Only render if the current gameView is one where the toolbar should be visible

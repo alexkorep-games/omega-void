@@ -3,9 +3,7 @@
 /* Define bottom offset based on toolbar height */
 :root {
   --bottom-toolbar-height: 45px; /* Adjusted height for Game 2 */
-  --bottom-offset: calc(
-    var(--bottom-toolbar-height) + 20px
-  );
+  --bottom-offset: calc(var(--bottom-toolbar-height) + 20px);
 }
 
 .market-container {
@@ -15,7 +13,9 @@
   width: 100%;
   height: 100%;
   padding: 15px 15px 0 15px;
-  padding-bottom: var(--bottom-offset);
+  padding-bottom: var(
+    --bottom-offset
+  ); /* Apply padding to avoid overlap with toolbar */
   color: #00ffff;
   display: flex;
   flex-direction: column;
@@ -39,6 +39,12 @@
 .info-screen {
   border: 2px solid #ffff00; /* Yellow border for Info */
   background-color: rgba(40, 40, 0, 0.9); /* Dark yellow background */
+}
+
+/* New screen styles */
+.station-log-screen {
+  border: 2px solid #00aaff; /* Blue border for Log */
+  background-color: rgba(0, 20, 40, 0.9); /* Dark blue background */
 }
 
 .market-header {
@@ -125,27 +131,31 @@
 .info-screen .market-table th {
   background-color: rgba(40, 40, 0, 0.9); /* Match info screen bg */
 }
+/* New Screen BG for Table Header */
+.station-log-screen .market-table th {
+  background-color: rgba(0, 20, 40, 0.9); /* Match log screen bg */
+}
 
 /* Align columns */
 .market-table th:nth-child(1),
 td:nth-child(1) {
   width: 35%;
-} /* Product */
+} /* Product / Station Name */
 .market-table th:nth-child(2),
 td:nth-child(2) {
   width: 15%;
   text-align: center;
-} /* Unit */
+} /* Unit / Coords Label? */
 .market-table th:nth-child(3),
 td:nth-child(3) {
   width: 25%;
   text-align: right;
-} /* Price */
+} /* Price / Coords Value? */
 .market-table th:nth-child(4),
 td:nth-child(4) {
   width: 25%;
   text-align: right;
-} /* Qty */
+} /* Qty / Discovered Time? */
 
 .market-table tbody tr {
   transition: background-color 0.15s ease-in-out;
@@ -156,7 +166,7 @@ td:nth-child(4) {
   cursor: pointer;
 }
 
-/* Styling for empty cargo state in sell screen */
+/* Styling for empty cargo state in sell screen / empty log */
 .market-table tbody tr td[colspan="4"] {
   text-align: center;
   font-style: italic;
@@ -217,7 +227,7 @@ td:nth-child(4) {
   }
 }
 
-/* Styles for Station Info Screen */
+/* Styles for Station Info / Details Screen */
 .station-info-content {
   padding: 20px;
   flex-grow: 1;
@@ -242,4 +252,87 @@ td:nth-child(4) {
 
 .info-value {
   color: #ffff00; /* Bright yellow for value */
+}
+
+/* New: Styles for buttons within info/details screens */
+.station-info-actions {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 20px;
+  margin-bottom: 10px; /* Add some space before footer */
+  padding: 10px 0;
+  border-top: 1px solid rgba(255, 255, 0, 0.2);
+}
+
+.station-info-button,
+.station-info-toggle-button {
+  /* Reuse toolbar button styles */
+  font-family: inherit;
+  font-size: 12px;
+  color: #ffff00; /* Yellow to match info screen */
+  background-color: transparent;
+  border: 1px solid #aaaa00; /* Dimmer yellow border */
+  padding: 8px 15px;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+  text-transform: uppercase;
+  min-width: 120px;
+  text-align: center;
+  flex-shrink: 0;
+  border-radius: 3px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.station-info-button:hover:not(.disabled),
+.station-info-toggle-button:hover:not(.disabled) {
+  background-color: rgba(255, 255, 0, 0.15); /* Slight yellow glow */
+  border-color: #ffff00; /* Brighten border */
+  color: #ffffff; /* White text */
+}
+
+.station-info-toggle-button.active {
+  background-color: #ffff00; /* Solid yellow background */
+  color: #333300; /* Dark text */
+  border-color: #ffffff; /* White border */
+}
+
+.station-info-button.disabled,
+.station-info-toggle-button.disabled {
+  border-color: #555500;
+  color: #888800;
+  cursor: not-allowed;
+  background-color: transparent;
+  opacity: 0.6;
+}
+.station-info-button.disabled:hover,
+.station-info-toggle-button.disabled:hover {
+  background-color: transparent;
+  color: #888800;
+  border-color: #555500;
+}
+
+/* --- Styles for Station Log Screen --- */
+/* Use .market-table-container for scrolling */
+/* Customize table columns if needed */
+.station-log-screen .market-table th:nth-child(1),
+.station-log-screen .market-table td:nth-child(1) {
+  width: 50%;
+} /* Station Name */
+.station-log-screen .market-table th:nth-child(2),
+.station-log-screen .market-table td:nth-child(2) {
+  width: 50%;
+  text-align: right;
+} /* Coordinates */
+/* Remove 3rd and 4th columns for log */
+.station-log-screen .market-table th:nth-child(3),
+.station-log-screen .market-table td:nth-child(3),
+.station-log-screen .market-table th:nth-child(4),
+.station-log-screen .market-table td:nth-child(4) {
+  display: none;
+}
+
+.station-log-screen .market-table td:nth-child(2) {
+  color: #ffff00; /* Yellow coordinates */
 }

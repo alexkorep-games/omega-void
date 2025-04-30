@@ -1,5 +1,6 @@
+/* src/game/state.ts */
 // src/game/state.ts
-import { IGameState, IPlayer, ITouchState } from "./types"; // Added DestructionAnimationData
+import { IGameState, IPlayer, ITouchState, IPosition } from "./types"; // Added IPosition
 import { Player } from "./entities/Player";
 import { GAME_WIDTH, GAME_VIEW_HEIGHT, DEFAULT_STARTING_CASH } from "./config";
 
@@ -45,6 +46,12 @@ export const initialGameState: IGameState = {
   market: null, // No market data initially
   // Destruction animations
   activeDestructionAnimations: [], // Initialize as empty array
+  // Station Log & Navigation
+  discoveredStations: [], // List of discovered station IDs in order
+  navTargetStationId: null, // ID of the station to navigate towards
+  navTargetDirection: null, // Calculated angle to nav target
+  navTargetCoordinates: null, // Coordinates of nav target
+  viewTargetStationId: null, // Station ID to view in details screen
 };
 
 // updateCamera function remains the same

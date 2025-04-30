@@ -1,19 +1,34 @@
-/* src/components/StationInfoScreen.tsx */
-// src/components/StationInfoScreen.tsx
-import React, { useCallback } from "react";
+/* src/components/StationDetailsScreen.tsx */
+// src/components/StationDetailsScreen.tsx
+import React, { useCallback, useEffect, useState } from "react";
 import { useGameState } from "../hooks/useGameState";
+import { IStation } from "../game/types";
 import "./Market.css"; // Reuse Market CSS for layout and theming
 
-const StationInfoScreen: React.FC = () => {
+interface StationDetailsScreenProps {
+  stationId: string | null; // ID of the station to display
+}
+
+const StationDetailsScreen: React.FC<StationDetailsScreenProps> = ({
+  stationId,
+}) => {
   const { gameState, findStationById, setGameView, setNavTarget } =
     useGameState();
-  const { dockingStationId, navTargetStationId } = gameState;
+  const { navTargetStationId, cash } = gameState;
+  const [station, setStation] = useState<IStation | null>(null);
 
-  // Fetch the currently docked station data
-  const station = findStationById(dockingStationId);
+  useEffect(() => {
+    // Fetch station data when the stationId prop changes
+    if (stationId) {
+      const foundStation = findStationById(stationId);
+      setStation(foundStation);
+    } else {
+      setStation(null); // Clear station if ID is null
+    }
+  }, [stationId, findStationById]);
 
   const handleLogClick = useCallback(() => {
-    setGameView("station_log");
+    setGameView("station_log"); // Navigate back to the log
   }, [setGameView]);
 
   const handleToggleNavigate = useCallback(() => {
@@ -23,13 +38,34 @@ const StationInfoScreen: React.FC = () => {
     setNavTarget(newTargetId);
   }, [station, navTargetStationId, setNavTarget]);
 
+  if (!stationId) {
+    return (
+      <div className="market-container info-screen">
+        <div className="market-header">
+          <div className="market-title">STATION DETAILS</div>
+        </div>
+        <div className="market-loading">No station selected...</div>
+        <div className="station-info-actions">
+          <button className="station-info-button" onClick={handleLogClick}>
+            BACK TO LOG
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (!station) {
     return (
       <div className="market-container info-screen">
         <div className="market-header">
-          <div className="market-title">STATION INFORMATION</div>
+          <div className="market-title">STATION DETAILS</div>
         </div>
-        <div className="market-loading">Station data unavailable...</div>
+        <div className="market-loading">Loading station data...</div>
+        <div className="station-info-actions">
+          <button className="station-info-button" onClick={handleLogClick}>
+            BACK TO LOG
+          </button>
+        </div>
       </div>
     );
   }
@@ -39,11 +75,12 @@ const StationInfoScreen: React.FC = () => {
 
   return (
     <div className="market-container info-screen">
+      {" "}
+      {/* Use info-screen class for styling */}
       <div className="market-header">
         <div className="market-title">{station.name}</div>
-        <div className="market-credits">{gameState.cash.toFixed(1)} CR</div>
+        <div className="market-credits">{cash.toFixed(1)} CR</div>
       </div>
-
       <div className="station-info-content">
         <div className="info-item">
           <span className="info-label">ID:</span>
@@ -78,7 +115,7 @@ const StationInfoScreen: React.FC = () => {
         {/* Action Buttons Area */}
         <div className="station-info-actions">
           <button className="station-info-button" onClick={handleLogClick}>
-            STATION LOG
+            BACK TO LOG
           </button>
           <button
             className={`station-info-toggle-button ${
@@ -90,13 +127,12 @@ const StationInfoScreen: React.FC = () => {
           </button>
         </div>
       </div>
-
       {/* Footer can be used for status or general info */}
       <div className="market-footer">
-        <span>Docked at {station.name}. All systems nominal.</span>
+        <span>Viewing details for {station.name}.</span>
       </div>
     </div>
   );
 };
 
-export default StationInfoScreen;
+export default StationDetailsScreen;

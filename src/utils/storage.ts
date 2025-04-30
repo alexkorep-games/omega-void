@@ -1,3 +1,4 @@
+/* src/utils/storage.ts */
 // src/utils/storage.ts
 import {
   DEFAULT_STARTING_CASH,
@@ -10,28 +11,31 @@ interface SavedGameState {
   coordinates: IPosition;
   cash: number;
   cargoHold: [string, number][]; // Map as array of [key, value] pairs
-  lastDockedStationId: string | null; // Added
+  lastDockedStationId: string | null;
+  discoveredStations: string[]; // Added: Array of station IDs
   // shieldLevel?: number; // Optional: Save shield level if needed
 }
 
 // Define the structure of the loaded state (including defaults)
 interface LoadedGameState {
   coordinates: IPosition;
-  lastDockedStationId: string | null; // Added
+  lastDockedStationId: string | null;
   cash: number;
   cargoHold: Map<string, number>;
+  discoveredStations: string[]; // Added: Array of station IDs
   // shieldLevel?: number; // Optional: Load shield level
 }
 
 /**
  * Saves the relevant player game state to local storage.
- * @param stateToSave - An object containing coordinates, cash, cargoHold Map, and lastDockedStationId.
+ * @param stateToSave - An object containing coordinates, cash, cargoHold Map, lastDockedStationId, and discoveredStations.
  */
 export function saveGameState(stateToSave: {
   coordinates: IPosition;
   cash: number;
   lastDockedStationId: string | null;
   cargoHold: Map<string, number>;
+  discoveredStations: string[]; // Added
   // shieldLevel?: number; // Optional
 }): void {
   try {
@@ -42,6 +46,7 @@ export function saveGameState(stateToSave: {
       cash: stateToSave.cash,
       cargoHold: cargoArray,
       lastDockedStationId: stateToSave.lastDockedStationId,
+      discoveredStations: stateToSave.discoveredStations, // Added
       // shieldLevel: stateToSave.shieldLevel, // Optional
     };
     localStorage.setItem(
@@ -56,7 +61,7 @@ export function saveGameState(stateToSave: {
 
 /**
  * Loads the player's game state from local storage.
- * @returns The loaded state with coordinates, cash, cargoHold Map, lastDockedStationId, or defaults if not found/invalid.
+ * @returns The loaded state with coordinates, cash, cargoHold Map, lastDockedStationId, discoveredStations, or defaults if not found/invalid.
  */
 export function loadGameState(): LoadedGameState {
   const defaultState: LoadedGameState = {
@@ -64,6 +69,7 @@ export function loadGameState(): LoadedGameState {
     cash: DEFAULT_STARTING_CASH, // Default starting cash
     lastDockedStationId: null, // Default no last station
     cargoHold: new Map<string, number>(), // Default empty cargo
+    discoveredStations: [], // Default empty discovered list
     // shieldLevel: DEFAULT_STARTING_SHIELD, // Default full shield if loading
   };
 
@@ -88,7 +94,8 @@ export function loadGameState(): LoadedGameState {
           : defaultState.cash;
 
       const loadedLastDockedId =
-        typeof parsedData.lastDockedStationId === "string"
+        typeof parsedData.lastDockedStationId === "string" ||
+        parsedData.lastDockedStationId === null // Allow null
           ? parsedData.lastDockedStationId
           : defaultState.lastDockedStationId;
 
@@ -117,8 +124,21 @@ export function loadGameState(): LoadedGameState {
         );
       }
 
+      // Validate discoveredStations
+      let loadedDiscoveredStations = defaultState.discoveredStations;
+      if (
+        Array.isArray(parsedData.discoveredStations) &&
+        parsedData.discoveredStations.every((item) => typeof item === "string")
+      ) {
+        loadedDiscoveredStations = parsedData.discoveredStations;
+      } else if (parsedData.discoveredStations !== undefined) {
+        console.warn(
+          "Invalid discoveredStations format in localStorage. Using default empty list."
+        );
+      }
+
       console.log(
-        `Loaded game state: Coords=(${loadedCoordinates.x},${loadedCoordinates.y}), Cash=${loadedCash}, Cargo=${loadedCargoHold.size} items, LastDocked=${loadedLastDockedId}` // Added LastDocked
+        `Loaded game state: Coords=(${loadedCoordinates.x},${loadedCoordinates.y}), Cash=${loadedCash}, Cargo=${loadedCargoHold.size} items, LastDocked=${loadedLastDockedId}, Discovered=${loadedDiscoveredStations.length} stations` // Added Discovered log
       );
 
       return {
@@ -126,6 +146,7 @@ export function loadGameState(): LoadedGameState {
         cash: loadedCash,
         lastDockedStationId: loadedLastDockedId, // Return loaded ID
         cargoHold: loadedCargoHold,
+        discoveredStations: loadedDiscoveredStations, // Return loaded list
         // shieldLevel: loadedShieldLevel, // Return loaded shield
       };
     } else {

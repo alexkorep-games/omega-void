@@ -1,3 +1,4 @@
+/* src/hooks/useGameState.ts */
 // src/hooks/useGameState.ts
 import { useCallback, useMemo, useRef } from "react";
 import { atom, useAtom } from "jotai";
@@ -7,7 +8,8 @@ import {
   IStation,
   GameView,
   IPlayer,
-} from "../game/types"; // Added IPlayer
+  IPosition,
+} from "../game/types"; // Added IPlayer, IPosition
 import { initialGameState } from "../game/state"; // Still used for base structure
 import { updateGameStateLogic, createPlayer } from "../game/logic";
 import { InfiniteWorldManager } from "../game/world/InfiniteWorldManager";
@@ -18,6 +20,7 @@ import {
   GAME_WIDTH,
   GAME_VIEW_HEIGHT,
   PLAYER_SIZE,
+  LOCAL_STORAGE_GAME_STATE_KEY, // Import key for potential clearing
 } from "../game/config"; // Added shield
 import { Player } from "../game/entities/Player";
 import {
@@ -47,8 +50,41 @@ export function useGameState() {
       setGameStateInternal((prev) => {
         // Prevent unnecessary state changes if view is the same
         if (prev.gameView === newView) return prev;
+
+        // Clear viewTargetStationId when navigating away from details screen
+        const nextViewTargetStationId =
+          newView === "station_details" ? prev.viewTargetStationId : null;
+
         console.log(`Game view updated to: ${newView}`);
-        return { ...prev, gameView: newView };
+        return {
+          ...prev,
+          gameView: newView,
+          viewTargetStationId: nextViewTargetStationId,
+        };
+      });
+    },
+    [setGameStateInternal]
+  );
+
+  // --- Helper to Set View Target Station ID (for details screen) ---
+  const setViewTargetStationId = useCallback(
+    (stationId: string | null) => {
+      setGameStateInternal((prev) => {
+        if (prev.viewTargetStationId === stationId) return prev;
+        return { ...prev, viewTargetStationId: stationId };
+      });
+    },
+    [setGameStateInternal]
+  );
+
+  // --- Helper to Set Navigation Target ---
+  const setNavTarget = useCallback(
+    (stationId: string | null) => {
+      console.log(`Setting nav target to: ${stationId}`);
+      setGameStateInternal((prev) => {
+        if (prev.navTargetStationId === stationId) return prev; // No change needed
+        return { ...prev, navTargetStationId: stationId };
+        // navTargetDirection and navTargetCoordinates will be updated in the main loop
       });
     },
     [setGameStateInternal]
@@ -127,6 +163,13 @@ export function useGameState() {
         );
       }
 
+      // Add station to discovered list if not already present
+      let updatedDiscoveredStations = [...prev.discoveredStations];
+      if (!updatedDiscoveredStations.includes(prev.dockingStationId)) {
+        updatedDiscoveredStations.push(prev.dockingStationId);
+        console.log(`Added ${prev.dockingStationId} to discovered stations.`);
+      }
+
       console.log("SETTING MARKET TO", newMarket);
       return {
         ...prev, // Use the state before animation finished to get dockingStationId
@@ -134,6 +177,7 @@ export function useGameState() {
         animationState: { ...prev.animationState, type: null, progress: 0 }, // Ensure animation state is reset
         market: newMarket,
         lastDockedStationId: prev.dockingStationId, // Store the last docked station
+        discoveredStations: updatedDiscoveredStations, // Update discovered stations
       };
     });
   }, [setGameStateInternal, worldManager]); // Depends on worldManager
@@ -178,6 +222,7 @@ export function useGameState() {
         cash: loadedData.cash, // Use loaded cash
         cargoHold: loadedData.cargoHold, // Use loaded cargo (already a Map)
         lastDockedStationId: loadedData.lastDockedStationId, // Use loaded last docked station
+        discoveredStations: loadedData.discoveredStations, // Use loaded discovered stations
         isInitialized: true,
         // Reset other dynamic parts of state if necessary
         enemies: [],
@@ -189,6 +234,10 @@ export function useGameState() {
         animationState: { ...initialGameState.animationState }, // Reset animation
         respawnTimer: 0,
         market: null,
+        navTargetStationId: null, // Ensure nav target is cleared on load
+        navTargetDirection: null,
+        navTargetCoordinates: null,
+        viewTargetStationId: null,
       };
     });
 
@@ -198,8 +247,6 @@ export function useGameState() {
     saveIntervalId.current = setInterval(() => {
       // Use a stable reference to the state for saving,
       // by getting the latest state *inside* the interval callback
-      // Note: Using the atom's read function directly might be another approach,
-      // but setGameStateInternal allows reading the *current* state before setting.
       setGameStateInternal((currentSyncState) => {
         // Check if player exists and has coordinates before saving
         if (
@@ -215,6 +262,7 @@ export function useGameState() {
             cash: currentSyncState.cash,
             cargoHold: currentSyncState.cargoHold,
             lastDockedStationId: currentSyncState.lastDockedStationId,
+            discoveredStations: currentSyncState.discoveredStations, // Save discovered stations
             // shieldLevel: currentSyncState.player.shieldLevel, // Save shield level if needed
           });
         } else {
@@ -247,9 +295,45 @@ export function useGameState() {
           return currentGameState;
         }
 
+        // --- Calculate Navigation Data ---
+        let navTargetDirection: number | null = null;
+        let navTargetCoordinates: IPosition | null = null;
+        if (
+          currentGameState.navTargetStationId &&
+          currentGameState.player // Ensure player exists
+        ) {
+          const targetStation = worldManager.getStationById(
+            currentGameState.navTargetStationId
+          );
+          if (targetStation) {
+            const dx = targetStation.x - currentGameState.player.x;
+            const dy = targetStation.y - currentGameState.player.y;
+            navTargetDirection = Math.atan2(dy, dx);
+            navTargetCoordinates = { x: targetStation.x, y: targetStation.y };
+          } else {
+            // Target station not found (e.g., out of range, error), clear nav target
+            console.warn(
+              `Nav target station ${currentGameState.navTargetStationId} not found. Clearing navigation.`
+            );
+            return {
+              ...currentGameState, // Return early to avoid using stale data
+              navTargetStationId: null,
+              navTargetDirection: null,
+              navTargetCoordinates: null,
+            };
+          }
+        }
+
         // --- Run the core game logic ---
+        // Pass the calculated nav data to the logic state
+        const stateForLogic = {
+          ...currentGameState,
+          navTargetDirection,
+          navTargetCoordinates,
+        };
+
         const nextLogicState = updateGameStateLogic(
-          currentGameState,
+          stateForLogic,
           currentTouchState,
           worldManager,
           deltaTime,
@@ -311,6 +395,18 @@ export function useGameState() {
             ? worldManager.getStationById(stationId)
             : null;
           let newMarket: MarketSnapshot | null = null;
+
+          // Add to discovered list (using ID from current state before logic)
+          let updatedDiscoveredStations = [
+            ...currentGameState.discoveredStations,
+          ];
+          if (stationId && !updatedDiscoveredStations.includes(stationId)) {
+            updatedDiscoveredStations.push(stationId);
+            console.log(
+              `Added ${stationId} to discovered stations on docking completion.`
+            );
+          }
+
           if (station) {
             const stationIdentifier = station.name || `ID ${stationId}`;
             console.log(`Generating market for ${stationIdentifier}`);
@@ -332,6 +428,7 @@ export function useGameState() {
             gameView: "trade_select", // Transition to neutral docked view
             market: newMarket,
             lastDockedStationId: currentGameState.dockingStationId, // Store last docked station ID *here*
+            discoveredStations: updatedDiscoveredStations, // Update discovered stations list
             // dockingStationId remains from nextLogicState (which should be same as current)
             animationState: {
               ...nextLogicState.animationState,
@@ -430,7 +527,12 @@ export function useGameState() {
         }
 
         // --- No major state transition detected, just return logic results ---
-        return nextLogicState; // Return the state from logic if no transitions occurred
+        // Also update the nav direction/coords calculated at the start of the update
+        return {
+          ...nextLogicState,
+          navTargetDirection,
+          navTargetCoordinates,
+        };
       }); // End setGameStateInternal
     },
     [setGameStateInternal, worldManager]
@@ -455,11 +557,15 @@ export function useGameState() {
       saveIntervalId.current = null;
     }
 
+    // Optionally clear the entire saved state from localStorage
+    // localStorage.removeItem(LOCAL_STORAGE_GAME_STATE_KEY);
+
     // Reset state to defaults
     const defaultPosition = { x: 0, y: 0 };
     const defaultCash = initialGameState.cash; // Get default from initial state
     const defaultCargo = new Map<string, number>(); // Empty map
     const defaultLastDocked = null;
+    const defaultDiscoveredStations: string[] = []; // Empty array
 
     setGameStateInternal((prev) => ({
       ...initialGameState, // Start with initial structure and defaults
@@ -468,6 +574,7 @@ export function useGameState() {
       cash: defaultCash,
       cargoHold: defaultCargo,
       lastDockedStationId: defaultLastDocked,
+      discoveredStations: defaultDiscoveredStations, // Clear discovered stations
       gameView: "playing", // Start directly in playing view
       isInitialized: true, // It's now initialized with new game state
       // Clear any lingering dynamic state
@@ -483,6 +590,10 @@ export function useGameState() {
       },
       respawnTimer: 0,
       market: null,
+      navTargetStationId: null, // Clear nav target
+      navTargetDirection: null,
+      navTargetCoordinates: null,
+      viewTargetStationId: null, // Clear view target
       lastEnemySpawnTime: 0, // Reset timers/counters if needed
       lastShotTime: 0,
       enemyIdCounter: 0,
@@ -494,6 +605,7 @@ export function useGameState() {
       cash: defaultCash,
       cargoHold: defaultCargo,
       lastDockedStationId: defaultLastDocked,
+      discoveredStations: defaultDiscoveredStations,
     });
 
     // Restart the save interval
@@ -511,6 +623,7 @@ export function useGameState() {
             cash: currentSyncState.cash,
             cargoHold: currentSyncState.cargoHold,
             lastDockedStationId: currentSyncState.lastDockedStationId,
+            discoveredStations: currentSyncState.discoveredStations, // Save discovered stations
             // shieldLevel: currentSyncState.player.shieldLevel, // Save shield if needed
           });
         }
@@ -527,6 +640,8 @@ export function useGameState() {
     completeDocking,
     initiateUndocking,
     setGameView,
+    setViewTargetStationId, // Expose this
+    setNavTarget, // Expose this
     updatePlayerState,
     updateMarketQuantity,
     findStationById,

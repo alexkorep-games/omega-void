@@ -1,3 +1,4 @@
+/* src/game/types.ts */
 // src/game/types.ts
 import { MarketSnapshot } from "./Market"; // Import MarketSnapshot
 
@@ -113,7 +114,9 @@ export type GameView =
   | "undocking"
   | "buy_cargo"
   | "sell_cargo"
-  | "station_info"
+  | "station_info" // Currently docked station info
+  | "station_log" // List of discovered stations
+  | "station_details" // Details of a specific station from the log
   | "trade_select"
   | "destroyed"
   | "chat_log";
@@ -173,6 +176,12 @@ export interface IGameState {
   cargoCapacity: number;
   market: MarketSnapshot | null;
   activeDestructionAnimations: DestructionAnimationData[]; // Stores data for canvas rendering
+  // --- Station Log & Navigation ---
+  discoveredStations: string[]; // Array of discovered station IDs, in order
+  navTargetStationId: string | null; // ID of station to navigate to
+  navTargetDirection: number | null; // Calculated angle from player to nav target (radians)
+  navTargetCoordinates: IPosition | null; // Coordinates of nav target
+  viewTargetStationId: string | null; // ID of station to view in details screen
 }
 
 // World Manager Config

@@ -1,15 +1,29 @@
+/* src/components/canvas/KonvaHUD.tsx */
 import React from "react";
-import { Rect, Line, Text, Group, Shape } from "react-konva";
-import { IGameState, IPlayer } from "../../game/types";
+import { Rect, Line, Text, Group, Shape, Arrow } from "react-konva"; // Added Arrow
+import { IGameState, IPlayer, IPosition } from "../../game/types"; // Added IPosition
 import * as C from "../../game/config";
+
+interface NavTargetInfo {
+  id: string;
+  name: string | null; // Name might not be easily available here
+  coords: IPosition;
+  direction: number; // Angle in radians from player to target
+}
 
 interface KonvaHUDProps {
   player: IPlayer | null;
   cash: number;
-  gameState: IGameState;
+  gameState: IGameState; // Pass full gameState for scanner access
+  navTargetInfo: NavTargetInfo | null; // Optional navigation target info
 }
 
-const KonvaHUD: React.FC<KonvaHUDProps> = ({ player, cash, gameState }) => {
+const KonvaHUD: React.FC<KonvaHUDProps> = ({
+  player,
+  cash,
+  gameState,
+  navTargetInfo,
+}) => {
   const hudY = C.GAME_VIEW_HEIGHT;
   const padding = 5;
   const scannerCenterX = C.GAME_WIDTH / 2;
@@ -18,20 +32,25 @@ const KonvaHUD: React.FC<KonvaHUDProps> = ({ player, cash, gameState }) => {
   const scannerRadiusY = (C.HUD_HEIGHT / 2 - padding * 2) * 0.8;
   const scannerMaxDist = C.SCANNER_MAX_DIST;
 
-  if (!player) return null; // Don't draw HUD if player doesn't exist (e.g., destroyed view starting)
+  if (!player) return null; // Don't draw HUD if player doesn't exist
 
   // --- Scanner Object Renderer ---
   const renderScannerObject = (
+    objId: string, // Use ID for key and nav check
     objX: number,
     objY: number,
-    color: string,
-    size: number,
-    key: string
+    baseColor: string,
+    size: number
   ) => {
-    // Add key param
     const dx = objX - player.x;
     const dy = objY - player.y;
     const dist = Math.hypot(dx, dy);
+
+    // Determine color based on nav target status
+    const isNavTarget = navTargetInfo?.id === objId;
+    const color = isNavTarget ? C.NAV_TARGET_COLOR : baseColor;
+    const finalSize = isNavTarget ? size * 1.5 : size; // Make nav target bigger
+
     if (dist < scannerMaxDist && dist > 0) {
       const angle = Math.atan2(dy, dx);
       const displayDist = dist / scannerMaxDist; // Ratio 0 to 1
@@ -46,14 +65,16 @@ const KonvaHUD: React.FC<KonvaHUDProps> = ({ player, cash, gameState }) => {
       if (normalizedX * normalizedX + normalizedY * normalizedY <= 1) {
         return (
           <Rect
-            key={key} // Use passed key
-            x={Math.floor(displayX - size / 2)}
-            y={Math.floor(displayY - size / 2)}
-            width={size}
-            height={size}
+            key={`scanner-${objId}`} // Use unique ID in key
+            x={Math.floor(displayX - finalSize / 2)}
+            y={Math.floor(displayY - finalSize / 2)}
+            width={finalSize}
+            height={finalSize}
             fill={color}
             perfectDrawEnabled={false}
             listening={false}
+            shadowColor={isNavTarget ? C.NAV_TARGET_COLOR : undefined} // Optional glow
+            shadowBlur={isNavTarget ? 5 : 0}
           />
         );
       }
@@ -63,7 +84,6 @@ const KonvaHUD: React.FC<KonvaHUDProps> = ({ player, cash, gameState }) => {
 
   // --- Shield Bar ---
   const leftX = padding * 2;
-  // Adjust Y pos to account for font size and line height of "SHIELD:" text
   const shieldLabelY = hudY + padding * 4 + 30;
   const shieldBarY = shieldLabelY + 12; // Space after label
   const shieldBarWidth = C.GAME_WIDTH / 3 - padding * 6;
@@ -72,6 +92,11 @@ const KonvaHUD: React.FC<KonvaHUDProps> = ({ player, cash, gameState }) => {
     0,
     (player.shieldLevel / 100) * shieldBarWidth
   );
+
+  // --- Nav Arrow ---
+  const navArrowSize = 10;
+  const navArrowY = hudY + padding * 4 + 15 + 12; // Below NAV text
+  const navArrowX = leftX + 15; // Centered roughly under NAV
 
   return (
     <Group listening={false}>
@@ -131,14 +156,33 @@ const KonvaHUD: React.FC<KonvaHUDProps> = ({ player, cash, gameState }) => {
         fontSize={10}
         fontFamily="monospace"
       />
+      {/* Display Nav Target ID if active */}
       <Text
-        text={`LOCAL`}
+        text={navTargetInfo ? navTargetInfo.id.split("_")[1] : "LOCAL"} // Show Cell X part of ID or LOCAL
         x={leftX + 40}
         y={hudY + padding * 4 + 15}
-        fill={C.HUD_ACCENT_COLOR}
+        fill={navTargetInfo ? C.NAV_TARGET_COLOR : C.HUD_ACCENT_COLOR}
         fontSize={10}
         fontFamily="monospace"
+        ellipsis={true}
+        width={C.GAME_WIDTH / 3 - leftX - 45} // Prevent overflow
       />
+      {/* Navigation Arrow */}
+      {navTargetInfo && (
+        <Arrow
+          x={navArrowX}
+          y={navArrowY}
+          points={[0, 0, 0, 0]} // Points don't matter for rotation with offset
+          pointerLength={navArrowSize * 0.6}
+          pointerWidth={navArrowSize * 0.8}
+          fill={C.NAV_TARGET_COLOR}
+          stroke={C.NAV_TARGET_COLOR}
+          strokeWidth={1}
+          rotation={(navTargetInfo.direction * 180) / Math.PI} // Convert radians to degrees for Konva
+          offsetY={navArrowSize * 0.3} // Adjust offset to rotate around base center
+        />
+      )}
+
       <Text
         text={`SHIELD:`}
         x={leftX}
@@ -236,21 +280,15 @@ const KonvaHUD: React.FC<KonvaHUDProps> = ({ player, cash, gameState }) => {
       />
       {/* Scanner Objects */}
       {gameState.enemies.map((e) =>
-        renderScannerObject(e.x, e.y, C.ENEMY_COLOR, 3, `scanner-${e.id}`)
+        renderScannerObject(e.id, e.x, e.y, C.ENEMY_COLOR, 3)
       )}
       {gameState.projectiles.map((p) =>
-        renderScannerObject(p.x, p.y, C.PROJECTILE_COLOR, 1, `scanner-${p.id}`)
+        renderScannerObject(p.id, p.x, p.y, C.PROJECTILE_COLOR, 1)
       )}
       {gameState.visibleBackgroundObjects
         .filter((bg) => bg.type === "station")
         .map((s) =>
-          renderScannerObject(
-            s.x,
-            s.y,
-            s.color || C.STATION_COLOR,
-            5,
-            `scanner-${s.id}`
-          )
+          renderScannerObject(s.id, s.x, s.y, s.color || C.STATION_COLOR, 5)
         )}
 
       {/* Right Panel Text */}
@@ -271,7 +309,7 @@ const KonvaHUD: React.FC<KonvaHUDProps> = ({ player, cash, gameState }) => {
         fontFamily="monospace"
       />
       <Text
-        text={`NONE`}
+        text={`NONE`} // Targeting system not implemented yet
         x={(C.GAME_WIDTH * 2) / 3 + padding * 2 + 50}
         y={hudY + padding * 4 + 15}
         fill={C.HUD_ACCENT_COLOR}

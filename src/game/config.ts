@@ -24,6 +24,7 @@ export const HUD_SHIELD_BAR_COLOR = "#006666";
 export const HUD_SHIELD_BAR_EMPTY_COLOR = "#333355";
 export const STAR_COLOR = "#FFFFFF";
 export const STATION_COLOR = "#00FFFF";
+export const NAV_TARGET_COLOR = "#FFFF00"; // Yellow for Navigation Target
 
 // Sizes
 export const PLAYER_SIZE = 15;

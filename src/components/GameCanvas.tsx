@@ -1,6 +1,12 @@
 import React, { memo, useMemo } from "react";
 import { Stage, Layer, Text, Group, StageProps } from "react-konva";
-import { IGameState, ITouchState, IStar, IStation } from "../game/types";
+import {
+  IGameState,
+  ITouchState,
+  IStar,
+  IStation,
+  IPosition,
+} from "../game/types";
 import * as C from "../game/config"; // Use C for brevity
 
 // Import individual Konva components
@@ -48,10 +54,35 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
 
   // Get current time for animations - useMemo ensures it's fetched on relevant re-renders
   // Depends on the array of animations itself (for adding/removing) and the game view (to trigger re-render on view change)
-  const now = useMemo(
-    () => performance.now(),
-    [gameState.activeDestructionAnimations, gameState.gameView]
-  );
+  const now = performance.now();
+
+  // Navigation Target Data (for HUD)
+  const navTargetInfo: {
+    id: string;
+    name: string | null;
+    coords: IPosition;
+    direction: number;
+  } | null = useMemo(() => {
+    if (
+      gameState.navTargetStationId &&
+      gameState.navTargetDirection !== null &&
+      gameState.navTargetCoordinates
+    ) {
+      // We need the name for the HUD, but `findStationById` is in the hook.
+      // For now, we'll pass null and maybe enhance later if needed.
+      return {
+        id: gameState.navTargetStationId,
+        name: null, // We don't have easy access to the full station object here
+        coords: gameState.navTargetCoordinates,
+        direction: gameState.navTargetDirection,
+      };
+    }
+    return null;
+  }, [
+    gameState.navTargetStationId,
+    gameState.navTargetDirection,
+    gameState.navTargetCoordinates,
+  ]);
 
   if (!gameState.isInitialized || stageStyle.visibility === "hidden") {
     return <div style={stageStyle} />;
@@ -97,6 +128,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
               station={station as IStation}
               offsetX={offsetX}
               offsetY={offsetY}
+              isNavTarget={station.id === gameState.navTargetStationId}
             />
           ))}
         {/* Station Names (Rendered separately for no rotation) */}
@@ -113,7 +145,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
               text={station.name}
               fontSize={10}
               fontFamily="monospace"
-              fill={station.color}
+              fill={
+                station.id === gameState.navTargetStationId
+                  ? C.NAV_TARGET_COLOR
+                  : station.color
+              }
               align="center"
               listening={false}
               perfectDrawEnabled={false}
@@ -200,6 +236,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
             player={gameState.player}
             cash={gameState.cash}
             gameState={gameState}
+            navTargetInfo={navTargetInfo} // Pass navigation info
           />
         </Layer>
       ) : null}
