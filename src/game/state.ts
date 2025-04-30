@@ -1,6 +1,6 @@
 /* src/game/state.ts */
 // src/game/state.ts
-import { IGameState, IPlayer, ITouchState, IPosition } from "./types"; // Added IPosition
+import { IGameState, IPlayer, ITouchState } from "./types"; // Added IPosition
 import { Player } from "./entities/Player";
 import { GAME_WIDTH, GAME_VIEW_HEIGHT, DEFAULT_STARTING_CASH } from "./config";
 

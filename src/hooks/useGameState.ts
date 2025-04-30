@@ -20,7 +20,6 @@ import {
   GAME_WIDTH,
   GAME_VIEW_HEIGHT,
   PLAYER_SIZE,
-  LOCAL_STORAGE_GAME_STATE_KEY, // Import key for potential clearing
 } from "../game/config"; // Added shield
 import { Player } from "../game/entities/Player";
 import {

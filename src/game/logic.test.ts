@@ -52,7 +52,7 @@ function makeBaseState(): IGameState {
     isInitialized: true,
     cargoCapacity: 100,
     market,
-  };
+  } as unknown as IGameState;
 }
 
 describe("logic.ts", () => {
@@ -67,7 +67,13 @@ describe("logic.ts", () => {
   test("playing update with no input is no-op", () => {
     const state = makeBaseState();
     const now = performance.now();
-    const newState = updateGameStateLogic(state, undefined, worldManager, 16, now);
+    const newState = updateGameStateLogic(
+      state,
+      undefined,
+      worldManager,
+      16,
+      now
+    );
     // No enemies, no projectiles, view remains playing
     expect(newState.gameView).toBe("playing");
     expect(newState.enemies).toHaveLength(0);
@@ -85,7 +91,13 @@ describe("logic.ts", () => {
     };
     const now = performance.now();
     // advance more than respawnTimer
-    const result = updateGameStateLogic(deadState, undefined, worldManager, 100, now);
+    const result = updateGameStateLogic(
+      deadState,
+      undefined,
+      worldManager,
+      100,
+      now
+    );
     expect(result.gameView).toBe("playing");
     expect(result.respawnTimer).toBe(0);
     expect(result.enemies).toHaveLength(0);
