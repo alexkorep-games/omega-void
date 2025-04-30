@@ -103,7 +103,6 @@ export function useTouchInput(
         return null;
       }
 
-      // console.log("Mapped touch:", { x, y }); // Debug log
       return { x, y };
     },
     []
@@ -138,7 +137,6 @@ export function useTouchInput(
             pos.y < GAME_VIEW_HEIGHT &&
             !newState.move.active
           ) {
-            // console.log("Touch Start: Move", pos, touch.identifier); // Debug
             newState.move = {
               active: true,
               id: touch.identifier,
@@ -154,15 +152,12 @@ export function useTouchInput(
             pos.y < GAME_VIEW_HEIGHT &&
             !newState.shoot.active
           ) {
-            // console.log("Touch Start: Shoot", pos, touch.identifier); // Debug
             newState.shoot = {
               active: true,
               id: touch.identifier,
               x: pos.x,
               y: pos.y,
             };
-          } else {
-            // console.log("Touch Start: Ignored (Area)", pos, touch.identifier); // Debug
           }
         }
         return newState; // Return the potentially updated state
@@ -207,29 +202,23 @@ export function useTouchInput(
             if (isMoveTouch) {
               if (touchIsOffStage) {
                 nextMoveState = { ...initialTouchState.move };
-                // console.log("Move touch ended (finger off stage)"); // Debug
               } else {
                 nextMoveState = {
                   ...prevState.move,
                   currentX: pos.x,
                   currentY: pos.y,
                 };
-                // console.log("Touch Move: Move Update", { x: pos.x, y: pos.y }); // Debug
               }
               stateChanged = true;
             } else if (isShootTouch) {
               if (touchIsOffStage || (pos && pos.y >= GAME_VIEW_HEIGHT)) {
                 nextShootState = { ...initialTouchState.shoot };
-                // console.log("Shoot touch ended (finger off stage or in HUD)"); // Debug
               } else {
-                // pos must exist here
                 nextShootState = { ...prevState.shoot, x: pos.x, y: pos.y };
-                // console.log("Touch Move: Shoot Update", { x: pos.x, y: pos.y }); // Debug
               }
               stateChanged = true;
             }
           }
-          // else: Touch move doesn't correspond to an active game control, ignore it.
         }
 
         // Only return a new state object if something actually changed
@@ -279,8 +268,6 @@ export function useTouchInput(
       // Apply the accumulated state changes
       if (nextState !== touchState) {
         setTouchState(nextState);
-        // if (nextState.move.id === null) console.log("Move touch ended (touchend)"); // Debug
-        // if (nextState.shoot.id === null) console.log("Shoot touch ended (touchend)"); // Debug
       }
     },
     [containerRef, touchState] // Depend on touchState to check active touches
@@ -292,22 +279,19 @@ export function useTouchInput(
     if (!currentElement || !enabled) {
       return;
     }
-    console.log("Attaching touch listeners to container:", currentElement); // Debug
     const options = { passive: false };
     currentElement.addEventListener("touchstart", handleTouchStart, options);
     currentElement.addEventListener("touchmove", handleTouchMove, options);
     currentElement.addEventListener("touchend", handleTouchEnd, options);
-    currentElement.addEventListener("touchcancel", handleTouchEnd, options); // Treat cancel same as end
+    currentElement.addEventListener("touchcancel", handleTouchEnd, options);
 
     // Cleanup function
     return () => {
-      console.log("Removing touch listeners from container:", currentElement); // Debug
       currentElement.removeEventListener("touchstart", handleTouchStart);
       currentElement.removeEventListener("touchmove", handleTouchMove);
       currentElement.removeEventListener("touchend", handleTouchEnd);
       currentElement.removeEventListener("touchcancel", handleTouchEnd);
     };
-    // Re-run effect if the element reference changes
   }, [
     containerElement,
     handleTouchStart,
