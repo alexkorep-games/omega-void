@@ -423,7 +423,6 @@ export class InfiniteWorldManager {
 
   /**
    * Determines which existing enemy objects should be removed.
-   * (This logic remains the same, just typed)
    */
   getEnemiesToDespawn(
     currentEnemies: IEnemy[],
