@@ -1,4 +1,3 @@
-/* src/hooks/useGameState.ts */
 // src/hooks/useGameState.ts
 import { useCallback, useMemo, useRef } from "react";
 import { atom, useAtom } from "jotai";
@@ -136,6 +135,19 @@ export function useGameState() {
     [setGameStateInternal]
   );
 
+  // --- Helper to Save Known Station Prices ---
+  const saveStationPrices = useCallback(
+    (stationId: string, prices: Map<string, number>) => {
+      setGameStateInternal((prev) => {
+        const newKnownPrices = new Map(prev.knownStationPrices);
+        newKnownPrices.set(stationId, prices);
+        // console.log(`Saving prices for ${stationId}:`, prices); // Debug
+        return { ...prev, knownStationPrices: newKnownPrices };
+      });
+    },
+    [setGameStateInternal]
+  );
+
   // completeDocking doesn't need the ID passed anymore, it reads from state
   const completeDocking = useCallback(() => {
     console.log("Action: Complete Docking");
@@ -222,6 +234,7 @@ export function useGameState() {
         cargoHold: loadedData.cargoHold, // Use loaded cargo (already a Map)
         lastDockedStationId: loadedData.lastDockedStationId, // Use loaded last docked station
         discoveredStations: loadedData.discoveredStations, // Use loaded discovered stations
+        knownStationPrices: loadedData.knownStationPrices, // Use loaded prices
         isInitialized: true,
         // Reset other dynamic parts of state if necessary
         enemies: [],
@@ -262,6 +275,7 @@ export function useGameState() {
             cargoHold: currentSyncState.cargoHold,
             lastDockedStationId: currentSyncState.lastDockedStationId,
             discoveredStations: currentSyncState.discoveredStations, // Save discovered stations
+            knownStationPrices: currentSyncState.knownStationPrices, // Save known prices
             // shieldLevel: currentSyncState.player.shieldLevel, // Save shield level if needed
           });
         } else {
@@ -565,6 +579,7 @@ export function useGameState() {
     const defaultCargo = new Map<string, number>(); // Empty map
     const defaultLastDocked = null;
     const defaultDiscoveredStations: string[] = []; // Empty array
+    const defaultKnownPrices = new Map<string, Map<string, number>>();
 
     setGameStateInternal((prev) => ({
       ...initialGameState, // Start with initial structure and defaults
@@ -574,6 +589,7 @@ export function useGameState() {
       cargoHold: defaultCargo,
       lastDockedStationId: defaultLastDocked,
       discoveredStations: defaultDiscoveredStations, // Clear discovered stations
+      knownStationPrices: defaultKnownPrices, // Clear known prices
       gameView: "playing", // Start directly in playing view
       isInitialized: true, // It's now initialized with new game state
       // Clear any lingering dynamic state
@@ -605,6 +621,7 @@ export function useGameState() {
       cargoHold: defaultCargo,
       lastDockedStationId: defaultLastDocked,
       discoveredStations: defaultDiscoveredStations,
+      knownStationPrices: defaultKnownPrices,
     });
 
     // Restart the save interval
@@ -623,6 +640,7 @@ export function useGameState() {
             cargoHold: currentSyncState.cargoHold,
             lastDockedStationId: currentSyncState.lastDockedStationId,
             discoveredStations: currentSyncState.discoveredStations, // Save discovered stations
+            knownStationPrices: currentSyncState.knownStationPrices, // Save known prices
             // shieldLevel: currentSyncState.player.shieldLevel, // Save shield if needed
           });
         }
@@ -645,5 +663,6 @@ export function useGameState() {
     updateMarketQuantity,
     findStationById,
     startNewGame,
+    saveStationPrices, // Expose the new function
   };
 }

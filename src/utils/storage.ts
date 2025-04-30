@@ -1,4 +1,3 @@
-/* src/utils/storage.ts */
 // src/utils/storage.ts
 import {
   DEFAULT_STARTING_CASH,
@@ -13,6 +12,7 @@ interface SavedGameState {
   cargoHold: [string, number][]; // Map as array of [key, value] pairs
   lastDockedStationId: string | null;
   discoveredStations: string[]; // Added: Array of station IDs
+  knownStationPrices: [string, [string, number][]][]; // Added: Map<stationId, Map<commodityKey, price>> serialized
   // shieldLevel?: number; // Optional: Save shield level if needed
 }
 
@@ -22,6 +22,7 @@ interface LoadedGameState {
   lastDockedStationId: string | null;
   cash: number;
   cargoHold: Map<string, number>;
+  knownStationPrices: Map<string, Map<string, number>>; // Added
   discoveredStations: string[]; // Added: Array of station IDs
   // shieldLevel?: number; // Optional: Load shield level
 }
@@ -36,16 +37,27 @@ export function saveGameState(stateToSave: {
   lastDockedStationId: string | null;
   cargoHold: Map<string, number>;
   discoveredStations: string[]; // Added
+  knownStationPrices: Map<string, Map<string, number>>; // Added
   // shieldLevel?: number; // Optional
 }): void {
   try {
     // Convert Map to array for JSON serialization
     const cargoArray = Array.from(stateToSave.cargoHold.entries());
+    // Convert nested Map to array for JSON serialization
+    const pricesArray = Array.from(
+      stateToSave.knownStationPrices.entries()
+    ).map(([stationId, priceMap]) => {
+      return [stationId, Array.from(priceMap.entries())] as [
+        string,
+        [string, number][]
+      ];
+    });
     const saveData: SavedGameState = {
       coordinates: stateToSave.coordinates,
       cash: stateToSave.cash,
       cargoHold: cargoArray,
       lastDockedStationId: stateToSave.lastDockedStationId,
+      knownStationPrices: pricesArray, // Added
       discoveredStations: stateToSave.discoveredStations, // Added
       // shieldLevel: stateToSave.shieldLevel, // Optional
     };
@@ -70,6 +82,7 @@ export function loadGameState(): LoadedGameState {
     lastDockedStationId: null, // Default no last station
     cargoHold: new Map<string, number>(), // Default empty cargo
     discoveredStations: [], // Default empty discovered list
+    knownStationPrices: new Map<string, Map<string, number>>(), // Default empty prices map
     // shieldLevel: DEFAULT_STARTING_SHIELD, // Default full shield if loading
   };
 
@@ -137,8 +150,40 @@ export function loadGameState(): LoadedGameState {
         );
       }
 
+      // Validate knownStationPrices
+      let loadedKnownPrices = defaultState.knownStationPrices;
+      if (
+        Array.isArray(parsedData.knownStationPrices) &&
+        parsedData.knownStationPrices.every(
+          (stationEntry) =>
+            Array.isArray(stationEntry) &&
+            stationEntry.length === 2 &&
+            typeof stationEntry[0] === "string" &&
+            Array.isArray(stationEntry[1]) &&
+            stationEntry[1].every(
+              (priceEntry) =>
+                Array.isArray(priceEntry) &&
+                priceEntry.length === 2 &&
+                typeof priceEntry[0] === "string" &&
+                typeof priceEntry[1] === "number"
+            )
+        )
+      ) {
+        // Reconstruct Map<string, Map<string, number>>
+        loadedKnownPrices = new Map(
+          parsedData.knownStationPrices.map(([stationId, priceArray]) => [
+            stationId,
+            new Map(priceArray),
+          ])
+        );
+      } else if (parsedData.knownStationPrices !== undefined) {
+        console.warn(
+          "Invalid knownStationPrices format in localStorage. Using default empty map."
+        );
+      }
+
       console.log(
-        `Loaded game state: Coords=(${loadedCoordinates.x},${loadedCoordinates.y}), Cash=${loadedCash}, Cargo=${loadedCargoHold.size} items, LastDocked=${loadedLastDockedId}, Discovered=${loadedDiscoveredStations.length} stations` // Added Discovered log
+        `Loaded game state: Coords=(${loadedCoordinates.x},${loadedCoordinates.y}), Cash=${loadedCash}, Cargo=${loadedCargoHold.size} items, LastDocked=${loadedLastDockedId}, Discovered=${loadedDiscoveredStations.length} stations, KnownPrices=${loadedKnownPrices.size} stations` // Added KnownPrices log
       );
 
       return {
@@ -147,6 +192,7 @@ export function loadGameState(): LoadedGameState {
         lastDockedStationId: loadedLastDockedId, // Return loaded ID
         cargoHold: loadedCargoHold,
         discoveredStations: loadedDiscoveredStations, // Return loaded list
+        knownStationPrices: loadedKnownPrices, // Return loaded prices map
         // shieldLevel: loadedShieldLevel, // Return loaded shield
       };
     } else {

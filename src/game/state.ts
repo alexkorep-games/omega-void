@@ -1,4 +1,3 @@
-/* src/game/state.ts */
 // src/game/state.ts
 import { IGameState, IPlayer, ITouchState } from "./types"; // Added IPosition
 import { Player } from "./entities/Player";
@@ -52,6 +51,7 @@ export const initialGameState: IGameState = {
   navTargetDirection: null, // Calculated angle to nav target
   navTargetCoordinates: null, // Coordinates of nav target
   viewTargetStationId: null, // Station ID to view in details screen
+  knownStationPrices: new Map<string, Map<string, number>>(),
 };
 
 // updateCamera function remains the same

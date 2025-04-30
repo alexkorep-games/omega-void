@@ -1,4 +1,3 @@
-/* src/game/types.ts */
 // src/game/types.ts
 import { MarketSnapshot } from "./Market"; // Import MarketSnapshot
 
@@ -182,6 +181,7 @@ export interface IGameState {
   navTargetDirection: number | null; // Calculated angle from player to nav target (radians)
   navTargetCoordinates: IPosition | null; // Coordinates of nav target
   viewTargetStationId: string | null; // ID of station to view in details screen
+  knownStationPrices: Map<string, Map<string, number>>;
 }
 
 // World Manager Config
