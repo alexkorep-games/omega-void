@@ -45,6 +45,12 @@
   background-color: rgba(0, 20, 40, 0.9); /* Dark blue background */
 }
 
+.upgrade-screen {
+  /* New style for upgrade screen */
+  border: 2px solid #ff8800; /* Orange border */
+  background-color: rgba(40, 20, 0, 0.9); /* Dark orange background */
+}
+
 .market-header {
   display: flex;
   justify-content: space-between;
@@ -132,6 +138,10 @@
 /* New Screen BG for Table Header */
 .station-log-screen .market-table th {
   background-color: rgba(0, 20, 40, 0.9); /* Match log screen bg */
+}
+.upgrade-screen .market-table th {
+  /* Add background for upgrade screen if using table */
+  background-color: rgba(40, 20, 0, 0.9); /* Match upgrade screen bg */
 }
 
 /* Align columns */
@@ -375,3 +385,6 @@ td:nth-child(4) {
   background-color: transparent;
   cursor: default;
 }
+
+/* --- Styles for Upgrade Screen List --- */
+/* Added to UpgradeScreen.css */

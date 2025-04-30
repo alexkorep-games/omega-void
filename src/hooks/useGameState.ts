@@ -26,9 +26,59 @@ import {
   MarketSnapshot,
   CommodityState,
 } from "../game/Market"; // Import Market components
+import { distance } from "../utils/geometry"; // Import distance
 
 // Simple world seed for market generation for now
 const WORLD_SEED = 12345;
+
+// Define upgrade types and costs/max levels
+export type UpgradeKey =
+  | "cargoPod"
+  | "shieldCapacitor"
+  | "engineBooster"
+  | "autoloader"
+  | "navComputer";
+
+export const UPGRADE_CONFIG: Record<
+  UpgradeKey,
+  {
+    maxLevel: number;
+    costs: number[];
+    name: string;
+    effectDesc: string;
+  }
+> = {
+  cargoPod: {
+    maxLevel: 4,
+    costs: [1000, 2500, 5000, 10000],
+    name: "Cargo Pods",
+    effectDesc: "+5t Hold / Level",
+  },
+  shieldCapacitor: {
+    maxLevel: 3,
+    costs: [2000, 5000, 12000],
+    name: "Shield Capacitor",
+    effectDesc: "+25% Max Shield / Level",
+  },
+  engineBooster: {
+    maxLevel: 3,
+    costs: [3000, 7000, 15000],
+    name: "Engine Booster",
+    effectDesc: "+20% Speed / Level",
+  },
+  autoloader: {
+    maxLevel: 1,
+    costs: [8000],
+    name: "Autoloader",
+    effectDesc: "Halves weapon cooldown",
+  },
+  navComputer: {
+    maxLevel: 1,
+    costs: [500],
+    name: "Nav Computer",
+    effectDesc: "Shows distance to Nav Target",
+  },
+};
 
 const gameStateAtom = atom<IGameState>(initialGameState);
 
@@ -40,6 +90,11 @@ export function useGameState() {
   const [gameState, setGameStateInternal] = useAtom(gameStateAtom);
   const worldManager = useMemo(() => new InfiniteWorldManager({}), []);
   const saveIntervalId = useRef<number | null>(null);
+
+  // --- Calculate derived state: Total Cargo Capacity ---
+  const totalCargoCapacity = useMemo(() => {
+    return gameState.baseCargoCapacity + gameState.extraCargoCapacity;
+  }, [gameState.baseCargoCapacity, gameState.extraCargoCapacity]);
 
   // --- Helper to Set Game View ---
   const setGameView = useCallback(
@@ -218,23 +273,36 @@ export function useGameState() {
     console.log("Initializing game state...");
     const loadedData = loadGameState();
 
+    // Calculate initial derived state from loaded data
+    const initialExtraCargo = loadedData.cargoPodLevel * 5;
+    const initialShootCooldownFactor = loadedData.hasAutoloader ? 0.5 : 1.0;
+
     setGameStateInternal((prevState) => {
+      // Create player using loaded shield level for max shield calculation
       const loadedPlayer = createPlayer(
         loadedData.coordinates.x,
-        loadedData.coordinates.y
+        loadedData.coordinates.y,
+        loadedData.shieldCapacitorLevel // Pass loaded shield level
       );
-      // Preserve loaded shield level if it existed, otherwise use default
-      // Note: Shield level isn't saved currently, so this will always use default on fresh load
-      // loadedPlayer.shieldLevel = loadedData.shieldLevel ?? DEFAULT_STARTING_SHIELD;
 
       return {
         ...prevState,
-        player: loadedPlayer, // Use loaded coords
+        player: loadedPlayer, // Use loaded coords and calculated shield
         cash: loadedData.cash, // Use loaded cash
         cargoHold: loadedData.cargoHold, // Use loaded cargo (already a Map)
         lastDockedStationId: loadedData.lastDockedStationId, // Use loaded last docked station
         discoveredStations: loadedData.discoveredStations, // Use loaded discovered stations
         knownStationPrices: loadedData.knownStationPrices, // Use loaded prices
+        // Load Upgrades
+        cargoPodLevel: loadedData.cargoPodLevel,
+        shieldCapacitorLevel: loadedData.shieldCapacitorLevel,
+        engineBoosterLevel: loadedData.engineBoosterLevel,
+        hasAutoloader: loadedData.hasAutoloader,
+        hasNavComputer: loadedData.hasNavComputer,
+        // Load Derived Upgrade Effects
+        extraCargoCapacity: initialExtraCargo,
+        shootCooldownFactor: initialShootCooldownFactor,
+
         isInitialized: true,
         // Reset other dynamic parts of state if necessary
         enemies: [],
@@ -249,6 +317,7 @@ export function useGameState() {
         navTargetStationId: null, // Ensure nav target is cleared on load
         navTargetDirection: null,
         navTargetCoordinates: null,
+        navTargetDistance: null,
         viewTargetStationId: null,
       };
     });
@@ -276,7 +345,12 @@ export function useGameState() {
             lastDockedStationId: currentSyncState.lastDockedStationId,
             discoveredStations: currentSyncState.discoveredStations, // Save discovered stations
             knownStationPrices: currentSyncState.knownStationPrices, // Save known prices
-            // shieldLevel: currentSyncState.player.shieldLevel, // Save shield level if needed
+            // Save Upgrades
+            cargoPodLevel: currentSyncState.cargoPodLevel,
+            shieldCapacitorLevel: currentSyncState.shieldCapacitorLevel,
+            engineBoosterLevel: currentSyncState.engineBoosterLevel,
+            hasAutoloader: currentSyncState.hasAutoloader,
+            hasNavComputer: currentSyncState.hasNavComputer,
           });
         } else {
           // Should not happen after initialization
@@ -311,6 +385,7 @@ export function useGameState() {
         // --- Calculate Navigation Data ---
         let navTargetDirection: number | null = null;
         let navTargetCoordinates: IPosition | null = null;
+        let navTargetDistance: number | null = null; // Calculate distance here
         if (
           currentGameState.navTargetStationId &&
           currentGameState.player // Ensure player exists
@@ -323,6 +398,13 @@ export function useGameState() {
             const dy = targetStation.y - currentGameState.player.y;
             navTargetDirection = Math.atan2(dy, dx);
             navTargetCoordinates = { x: targetStation.x, y: targetStation.y };
+            // Calculate distance
+            navTargetDistance = distance(
+              currentGameState.player.x,
+              currentGameState.player.y,
+              targetStation.x,
+              targetStation.y
+            );
           } else {
             // Target station not found (e.g., out of range, error), clear nav target
             console.warn(
@@ -333,6 +415,7 @@ export function useGameState() {
               navTargetStationId: null,
               navTargetDirection: null,
               navTargetCoordinates: null,
+              navTargetDistance: null, // Clear distance too
             };
           }
         }
@@ -343,6 +426,7 @@ export function useGameState() {
           ...currentGameState,
           navTargetDirection,
           navTargetCoordinates,
+          navTargetDistance, // Pass distance to logic (though it might recalculate)
         };
 
         const nextLogicState = updateGameStateLogic(
@@ -371,11 +455,15 @@ export function useGameState() {
             updatedPlayer.vy = 0;
           } else if (updatedPlayer) {
             // Check existence
-            updatedPlayer = new Player(updatedPlayer.x, updatedPlayer.y);
+            // Pass shield level
+            updatedPlayer = createPlayer(
+              updatedPlayer.x,
+              updatedPlayer.y,
+              currentGameState.shieldCapacitorLevel
+            );
             updatedPlayer.angle =
               currentGameState.player?.angle ?? -Math.PI / 2;
-            updatedPlayer.shieldLevel =
-              currentGameState.player?.shieldLevel ?? DEFAULT_STARTING_SHIELD;
+            // Shield level set in createPlayer
             updatedPlayer.vx = 0;
             updatedPlayer.vy = 0;
             console.warn(
@@ -482,12 +570,21 @@ export function useGameState() {
           // Ensure player is an instance and update its properties
           let updatedPlayer = nextLogicState.player;
           if (!(updatedPlayer instanceof Player) && updatedPlayer) {
-            updatedPlayer = new Player(updatedPlayer.x, updatedPlayer.y);
-            updatedPlayer.shieldLevel =
-              currentGameState.player?.shieldLevel ?? DEFAULT_STARTING_SHIELD;
+            // Pass shield level
+            updatedPlayer = createPlayer(
+              updatedPlayer.x,
+              updatedPlayer.y,
+              currentGameState.shieldCapacitorLevel
+            );
+            // shieldLevel set in createPlayer
           } else if (!updatedPlayer) {
             // Should not happen if logic returns a player state
-            updatedPlayer = createPlayer(playerX, playerY);
+            // Pass shield level
+            updatedPlayer = createPlayer(
+              playerX,
+              playerY,
+              currentGameState.shieldCapacitorLevel
+            );
           }
 
           updatedPlayer.x = playerX;
@@ -540,16 +637,104 @@ export function useGameState() {
         }
 
         // --- No major state transition detected, just return logic results ---
-        // Also update the nav direction/coords calculated at the start of the update
+        // Update nav data calculated at the start
         return {
           ...nextLogicState,
           navTargetDirection,
           navTargetCoordinates,
+          navTargetDistance,
         };
       }); // End setGameStateInternal
     },
     [setGameStateInternal, worldManager]
   ); // End updateGame useCallback
+
+  // --- Upgrade Purchase Logic ---
+  const purchaseUpgrade = useCallback(
+    (upgradeKey: UpgradeKey): boolean => {
+      let purchased = false;
+      setGameStateInternal((prev) => {
+        const config = UPGRADE_CONFIG[upgradeKey];
+        if (!config) return prev; // Invalid key
+
+        let currentLevel = 0;
+        let isBooleanUpgrade = false;
+        switch (upgradeKey) {
+          case "cargoPod":
+            currentLevel = prev.cargoPodLevel;
+            break;
+          case "shieldCapacitor":
+            currentLevel = prev.shieldCapacitorLevel;
+            break;
+          case "engineBooster":
+            currentLevel = prev.engineBoosterLevel;
+            break;
+          case "autoloader":
+            currentLevel = prev.hasAutoloader ? 1 : 0;
+            isBooleanUpgrade = true;
+            break;
+          case "navComputer":
+            currentLevel = prev.hasNavComputer ? 1 : 0;
+            isBooleanUpgrade = true;
+            break;
+        }
+
+        if (currentLevel >= config.maxLevel) {
+          console.log(`Upgrade ${upgradeKey} already at max level.`);
+          return prev; // Already max level
+        }
+
+        const cost = config.costs[currentLevel]; // Cost for the *next* level
+        if (prev.cash < cost) {
+          console.log(
+            `Insufficient cash for ${upgradeKey}. Need ${cost}, have ${prev.cash}`
+          );
+          return prev; // Cannot afford
+        }
+
+        // Apply state changes based on upgrade type
+        let updatedState = { ...prev };
+        updatedState.cash -= cost;
+        const nextLevel = currentLevel + 1;
+
+        switch (upgradeKey) {
+          case "cargoPod":
+            updatedState.cargoPodLevel = nextLevel;
+            updatedState.extraCargoCapacity = nextLevel * 5;
+            break;
+          case "shieldCapacitor":
+            updatedState.shieldCapacitorLevel = nextLevel;
+            if (updatedState.player) {
+              const baseShield = DEFAULT_STARTING_SHIELD;
+              updatedState.player.maxShield =
+                baseShield * (1 + nextLevel * 0.25);
+              // Optionally replenish shield fully on upgrade? Or just increase max? Let's just increase max for now.
+              // updatedState.player.shieldLevel = updatedState.player.maxShield;
+            }
+            break;
+          case "engineBooster":
+            updatedState.engineBoosterLevel = nextLevel;
+            // Speed effect is applied in Player.update
+            break;
+          case "autoloader":
+            updatedState.hasAutoloader = true;
+            updatedState.shootCooldownFactor = 0.5;
+            break;
+          case "navComputer":
+            updatedState.hasNavComputer = true;
+            // Display effect is in HUD
+            break;
+        }
+        console.log(
+          `Purchased ${upgradeKey} Level ${nextLevel} for ${cost} CR.`
+        );
+        purchased = true;
+        return updatedState;
+      });
+      return purchased; // Indicate if purchase was successful
+    },
+    [setGameStateInternal]
+  );
 
   // --- Helper Function ---
   const findStationById = useCallback(
@@ -584,12 +769,21 @@ export function useGameState() {
     setGameStateInternal((prev) => ({
       ...initialGameState, // Start with initial structure and defaults
       // Overwrite specific fields with fresh values
-      player: createPlayer(defaultPosition.x, defaultPosition.y),
+      player: createPlayer(defaultPosition.x, defaultPosition.y, 0), // Create player with 0 shield level initially
       cash: defaultCash,
       cargoHold: defaultCargo,
       lastDockedStationId: defaultLastDocked,
       discoveredStations: defaultDiscoveredStations, // Clear discovered stations
       knownStationPrices: defaultKnownPrices, // Clear known prices
+      // Reset upgrades
+      cargoPodLevel: 0,
+      shieldCapacitorLevel: 0,
+      engineBoosterLevel: 0,
+      hasAutoloader: false,
+      hasNavComputer: false,
+      extraCargoCapacity: 0,
+      shootCooldownFactor: 1.0,
+
       gameView: "playing", // Start directly in playing view
       isInitialized: true, // It's now initialized with new game state
       // Clear any lingering dynamic state
@@ -608,6 +802,7 @@ export function useGameState() {
       navTargetStationId: null, // Clear nav target
       navTargetDirection: null,
       navTargetCoordinates: null,
+      navTargetDistance: null,
       viewTargetStationId: null, // Clear view target
       lastEnemySpawnTime: 0, // Reset timers/counters if needed
       lastShotTime: 0,
@@ -622,6 +817,12 @@ export function useGameState() {
       lastDockedStationId: defaultLastDocked,
       discoveredStations: defaultDiscoveredStations,
       knownStationPrices: defaultKnownPrices,
+      // Save default upgrades
+      cargoPodLevel: 0,
+      shieldCapacitorLevel: 0,
+      engineBoosterLevel: 0,
+      hasAutoloader: false,
+      hasNavComputer: false,
     });
 
     // Restart the save interval
@@ -641,7 +842,12 @@ export function useGameState() {
             lastDockedStationId: currentSyncState.lastDockedStationId,
             discoveredStations: currentSyncState.discoveredStations, // Save discovered stations
             knownStationPrices: currentSyncState.knownStationPrices, // Save known prices
-            // shieldLevel: currentSyncState.player.shieldLevel, // Save shield if needed
+            // Save Upgrades
+            cargoPodLevel: currentSyncState.cargoPodLevel,
+            shieldCapacitorLevel: currentSyncState.shieldCapacitorLevel,
+            engineBoosterLevel: currentSyncState.engineBoosterLevel,
+            hasAutoloader: currentSyncState.hasAutoloader,
+            hasNavComputer: currentSyncState.hasNavComputer,
           });
         }
         return currentSyncState;
@@ -664,5 +870,7 @@ export function useGameState() {
     findStationById,
     startNewGame,
     saveStationPrices, // Expose the new function
+    purchaseUpgrade, // Expose upgrade purchase function
+    totalCargoCapacity, // Expose derived cargo capacity
   };
 }

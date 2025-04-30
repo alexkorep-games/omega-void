@@ -37,10 +37,20 @@ function normalizeAngle(angle: number): number {
 }
 
 /**
- * Creates a new player instance.
+ * Creates a new player instance, considering shield upgrades.
  */
-export function createPlayer(x: number, y: number): IPlayer {
-  return new Player(x, y);
+export function createPlayer(
+  x: number,
+  y: number,
+  shieldCapacitorLevel: number = 0
+): IPlayer {
+  const player = new Player(x, y);
+  // Calculate max shield based on upgrade level
+  const baseShield = C.DEFAULT_STARTING_SHIELD;
+  player.maxShield = baseShield * (1 + shieldCapacitorLevel * 0.25);
+  player.shieldLevel = player.maxShield; // Start with full shields
+  console.log(`Created player with Max Shield: ${player.maxShield}`);
+  return player;
 }
 
 /**
@@ -62,11 +72,12 @@ function spawnEnemyNearPlayer(state: IGameState): IGameState {
 }
 
 /**
- * Creates a new projectile if cooldown allows.
+ * Creates a new projectile if cooldown allows, considering autoloader.
  */
 function shootProjectile(state: IGameState): IGameState {
   const now = performance.now();
-  if (now - state.lastShotTime > C.SHOOT_COOLDOWN) {
+  const effectiveCooldown = C.SHOOT_COOLDOWN * state.shootCooldownFactor; // Apply factor
+  if (now - state.lastShotTime > effectiveCooldown) {
     const newProjectile = new Projectile(
       state.player.x,
       state.player.y,
@@ -145,7 +156,7 @@ function handleCollisions(
 } {
   const newProjectiles = [...state.projectiles];
   const newEnemies = [...state.enemies];
-  const playerInstance = state.player;
+  const playerInstance = state.player; // Get the player object reference
   let dockingTriggerStationId: string | null = null;
   const newAnimations: DestructionAnimationData[] = []; // Initialize animation list
 
@@ -369,7 +380,12 @@ export function updateGameStateLogic(
           `Could not find respawn station ${respawnStationId}. Respawning at origin.`
         );
       }
-      const respawnedPlayer = createPlayer(respawnX, respawnY);
+      // Pass shield capacitor level when creating player
+      const respawnedPlayer = createPlayer(
+        respawnX,
+        respawnY,
+        newState.shieldCapacitorLevel
+      );
       return {
         ...newState,
         player: respawnedPlayer,
@@ -428,13 +444,14 @@ export function updateGameStateLogic(
         currentState.player?.x !== undefined &&
         currentState.player?.y !== undefined
       ) {
-        newState.player = new Player(
+        // Pass shield capacitor level when recreating player
+        newState.player = createPlayer(
           currentState.player.x,
-          currentState.player.y
+          currentState.player.y,
+          currentState.shieldCapacitorLevel
         );
         newState.player.angle = currentState.player.angle ?? -Math.PI / 2;
-        newState.player.shieldLevel =
-          currentState.player.shieldLevel ?? C.DEFAULT_STARTING_SHIELD;
+        // Shield level is set within createPlayer based on maxShield
       } else {
         console.error("Cannot recover player state. Bailing update.");
         return currentState;
@@ -442,7 +459,12 @@ export function updateGameStateLogic(
     }
 
     if (touchState?.shoot.active) newState = shootProjectile(newState);
-    if (touchState) (newState.player as Player).update(touchState);
+    // Pass engine level to player update
+    if (touchState)
+      (newState.player as Player).update(
+        touchState,
+        newState.engineBoosterLevel
+      );
 
     newState.camera = {
       x: newState.player.x - C.GAME_WIDTH / 2,
@@ -519,10 +541,14 @@ export function updateGameStateLogic(
         newState.player.vy = 0;
       } else if (newState.player) {
         // Ensure player object integrity if needed
-        newState.player = new Player(newState.player.x, newState.player.y);
+        // Pass shield capacitor level when recreating player
+        newState.player = createPlayer(
+          newState.player.x,
+          newState.player.y,
+          newState.shieldCapacitorLevel
+        );
         newState.player.angle = currentState.player?.angle ?? -Math.PI / 2;
-        newState.player.shieldLevel =
-          currentState.player?.shieldLevel ?? C.DEFAULT_STARTING_SHIELD;
+        // Shield level set in createPlayer
         newState.player.vx = 0;
         newState.player.vy = 0;
       }
@@ -536,6 +562,18 @@ export function updateGameStateLogic(
         y: newState.player.y - C.GAME_VIEW_HEIGHT / 2,
       };
     }
+  }
+
+  // Calculate distance to Nav Target (if applicable)
+  if (newState.navTargetCoordinates && newState.player) {
+    newState.navTargetDistance = distance(
+      newState.player.x,
+      newState.player.y,
+      newState.navTargetCoordinates.x,
+      newState.navTargetCoordinates.y
+    );
+  } else {
+    newState.navTargetDistance = null;
   }
 
   return newState;

@@ -9,11 +9,12 @@ const TradeScreen: React.FC = () => {
   const { setGameView, gameState, updatePlayerState } = useGameState();
   const { cash, player } = gameState;
   const shieldLevel = player?.shieldLevel ?? 0; // Default to 0 if player undefined (shouldn't happen)
+  const maxShield = player?.maxShield ?? 100; // Get max shield
 
-  const shieldToReplenish = Math.max(0, 100 - shieldLevel); // Ensure non-negative
-  const replenishCost = shieldToReplenish * 1; // 1 CR per 1%
+  const shieldToReplenish = Math.max(0, maxShield - shieldLevel); // Replenish up to maxShield
+  const replenishCost = shieldToReplenish * 1; // 1 CR per 1% (relative to 100)
   const canAffordReplenish = cash >= replenishCost;
-  const needsReplenish = shieldLevel < 100;
+  const needsReplenish = shieldLevel < maxShield; // Check against maxShield
 
   const handleReplenishShields = useCallback(() => {
     if (!needsReplenish || !canAffordReplenish || replenishCost <= 0) return;
@@ -22,7 +23,7 @@ const TradeScreen: React.FC = () => {
       cash: prev.cash - replenishCost,
       player: {
         ...prev.player, // Spread previous player state
-        shieldLevel: 100, // Set shield to full
+        shieldLevel: prev.player.maxShield, // Set shield to full (maxShield)
       } as any, // Type assertion might be needed depending on updatePlayerState signature
     }));
     // Consider using the status message system from useTradeCargoLogic here
@@ -46,7 +47,8 @@ const TradeScreen: React.FC = () => {
     // Use a container similar to market screens for consistency
     <div className="market-container trade-select-screen">
       <div className="market-header">
-        <div className="market-title">TRADE OPTIONS</div>
+        <div className="market-title">TRADE & SERVICES</div>{" "}
+        {/* Updated title */}
         <div className="market-credits">{gameState.cash.toFixed(1)} CR</div>
       </div>
 
@@ -62,6 +64,12 @@ const TradeScreen: React.FC = () => {
           onClick={() => setGameView("sell_cargo")}
         >
           SELL CARGO
+        </button>
+        <button
+          className="trade-select-button upgrade-button" // New class for potential styling
+          onClick={() => setGameView("upgrade_ship")}
+        >
+          SHIP UPGRADES
         </button>
         <button
           className={`trade-select-button replenish-button ${

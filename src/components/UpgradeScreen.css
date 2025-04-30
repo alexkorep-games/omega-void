@@ -1,0 +1,151 @@
+/* src/components/UpgradeScreen.css */
+
+/* Inherit general layout from Market.css */
+.upgrade-screen {
+  border: 2px solid #ff8800; /* Orange border for Upgrades */
+  background-color: rgba(40, 20, 0, 0.9); /* Dark orange background */
+}
+
+.upgrade-list {
+  flex-grow: 1; /* Take remaining vertical space */
+  overflow-y: auto; /* Enable scrolling */
+  padding: 10px 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px; /* Space between upgrade items */
+
+  /* Custom Scrollbar (optional, copy from Market.css if desired) */
+  scrollbar-width: thin;
+  scrollbar-color: #ff8800 rgba(40, 20, 0, 0.9);
+}
+
+.upgrade-list::-webkit-scrollbar {
+  width: 8px;
+}
+.upgrade-list::-webkit-scrollbar-track {
+  background: rgba(40, 20, 0, 0.9);
+}
+.upgrade-list::-webkit-scrollbar-thumb {
+  background-color: #ff8800;
+  border-radius: 4px;
+  border: 1px solid #aa5500;
+}
+
+.upgrade-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: rgba(0, 0, 0, 0.2);
+  border: 1px solid #aa5500; /* Dimmer orange border */
+  padding: 8px 12px;
+  border-radius: 3px;
+}
+
+.upgrade-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-grow: 1;
+  margin-right: 15px;
+}
+
+.upgrade-name {
+  font-weight: bold;
+  color: #ffffff;
+  font-size: 1.1em;
+}
+
+.upgrade-effect {
+  font-size: 0.9em;
+  color: #ffaa55; /* Lighter orange */
+}
+
+.upgrade-status {
+  font-size: 0.85em;
+  color: #cccccc; /* Light grey */
+  font-style: italic;
+}
+
+.upgrade-action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  flex-shrink: 0; /* Prevent shrinking */
+}
+
+.upgrade-cost {
+  font-size: 0.95em;
+  color: #ffff00; /* Yellow cost */
+  text-align: right;
+  min-width: 80px; /* Align costs */
+}
+
+.upgrade-cost.unaffordable {
+  color: #ff5555; /* Red if cannot afford */
+  text-decoration: line-through;
+}
+
+.upgrade-button {
+  /* Reuse toolbar button styles */
+  font-family: inherit;
+  font-size: 11px; /* Smaller text */
+  color: #ff8800; /* Orange text */
+  background-color: transparent;
+  border: 1px solid #aa5500; /* Dimmer orange border */
+  padding: 5px 10px; /* Smaller padding */
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+  text-transform: uppercase;
+  min-width: 80px;
+  text-align: center;
+  border-radius: 3px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.upgrade-button:hover:not(.disabled) {
+  background-color: rgba(255, 136, 0, 0.15); /* Slight orange glow */
+  border-color: #ff8800; /* Brighten border on hover */
+  color: #ffffff; /* White text on hover */
+}
+
+.upgrade-button:active:not(.disabled) {
+  background-color: rgba(255, 136, 0, 0.3);
+}
+
+.upgrade-button.disabled,
+.upgrade-button:disabled {
+  border-color: #553300; /* Very dim orange */
+  color: #885500; /* Dimmer orange text */
+  cursor: not-allowed;
+  background-color: transparent;
+  opacity: 0.6;
+}
+
+.upgrade-button.disabled:hover,
+.upgrade-button:disabled:hover {
+  background-color: transparent;
+  color: #885500;
+  border-color: #553300;
+}
+
+/* Ensure status message uses full width in footer */
+.upgrade-screen .market-footer .status-message {
+  flex-grow: 1; /* Allow status message to grow */
+  text-align: center; /* Center align status text */
+}
+.upgrade-screen .market-footer span:not(.status-message) {
+  /* Hide the default footer span if status message is not shown */
+  display: none;
+}
+.upgrade-screen .market-footer:has(.status-message) span:not(.status-message) {
+  display: none; /* Explicitly hide if status message is present */
+}
+.upgrade-screen
+  .market-footer:not(:has(.status-message))
+  span:not(.status-message) {
+  display: inline; /* Show default span only if no status message */
+  width: 100%;
+  text-align: center;
+}

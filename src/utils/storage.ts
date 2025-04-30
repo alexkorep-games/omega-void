@@ -13,7 +13,12 @@ interface SavedGameState {
   lastDockedStationId: string | null;
   discoveredStations: string[]; // Added: Array of station IDs
   knownStationPrices: [string, [string, number][]][]; // Added: Map<stationId, Map<commodityKey, price>> serialized
-  // shieldLevel?: number; // Optional: Save shield level if needed
+  // Upgrades
+  cargoPodLevel?: number;
+  shieldCapacitorLevel?: number;
+  engineBoosterLevel?: number;
+  hasAutoloader?: boolean;
+  hasNavComputer?: boolean;
 }
 
 // Define the structure of the loaded state (including defaults)
@@ -24,21 +29,31 @@ interface LoadedGameState {
   cargoHold: Map<string, number>;
   knownStationPrices: Map<string, Map<string, number>>; // Added
   discoveredStations: string[]; // Added: Array of station IDs
-  // shieldLevel?: number; // Optional: Load shield level
+  // Upgrades
+  cargoPodLevel: number;
+  shieldCapacitorLevel: number;
+  engineBoosterLevel: number;
+  hasAutoloader: boolean;
+  hasNavComputer: boolean;
 }
 
 /**
  * Saves the relevant player game state to local storage.
- * @param stateToSave - An object containing coordinates, cash, cargoHold Map, lastDockedStationId, and discoveredStations.
+ * @param stateToSave - An object containing coordinates, cash, cargoHold Map, lastDockedStationId, discoveredStations, and upgrades.
  */
 export function saveGameState(stateToSave: {
   coordinates: IPosition;
   cash: number;
   lastDockedStationId: string | null;
   cargoHold: Map<string, number>;
-  discoveredStations: string[]; // Added
-  knownStationPrices: Map<string, Map<string, number>>; // Added
-  // shieldLevel?: number; // Optional
+  discoveredStations: string[];
+  knownStationPrices: Map<string, Map<string, number>>;
+  // Upgrades
+  cargoPodLevel: number;
+  shieldCapacitorLevel: number;
+  engineBoosterLevel: number;
+  hasAutoloader: boolean;
+  hasNavComputer: boolean;
 }): void {
   try {
     // Convert Map to array for JSON serialization
@@ -57,9 +72,14 @@ export function saveGameState(stateToSave: {
       cash: stateToSave.cash,
       cargoHold: cargoArray,
       lastDockedStationId: stateToSave.lastDockedStationId,
-      knownStationPrices: pricesArray, // Added
-      discoveredStations: stateToSave.discoveredStations, // Added
-      // shieldLevel: stateToSave.shieldLevel, // Optional
+      knownStationPrices: pricesArray,
+      discoveredStations: stateToSave.discoveredStations,
+      // Upgrades
+      cargoPodLevel: stateToSave.cargoPodLevel,
+      shieldCapacitorLevel: stateToSave.shieldCapacitorLevel,
+      engineBoosterLevel: stateToSave.engineBoosterLevel,
+      hasAutoloader: stateToSave.hasAutoloader,
+      hasNavComputer: stateToSave.hasNavComputer,
     };
     localStorage.setItem(
       LOCAL_STORAGE_GAME_STATE_KEY,
@@ -73,7 +93,7 @@ export function saveGameState(stateToSave: {
 
 /**
  * Loads the player's game state from local storage.
- * @returns The loaded state with coordinates, cash, cargoHold Map, lastDockedStationId, discoveredStations, or defaults if not found/invalid.
+ * @returns The loaded state with coordinates, cash, cargoHold Map, lastDockedStationId, discoveredStations, upgrades, or defaults if not found/invalid.
  */
 export function loadGameState(): LoadedGameState {
   const defaultState: LoadedGameState = {
@@ -83,7 +103,12 @@ export function loadGameState(): LoadedGameState {
     cargoHold: new Map<string, number>(), // Default empty cargo
     discoveredStations: [], // Default empty discovered list
     knownStationPrices: new Map<string, Map<string, number>>(), // Default empty prices map
-    // shieldLevel: DEFAULT_STARTING_SHIELD, // Default full shield if loading
+    // Upgrades
+    cargoPodLevel: 0,
+    shieldCapacitorLevel: 0,
+    engineBoosterLevel: 0,
+    hasAutoloader: false,
+    hasNavComputer: false,
   };
 
   try {
@@ -111,11 +136,6 @@ export function loadGameState(): LoadedGameState {
         parsedData.lastDockedStationId === null // Allow null
           ? parsedData.lastDockedStationId
           : defaultState.lastDockedStationId;
-
-      // const loadedShieldLevel =
-      //  typeof parsedData.shieldLevel === "number" && parsedData.shieldLevel >= 0 && parsedData.shieldLevel <= 100
-      //    ? parsedData.shieldLevel
-      //    : defaultState.shieldLevel;
 
       let loadedCargoHold = defaultState.cargoHold;
       if (
@@ -182,8 +202,33 @@ export function loadGameState(): LoadedGameState {
         );
       }
 
+      // Validate Upgrades
+      const loadedCargoPodLevel =
+        typeof parsedData.cargoPodLevel === "number"
+          ? Math.max(0, Math.min(4, parsedData.cargoPodLevel))
+          : defaultState.cargoPodLevel;
+      const loadedShieldCapLevel =
+        typeof parsedData.shieldCapacitorLevel === "number"
+          ? Math.max(0, Math.min(3, parsedData.shieldCapacitorLevel))
+          : defaultState.shieldCapacitorLevel;
+      const loadedEngineLevel =
+        typeof parsedData.engineBoosterLevel === "number"
+          ? Math.max(0, Math.min(3, parsedData.engineBoosterLevel))
+          : defaultState.engineBoosterLevel;
+      const loadedAutoloader =
+        typeof parsedData.hasAutoloader === "boolean"
+          ? parsedData.hasAutoloader
+          : defaultState.hasAutoloader;
+      const loadedNavComputer =
+        typeof parsedData.hasNavComputer === "boolean"
+          ? parsedData.hasNavComputer
+          : defaultState.hasNavComputer;
+
       console.log(
         `Loaded game state: Coords=(${loadedCoordinates.x},${loadedCoordinates.y}), Cash=${loadedCash}, Cargo=${loadedCargoHold.size} items, LastDocked=${loadedLastDockedId}, Discovered=${loadedDiscoveredStations.length} stations, KnownPrices=${loadedKnownPrices.size} stations` // Added KnownPrices log
+      );
+      console.log(
+        `Loaded Upgrades: Cargo=${loadedCargoPodLevel}, Shield=${loadedShieldCapLevel}, Engine=${loadedEngineLevel}, Autoloader=${loadedAutoloader}, Nav=${loadedNavComputer}`
       );
 
       return {
@@ -193,7 +238,12 @@ export function loadGameState(): LoadedGameState {
         cargoHold: loadedCargoHold,
         discoveredStations: loadedDiscoveredStations, // Return loaded list
         knownStationPrices: loadedKnownPrices, // Return loaded prices map
-        // shieldLevel: loadedShieldLevel, // Return loaded shield
+        // Upgrades
+        cargoPodLevel: loadedCargoPodLevel,
+        shieldCapacitorLevel: loadedShieldCapLevel,
+        engineBoosterLevel: loadedEngineLevel,
+        hasAutoloader: loadedAutoloader,
+        hasNavComputer: loadedNavComputer,
       };
     } else {
       console.log("No saved game state found. Starting with default state.");

@@ -21,6 +21,7 @@ export interface IPlayer extends IGameObject {
   vx: number;
   vy: number;
   shieldLevel: number; // Player shield percentage (0-100)
+  maxShield: number; // Max shield capacity (can be increased by upgrades)
 }
 
 // Enemy specific
@@ -117,6 +118,7 @@ export type GameView =
   | "station_log" // List of discovered stations
   | "station_details" // Details of a specific station from the log
   | "trade_select"
+  | "upgrade_ship" // New view for upgrades
   | "destroyed"
   | "chat_log";
 
@@ -172,7 +174,8 @@ export interface IGameState {
   respawnTimer: number;
   isInitialized: boolean;
   cargoHold: Map<string, number>;
-  cargoCapacity: number;
+  baseCargoCapacity: number; // Base capacity before upgrades
+  extraCargoCapacity: number; // Capacity added by upgrades
   market: MarketSnapshot | null;
   activeDestructionAnimations: DestructionAnimationData[]; // Stores data for canvas rendering
   // --- Station Log & Navigation ---
@@ -180,8 +183,16 @@ export interface IGameState {
   navTargetStationId: string | null; // ID of station to navigate to
   navTargetDirection: number | null; // Calculated angle from player to nav target (radians)
   navTargetCoordinates: IPosition | null; // Coordinates of nav target
+  navTargetDistance: number | null; // Added: Distance to nav target
   viewTargetStationId: string | null; // ID of station to view in details screen
   knownStationPrices: Map<string, Map<string, number>>;
+  // --- Upgrades ---
+  cargoPodLevel: number; // 0-4
+  shieldCapacitorLevel: number; // 0-3
+  engineBoosterLevel: number; // 0-3
+  hasAutoloader: boolean; // false/true
+  hasNavComputer: boolean; // false/true
+  shootCooldownFactor: number; // 1.0 or 0.5
 }
 
 // World Manager Config

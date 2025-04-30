@@ -9,7 +9,7 @@ const BuyCargoScreen: React.FC = () => {
     market,
     tradeItems, // Use cargoItems from hook (includes price/qty from market)
     handleItemPrimaryAction, // Buy one unit on click
-    cargoSpaceLeft,
+    cargoSpaceLeft, // cargoSpaceLeft is now calculated correctly in the hook
     playerCash, // Get cash directly from hook
     statusMessage, // Get status message
   } = useTradeCargoLogic("buy");
@@ -67,6 +67,7 @@ const BuyCargoScreen: React.FC = () => {
         </table>
       </div>
       <div className="market-footer">
+        {/* Display cargo space using the value from the hook */}
         <span style={{ color: "#00FF00" /* Green */ }}>
           Cargo Space: {cargoSpaceLeft.toFixed(3)}t
         </span>

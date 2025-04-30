@@ -24,13 +24,18 @@ interface StatusMessage {
 const MESSAGE_DURATION = 2500; // ms
 
 export function useTradeCargoLogic(mode: TradeMode) {
-  const { gameState, updatePlayerState, updateMarketQuantity } = useGameState();
+  const {
+    gameState,
+    updatePlayerState,
+    updateMarketQuantity,
+    totalCargoCapacity,
+  } = useGameState(); // Get totalCargoCapacity
 
   const {
     market,
     cash: playerCash,
     cargoHold,
-    cargoCapacity,
+    // cargoCapacity, // Use totalCargoCapacity instead
     gameView,
   } = gameState;
 
@@ -47,8 +52,9 @@ export function useTradeCargoLogic(mode: TradeMode) {
     cargoHold.forEach((quantity, key) => {
       used += quantity * getTonnesPerUnit(key);
     });
-    return Math.max(0, cargoCapacity - used);
-  }, [cargoHold, cargoCapacity]);
+    // Use totalCargoCapacity derived from the hook
+    return Math.max(0, totalCargoCapacity - used);
+  }, [cargoHold, totalCargoCapacity]);
 
   // --- Helpers ---
   const showMessage = useCallback(

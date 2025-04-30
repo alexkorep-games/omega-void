@@ -1,4 +1,3 @@
-/* src/components/BottomToolbar.tsx */
 // src/components/BottomToolbar.tsx
 import React, { useCallback } from "react";
 import { GameView } from "../game/types"; // Use Game 2 types
@@ -29,11 +28,12 @@ const ToolbarButton: React.FC<ToolbarButtonProps> = ({
     isActive =
       currentView === "station_info" || currentView === "station_details";
   } else if (targetView === "trade_select") {
-    // "Trade" button is active for trade select, buy, and sell screens
+    // "Trade" button is active for trade select, buy, sell, and upgrade screens
     isActive =
       currentView === "trade_select" ||
       currentView === "buy_cargo" ||
-      currentView === "sell_cargo";
+      currentView === "sell_cargo" ||
+      currentView === "upgrade_ship"; // Add upgrade screen here
   } else {
     // Default: active only if exact match
     isActive = currentView === targetView;
@@ -61,6 +61,10 @@ const BottomToolbar: React.FC = () => {
       // Always navigate to the *docked* station info when clicking the main Info button
       if (targetView === "station_info") {
         setGameView("station_info");
+      }
+      // Always navigate to the trade select screen when clicking Trade button (or related)
+      else if (targetView === "trade_select") {
+        setGameView("trade_select");
       } else {
         setGameView(targetView);
       }
@@ -75,9 +79,9 @@ const BottomToolbar: React.FC = () => {
     action?: () => void;
   }> = [
     {
-      label: "Trade",
-      targetView: "trade_select",
-      action: () => setGameView("trade_select"),
+      label: "Trade", // Label remains "Trade"
+      targetView: "trade_select", // Always targets the trade select screen
+      action: () => setGameView("trade_select"), // Ensure it goes to trade_select
     },
     { label: "Undock", targetView: "undocking", action: initiateUndocking },
     { label: "Info", targetView: "station_info" }, // Always targets the main info screen
@@ -97,6 +101,7 @@ const BottomToolbar: React.FC = () => {
     "chat_log",
     "station_log", // Show on Station Log
     "station_details", // Show on Station Details
+    "upgrade_ship", // Show on Upgrade Screen
   ];
 
   // Only render if the current gameView is one where the toolbar should be visible

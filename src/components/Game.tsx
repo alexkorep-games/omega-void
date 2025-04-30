@@ -1,4 +1,3 @@
-/* src/components/Game.tsx */
 // src/components/Game.tsx
 import SettingsMenu from "./SettingsMenu";
 import React, { useRef, useCallback, useEffect } from "react";
@@ -10,6 +9,7 @@ import SellCargoScreen from "./SellCargoScreen";
 import StationInfoScreen from "./StationInfoScreen";
 import StationLogScreen from "./StationLogScreen"; // Import new screen
 import StationDetailsScreen from "./StationDetailsScreen"; // Import new screen
+import UpgradeScreen from "./UpgradeScreen"; // Import upgrade screen
 import BottomToolbar from "./BottomToolbar";
 import { useGameState } from "../hooks/useGameState";
 import { useGameLoop } from "../hooks/useGameLoop";
@@ -70,6 +70,8 @@ const Game: React.FC = () => {
         );
       case "trade_select":
         return <TradeScreen />;
+      case "upgrade_ship": // Render upgrade screen
+        return <UpgradeScreen />;
       case "chat_log":
         return (
           <ChatScreen
@@ -93,6 +95,7 @@ const Game: React.FC = () => {
     gameState.gameView === "station_info" ||
     gameState.gameView === "sell_cargo" ||
     gameState.gameView === "trade_select" ||
+    gameState.gameView === "upgrade_ship" || // Show toolbar on upgrade screen
     gameState.gameView === "chat_log" ||
     gameState.gameView === "station_log" || // Show toolbar on station log
     gameState.gameView === "station_details"; // Show toolbar on station details

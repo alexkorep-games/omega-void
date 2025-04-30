@@ -14,7 +14,7 @@ interface NavTargetInfo {
 interface KonvaHUDProps {
   player: IPlayer | null;
   cash: number;
-  gameState: IGameState; // Pass full gameState for scanner access
+  gameState: IGameState; // Pass full gameState for scanner access and upgrades
   navTargetInfo: NavTargetInfo | null; // Optional navigation target info
 }
 
@@ -88,10 +88,11 @@ const KonvaHUD: React.FC<KonvaHUDProps> = ({
   const shieldBarY = shieldLabelY + 12; // Space after label
   const shieldBarWidth = C.GAME_WIDTH / 3 - padding * 6;
   const shieldBarHeight = 10;
-  const shieldFillWidth = Math.max(
-    0,
-    (player.shieldLevel / 100) * shieldBarWidth
-  );
+  // Use maxShield from player object
+  const shieldFillWidth =
+    player.maxShield > 0
+      ? Math.max(0, (player.shieldLevel / player.maxShield) * shieldBarWidth)
+      : 0;
 
   // --- Nav Indicator ---
   const navIndicatorSize = 8; // Adjust size as needed
@@ -166,6 +167,28 @@ const KonvaHUD: React.FC<KonvaHUDProps> = ({
         width={C.GAME_WIDTH / 3 - leftX - 45} // Prevent overflow
       />
 
+      {/* Display Distance if Nav Computer installed and target exists */}
+      {gameState.hasNavComputer && gameState.navTargetDistance !== null && (
+        <Text
+          text={`DIST:`}
+          x={leftX}
+          y={hudY + padding * 4 + 15 + 15} // Below NAV line
+          fill={C.HUD_COLOR}
+          fontSize={10}
+          fontFamily="monospace"
+        />
+      )}
+      {gameState.hasNavComputer && gameState.navTargetDistance !== null && (
+        <Text
+          text={gameState.navTargetDistance.toFixed(0)}
+          x={leftX + 40}
+          y={hudY + padding * 4 + 15 + 15} // Below NAV line
+          fill={C.NAV_TARGET_COLOR}
+          fontSize={10}
+          fontFamily="monospace"
+        />
+      )}
+
       {/* --- Navigation Indicator (Dot on Circle) --- */}
       {navTargetInfo && // Only draw if there is a nav target
         (() => {
@@ -228,7 +251,8 @@ const KonvaHUD: React.FC<KonvaHUDProps> = ({
         strokeWidth={1}
       />
       <Text
-        text={`${Math.max(0, player.shieldLevel).toFixed(0)}%`}
+        // Display current / max shield
+        text={`${player.shieldLevel.toFixed(0)}/${player.maxShield.toFixed(0)}`}
         x={leftX}
         y={shieldBarY}
         width={shieldBarWidth}
