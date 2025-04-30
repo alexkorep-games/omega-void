@@ -1,4 +1,3 @@
-/* src/hooks/useTouchInput.ts */
 // src/hooks/useTouchInput.ts
 import { useState, useCallback, useEffect, RefObject } from "react";
 import { ITouchState } from "../game/types";
@@ -287,26 +286,24 @@ export function useTouchInput(
   const containerElement = containerRef?.current;
   useEffect(() => {
     const currentElement = containerElement; // Capture ref value
-    if (currentElement) {
-      // console.log("Attaching touch listeners to container:", currentElement); // Debug
-      // Use passive: false to allow preventDefault()
-      const options = { passive: false };
-      currentElement.addEventListener("touchstart", handleTouchStart, options);
-      currentElement.addEventListener("touchmove", handleTouchMove, options);
-      currentElement.addEventListener("touchend", handleTouchEnd, options);
-      currentElement.addEventListener("touchcancel", handleTouchEnd, options); // Treat cancel same as end
-
-      // Cleanup function
-      return () => {
-        // console.log("Removing touch listeners from container:", currentElement); // Debug
-        currentElement.removeEventListener("touchstart", handleTouchStart);
-        currentElement.removeEventListener("touchmove", handleTouchMove);
-        currentElement.removeEventListener("touchend", handleTouchEnd);
-        currentElement.removeEventListener("touchcancel", handleTouchEnd);
-      };
-    } else {
-      // console.log("Container element not available for attaching listeners."); // Less noisy
+    if (!currentElement) {
+      return;
     }
+    console.log("Attaching touch listeners to container:", currentElement); // Debug
+    const options = { passive: false };
+    currentElement.addEventListener("touchstart", handleTouchStart, options);
+    currentElement.addEventListener("touchmove", handleTouchMove, options);
+    currentElement.addEventListener("touchend", handleTouchEnd, options);
+    currentElement.addEventListener("touchcancel", handleTouchEnd, options); // Treat cancel same as end
+
+    // Cleanup function
+    return () => {
+      console.log("Removing touch listeners from container:", currentElement); // Debug
+      currentElement.removeEventListener("touchstart", handleTouchStart);
+      currentElement.removeEventListener("touchmove", handleTouchMove);
+      currentElement.removeEventListener("touchend", handleTouchEnd);
+      currentElement.removeEventListener("touchcancel", handleTouchEnd);
+    };
     // Re-run effect if the element reference changes
   }, [containerElement, handleTouchStart, handleTouchMove, handleTouchEnd]);
 
