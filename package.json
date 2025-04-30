@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "list:src": "node filelist.js > files.tmp",
-    "test": "vitest"
+    "test": "vitest run"
   },
   "dependencies": {
     "jotai": "^2.12.3",
