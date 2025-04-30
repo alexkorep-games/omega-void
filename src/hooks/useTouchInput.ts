@@ -6,7 +6,7 @@ import { GAME_WIDTH, GAME_VIEW_HEIGHT, GAME_HEIGHT } from "../game/config";
 
 type UseTouchStateResult = {
   touchState: ITouchState;
-  resetTouchState: () => void;
+  enableTouchTracking: (value: boolean) => void;
 };
 
 // Helper function to check if an element or its ancestor is a button
@@ -29,10 +29,13 @@ export function useTouchInput(
   containerRef: RefObject<HTMLDivElement | null> // Changed from CanvasElement to DivElement
 ): UseTouchStateResult {
   const [touchState, setTouchState] = useState<ITouchState>(initialTouchState);
+  const [enabled, setEnabled] = useState(false);
 
-  const resetTouchState = useCallback(() => {
-    // console.log("Resetting touch state..."); // Less noisy
-    setTouchState(initialTouchState);
+  const enableTouchTracking = useCallback((value: boolean) => {
+    if (!value) {
+      setTouchState(initialTouchState);
+    }
+    setEnabled(value);
   }, []);
 
   const getTouchPosition = useCallback(
@@ -286,7 +289,7 @@ export function useTouchInput(
   const containerElement = containerRef?.current;
   useEffect(() => {
     const currentElement = containerElement; // Capture ref value
-    if (!currentElement) {
+    if (!currentElement || !enabled) {
       return;
     }
     console.log("Attaching touch listeners to container:", currentElement); // Debug
@@ -305,10 +308,16 @@ export function useTouchInput(
       currentElement.removeEventListener("touchcancel", handleTouchEnd);
     };
     // Re-run effect if the element reference changes
-  }, [containerElement, handleTouchStart, handleTouchMove, handleTouchEnd]);
+  }, [
+    containerElement,
+    handleTouchStart,
+    handleTouchMove,
+    handleTouchEnd,
+    enabled,
+  ]);
 
   return {
     touchState,
-    resetTouchState,
+    enableTouchTracking,
   };
 }

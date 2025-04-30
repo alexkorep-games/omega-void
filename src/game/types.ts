@@ -115,7 +115,7 @@ export type GameView =
   | "sell_cargo"
   | "station_info"
   | "trade_select"
-  | "destroyed" // Player ship destroyed state view
+  | "destroyed"
   | "chat_log";
 
 // Animation State

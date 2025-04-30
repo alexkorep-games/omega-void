@@ -19,7 +19,7 @@ const Game: React.FC = () => {
   const { gameState, updateGame, isInitialized, initializeGameState } =
     useGameState();
 
-  const { touchState, resetTouchState } = useTouchInput(containerRef);
+  const { touchState, enableTouchTracking } = useTouchInput(containerRef);
 
   useEffect(() => {
     if (!isInitialized) {
@@ -28,18 +28,9 @@ const Game: React.FC = () => {
   }, [isInitialized, initializeGameState]);
 
   useEffect(() => {
-    if (
-      gameState.gameView === "docking" ||
-      gameState.gameView === "buy_cargo" ||
-      gameState.gameView === "station_info" ||
-      gameState.gameView === "sell_cargo" ||
-      gameState.gameView === "trade_select" ||
-      gameState.gameView === "chat_log" ||
-      gameState.gameView === "destroyed"
-    ) {
-      resetTouchState();
-    }
-  }, [gameState.gameView, resetTouchState]);
+    const isActionScreen = gameState.gameView === "playing";
+    enableTouchTracking(isActionScreen);
+  }, [gameState.gameView, enableTouchTracking]);
 
   const gameLoopUpdate = useCallback(
     (deltaTime: number, now: number) => {
@@ -121,7 +112,6 @@ const Game: React.FC = () => {
             }
           />
         )}
-
 
       {/* Docked Screens (Buy/Sell, Info, Trade Select, Chat) */}
       {showDockedUI && isInitialized && renderDockedUI()}
