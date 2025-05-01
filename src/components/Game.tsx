@@ -7,16 +7,16 @@ import DockingAnimation from "./DockingAnimation";
 import BuyCargoScreen from "./BuyCargoScreen";
 import SellCargoScreen from "./SellCargoScreen";
 import StationInfoScreen from "./StationInfoScreen";
-import StationLogScreen from "./StationLogScreen"; // Import new screen
-import StationDetailsScreen from "./StationDetailsScreen"; // Import new screen
-import UpgradeScreen from "./UpgradeScreen"; // Import upgrade screen
+import StationLogScreen from "./StationLogScreen";
+import StationDetailsScreen from "./StationDetailsScreen";
+import UpgradeScreen from "./UpgradeScreen";
 import BottomToolbar from "./BottomToolbar";
 import { useGameState } from "../hooks/useGameState";
 import { useGameLoop } from "../hooks/useGameLoop";
 import { useTouchInput } from "../hooks/useTouchInput";
 import TradeScreen from "./TradeScreen";
 import ChatScreen from "./ChatScreen";
-import QuestPanel from "./QuestPanel"; // Import QuestPanel
+import QuestPanel from "./QuestPanel"; // Keep import
 
 const Game: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -25,7 +25,7 @@ const Game: React.FC = () => {
     updateGame,
     isInitialized,
     initializeGameState,
-    emancipationScore, // Get score for win screen trigger
+    emancipationScore,
   } = useGameState();
 
   const { touchState, enableTouchTracking } = useTouchInput(containerRef);
@@ -103,26 +103,27 @@ const Game: React.FC = () => {
     </div>
   );
 
+  // Renders the main content panel for different docked views
   const renderDockedUI = () => {
     switch (gameState.gameView) {
       case "buy_cargo":
         return <BuyCargoScreen />;
       case "sell_cargo":
         return <SellCargoScreen />;
-      case "station_info": // Info for currently docked station
+      case "station_info":
         return <StationInfoScreen />;
-      case "station_log": // New station log screen
+      case "station_log":
         return <StationLogScreen />;
-      case "station_details": // New screen for viewing specific station details from log
+      case "station_details":
         return (
           <StationDetailsScreen stationId={gameState.viewTargetStationId} />
         );
       case "trade_select":
         return <TradeScreen />;
-      case "upgrade_ship": // Render upgrade screen
+      case "upgrade_ship":
         return <UpgradeScreen />;
-      case "contract_log": // Render QuestPanel for contract_log view
-        return <QuestPanel />;
+      case "contract_log":
+        return <QuestPanel />; // QuestPanel is rendered here
       case "chat_log":
         return (
           <ChatScreen
@@ -141,16 +142,31 @@ const Game: React.FC = () => {
     }
   };
 
-  const showDockedUI =
-    gameState.gameView === "buy_cargo" ||
-    gameState.gameView === "station_info" ||
-    gameState.gameView === "sell_cargo" ||
-    gameState.gameView === "trade_select" ||
-    gameState.gameView === "upgrade_ship" || // Show toolbar on upgrade screen
-    gameState.gameView === "chat_log" ||
-    gameState.gameView === "station_log" || // Show toolbar on station log
-    gameState.gameView === "station_details" || // Show toolbar on station details
-    gameState.gameView === "contract_log"; // Add contract_log to views showing docked UI/Toolbar
+  // Determine which views show the main docked UI panel (excluding the QuestPanel now)
+  const showDockedUIPanel = [
+    "buy_cargo",
+    "sell_cargo",
+    "station_info",
+    "station_log",
+    "station_details",
+    "trade_select",
+    "upgrade_ship",
+    "chat_log",
+    // "contract_log" // <-- REMOVED from main panel list
+  ].includes(gameState.gameView);
+
+  // Determine which views show the Bottom Toolbar
+  const showBottomToolbar = [
+    "buy_cargo",
+    "sell_cargo",
+    "station_info",
+    "station_log",
+    "station_details",
+    "trade_select",
+    "upgrade_ship",
+    "chat_log",
+    // "contract_log" // <-- REMOVED from toolbar list
+  ].includes(gameState.gameView);
 
   return (
     <div className="GameContainer" ref={containerRef}>
@@ -160,14 +176,12 @@ const Game: React.FC = () => {
         <GameCanvas gameState={gameState} touchState={touchState} />
       )}
 
-      {/* Coordinate Display (only visible when playing) */}
       {gameState.gameView === "playing" &&
         isInitialized &&
         gameState.player && (
           <CoordinatesDisplay x={gameState.player.x} y={gameState.player.y} />
         )}
 
-      {/* Docking/Undocking Animations */}
       {(gameState.gameView === "docking" ||
         gameState.gameView === "undocking") &&
         isInitialized &&
@@ -181,16 +195,17 @@ const Game: React.FC = () => {
           />
         )}
 
-      {/* Docked Screens (Buy/Sell, Info, Trade Select, Chat, Log, Details) */}
-      {showDockedUI && isInitialized && renderDockedUI()}
+      {/* Render Docked UI Panel (Buy/Sell, Info, Log, Details, Trade Select, Upgrade, Chat) */}
+      {showDockedUIPanel && isInitialized && renderDockedUI()}
 
-      {/* Bottom Toolbar (shown when docked UI is visible) */}
-      {showDockedUI && isInitialized && <BottomToolbar />}
+      {/* Render Quest Panel *only* when view is contract_log */}
+      {gameState.gameView === "contract_log" && isInitialized && <QuestPanel />}
 
-      {/* Win Screen Overlay (rendered only when gameView is 'won' and initialized) */}
+      {/* Render Bottom Toolbar only when appropriate */}
+      {showBottomToolbar && isInitialized && <BottomToolbar />}
+
       {isInitialized && gameState.gameView === "won" && renderWinScreen()}
 
-      {/* Optional: Loading indicator if not initialized */}
       {!isInitialized && (
         <div
           style={{

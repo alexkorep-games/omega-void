@@ -125,10 +125,6 @@ const StationDetailsScreen: React.FC<StationDetailsScreenProps> = ({
       </div>
       <div className="station-info-content">
         <div className="info-item">
-          <span className="info-label">ID:</span>
-          <span className="info-value">{station.id}</span>
-        </div>
-        <div className="info-item">
           <span className="info-label">Type:</span>
           <span className="info-value">{station.stationType}</span>
         </div>
@@ -145,12 +141,6 @@ const StationDetailsScreen: React.FC<StationDetailsScreenProps> = ({
         <div className="info-item">
           <span className="info-label">Technology:</span>
           <span className="info-value">{station.techLevel}</span>
-        </div>
-        <div className="info-item">
-          <span className="info-label">Rotation:</span>
-          <span className="info-value">
-            {station.rotationSpeed.toFixed(2)} rad/s
-          </span>
         </div>
 
         {/* --- Commodity Price List --- */}

@@ -1,11 +1,10 @@
 /* src/components/StationInfoScreen.tsx */
-// src/components/StationInfoScreen.tsx
 import React, { useCallback } from "react";
 import { useGameState } from "../hooks/useGameState";
+import { GameView } from "../game/types"; // Import GameView type
 import "./Market.css"; // Reuse Market CSS for layout and theming
 
 const StationInfoScreen: React.FC = () => {
-  // Get quest-related functions and state from useGameState
   const {
     gameState,
     findStationById,
@@ -34,52 +33,48 @@ const StationInfoScreen: React.FC = () => {
     setNavTarget(newTargetId);
   }, [station, navTargetStationId, setNavTarget]);
 
-  // --- Quest Action Handlers ---
+  // --- NEW: Handle Contract Log Click ---
+  const handleContractLogClick = useCallback(() => {
+    setGameView("contract_log");
+  }, [setGameView]);
+
+  // --- Quest Action Handlers (Keep as is) ---
   const fragACost = 15000;
   const handleBuyFragmentA = useCallback(() => {
     if (cash >= fragACost) {
       updatePlayerState((prev) => ({ cash: prev.cash - fragACost }));
       addQuestItem("contract_frag_a");
-      // Optionally show a success message
       console.log("Bought Fragment Alpha");
     } else {
       console.log("Not enough credits for Fragment A");
-      // Optionally show an error message
     }
-  }, [cash, updatePlayerState, addQuestItem]); // Dependencies
+  }, [cash, updatePlayerState, addQuestItem]);
 
   const fragBMachinery = 20;
   const currentMachinery = cargoHold.get("Machinery") || 0;
   const handleBarterFragmentB = useCallback(() => {
     if (currentMachinery >= fragBMachinery) {
-      // Remove machinery first using updatePlayerState
       updatePlayerState((prev) => {
         const newCargo = new Map(prev.cargoHold);
         const current = newCargo.get("Machinery") || 0;
         const remaining = current - fragBMachinery;
         if (remaining <= 0) newCargo.delete("Machinery");
         else newCargo.set("Machinery", remaining);
-        // Note: The ITEM_REMOVED event for Machinery is emitted by updatePlayerState's logic
         return { cargoHold: newCargo };
       });
-      // Then add the quest item
       addQuestItem("contract_frag_b");
       console.log("Bartered Machinery for Fragment Beta");
     } else {
       console.log(
         `Need ${fragBMachinery}t Machinery, have ${currentMachinery}t`
       );
-      // Optionally show an error message
     }
-  }, [cargoHold, currentMachinery, updatePlayerState, addQuestItem]); // Dependencies
+  }, [cargoHold, currentMachinery, updatePlayerState, addQuestItem]);
 
   const handlePickupFragmentC = useCallback(() => {
-    // In a real scenario, this might be enabled after defeating guards or solving a puzzle
     addQuestItem("contract_frag_c");
     console.log("Picked up Fragment Charlie");
-    // Maybe emit generic PICKUP event if needed?
-    // setTimeout(() => emitQuestEvent({ type: "ITEM_ACQUIRED", itemId: "contract_frag_c", quantity: 1, method: "pickup" }), 0); // Already handled by addQuestItem
-  }, [addQuestItem]); // Dependency
+  }, [addQuestItem]);
 
   // Loading state
   if (!station)
@@ -95,11 +90,10 @@ const StationInfoScreen: React.FC = () => {
   const coordinates = station.coordinates;
   const isNavigating = navTargetStationId === station.id;
 
-  // --- Determine quest action availability & titles ---
+  // --- Determine quest action availability & titles (Keep as is) ---
   const hasFragA = questInventory.has("contract_frag_a");
   const canBuyFragA = station.id === "station_-10_4_fixA" && !hasFragA;
   const buyFragADisabled = cash < fragACost;
-  // Provide informative titles for disabled/enabled states
   const buyFragATitle = hasFragA
     ? "Fragment Alpha Acquired"
     : buyFragADisabled
@@ -117,7 +111,6 @@ const StationInfoScreen: React.FC = () => {
 
   const hasFragC = questInventory.has("contract_frag_c");
   const canPickupFragC = station.id === "station_0_0_fixC" && !hasFragC;
-  // Assuming no specific requirement check here other than presence for pickup
   const pickupFragCTitle = hasFragC
     ? "Fragment Charlie Acquired"
     : "Retrieve Fragment from secure storage";
@@ -172,40 +165,39 @@ const StationInfoScreen: React.FC = () => {
             >
               Special Actions
             </h4>
-
-            {/* Show button only if action is possible (item not already acquired) */}
             {canBuyFragA && (
               <button
                 className="station-info-button quest-action"
                 onClick={handleBuyFragmentA}
-                disabled={buyFragADisabled} // Disable if cannot afford
-                title={buyFragATitle} // Set dynamic title
+                disabled={buyFragADisabled}
+                title={buyFragATitle}
               >
-                Buy Fragment Alpha ({fragACost} CR)
+                {" "}
+                Buy Fragment Alpha ({fragACost} CR){" "}
               </button>
             )}
             {canBarterFragB && (
               <button
                 className="station-info-button quest-action"
                 onClick={handleBarterFragmentB}
-                disabled={barterFragBDisabled} // Disable if not enough machinery
-                title={barterFragBTitle} // Set dynamic title
+                disabled={barterFragBDisabled}
+                title={barterFragBTitle}
               >
-                Barter Fragment Beta ({fragBMachinery}t Machinery)
+                {" "}
+                Barter Fragment Beta ({fragBMachinery}t Machinery){" "}
               </button>
             )}
             {canPickupFragC && (
               <button
                 className="station-info-button quest-action"
                 onClick={handlePickupFragmentC}
-                // No disabled state based on requirements here, assumed always possible if at station
-                title={pickupFragCTitle} // Set dynamic title
+                title={pickupFragCTitle}
               >
-                Retrieve Fragment Charlie
+                {" "}
+                Retrieve Fragment Charlie{" "}
               </button>
             )}
-
-            {/* Optionally show status text if item already acquired at this station */}
+            {/* Optionally show status text if item already acquired */}
             {station.id === "station_-10_4_fixA" && hasFragA && (
               <span style={{ color: "#0f0", marginTop: "5px" }}>
                 Fragment Alpha already acquired.
@@ -226,6 +218,13 @@ const StationInfoScreen: React.FC = () => {
 
         {/* Standard Action Buttons Area */}
         <div className="station-info-actions">
+          <button
+            className="station-info-button"
+            onClick={handleContractLogClick}
+            title="View Contract Status"
+          >
+            CONTRACT
+          </button>
           <button className="station-info-button" onClick={handleLogClick}>
             STATION LOG
           </button>
