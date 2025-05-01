@@ -85,21 +85,21 @@ const BottomToolbar: React.FC = () => {
     title?: string;
   }> = [
     {
-      label: "Trade",
+      label: "Market",
       targetView: "trade_select",
       title: "Access Market & Shipyard",
     },
-    { label: "Undock", targetView: initiateUndocking, title: "Leave Station" }, // Pass action directly
     {
       label: "Info",
       targetView: "station_info",
       title: "View Station Information",
     },
     {
-      label: "Messages",
+      label: "Comms",
       targetView: "chat_log",
       title: "View Communications Log", // Added title
     },
+    { label: "Undock", targetView: initiateUndocking, title: "Leave Station" }, // Pass action directly
   ];
 
   // Determine which views show the toolbar

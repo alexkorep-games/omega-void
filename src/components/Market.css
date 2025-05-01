@@ -355,24 +355,33 @@ td:nth-child(4) {
 /* Specific columns for price list in details */
 .station-price-list .market-table th:nth-child(1),
 .station-price-list .market-table td:nth-child(1) {
-  width: 50%;
+  width: 40%;
   text-align: left;
-} /* Commodity */
+}
 .station-price-list .market-table th:nth-child(2),
 .station-price-list .market-table td:nth-child(2) {
   width: 15%;
   text-align: center;
-} /* Unit */
+}
 .station-price-list .market-table th:nth-child(3),
 .station-price-list .market-table td:nth-child(3) {
-  width: 35%;
+  width: 20%;
   text-align: right;
-} /* Price */
-
-/* Hide 4th column */
+}
 .station-price-list .market-table th:nth-child(4),
 .station-price-list .market-table td:nth-child(4) {
-  display: none;
+  width: 25%; /* Diff */
+  text-align: right;
+}
+
+/* Price color */
+.station-price-list .market-table td:nth-child(3) {
+  color: #ffff00;
+}
+
+.station-price-list .market-table tbody tr:hover {
+  background-color: transparent;
+  cursor: default;
 }
 
 /* Price color */
