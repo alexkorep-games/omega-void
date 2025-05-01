@@ -13,14 +13,12 @@ export type GameEvent =
       itemId: string;
       quantity: number;
       method: "buy" | "reward" | "pickup" | "barter";
-      stationId: string;
     } // Specific event for items
   | {
       type: "ITEM_REMOVED";
       itemId: string;
       quantity: number;
       method: "sell" | "consumed" | "barter";
-      stationId: string;
     } // Specific event for removing items
   | { type: "SHIP_UPGRADED"; upgradeId: string; level?: number }
   | {
