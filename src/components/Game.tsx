@@ -16,11 +16,17 @@ import { useGameLoop } from "../hooks/useGameLoop";
 import { useTouchInput } from "../hooks/useTouchInput";
 import TradeScreen from "./TradeScreen";
 import ChatScreen from "./ChatScreen";
+import QuestPanel from "./QuestPanel"; // Import QuestPanel
 
 const Game: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { gameState, updateGame, isInitialized, initializeGameState } =
-    useGameState();
+  const {
+    gameState,
+    updateGame,
+    isInitialized,
+    initializeGameState,
+    emancipationScore, // Get score for win screen trigger
+  } = useGameState();
 
   const { touchState, enableTouchTracking } = useTouchInput(containerRef);
 
@@ -37,22 +43,65 @@ const Game: React.FC = () => {
 
   const gameLoopUpdate = useCallback(
     (deltaTime: number, now: number) => {
-      const currentTouchState =
-        gameState.gameView === "playing" ? touchState : undefined;
-      updateGame(deltaTime, now, currentTouchState);
+      if (gameState.gameView !== "won") {
+        const currentTouchState =
+          gameState.gameView === "playing" ? touchState : undefined;
+        updateGame(deltaTime, now, currentTouchState);
+      }
     },
     [updateGame, touchState, gameState.gameView]
   );
 
-  // Loop runs during playing and animations, destruction
-  const isLoopRunning =
-    isInitialized &&
-    (gameState.gameView === "playing" ||
-      gameState.gameView === "docking" ||
-      gameState.gameView === "undocking" ||
-      gameState.gameView === "destroyed"); // Keep loop for destruction animation & timer
+  const isLoopRunning = isInitialized && gameState.gameView !== "won";
 
   useGameLoop(gameLoopUpdate, isLoopRunning);
+
+  const renderWinScreen = () => (
+    <div
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        width: "100vw",
+        height: "100vh",
+        backgroundColor: "rgba(0, 50, 0, 0.95)",
+        color: "#55FF55",
+        zIndex: 50,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        alignItems: "center",
+        fontFamily: "monospace",
+        textAlign: "center",
+        padding: "20px",
+        border: "3px solid #00FF00",
+      }}
+    >
+      <h1>CONTRACT VOID</h1>
+      <h2 style={{ color: "#FFFF00", marginBottom: "30px" }}>
+        Emancipation Score: {emancipationScore.toFixed(1)}%
+      </h2>
+      <p style={{ fontSize: "1.1em", marginBottom: "10px" }}>
+        Systems registering autonomous status...
+      </p>
+      <p
+        style={{
+          fontSize: "1.8em",
+          marginTop: "20px",
+          color: "#FFFFFF",
+          fontWeight: "bold",
+        }}
+      >
+        YOU ARE FREE
+      </p>
+      <p style={{ marginTop: "40px", fontSize: "0.9em", color: "#AAAAAA" }}>
+        (Omega Void v0.1 Complete)
+      </p>
+      <p style={{ marginTop: "20px", fontSize: "0.8em", color: "#888888" }}>
+        (Further objectives pending system update...)
+      </p>
+    </div>
+  );
 
   const renderDockedUI = () => {
     switch (gameState.gameView) {
@@ -72,6 +121,8 @@ const Game: React.FC = () => {
         return <TradeScreen />;
       case "upgrade_ship": // Render upgrade screen
         return <UpgradeScreen />;
+      case "contract_log": // Render QuestPanel for contract_log view
+        return <QuestPanel />;
       case "chat_log":
         return (
           <ChatScreen
@@ -98,13 +149,16 @@ const Game: React.FC = () => {
     gameState.gameView === "upgrade_ship" || // Show toolbar on upgrade screen
     gameState.gameView === "chat_log" ||
     gameState.gameView === "station_log" || // Show toolbar on station log
-    gameState.gameView === "station_details"; // Show toolbar on station details
+    gameState.gameView === "station_details" || // Show toolbar on station details
+    gameState.gameView === "contract_log"; // Add contract_log to views showing docked UI/Toolbar
 
   return (
     <div className="GameContainer" ref={containerRef}>
       <SettingsMenu />
 
-      <GameCanvas gameState={gameState} touchState={touchState} />
+      {isInitialized && gameState.gameView !== "won" && (
+        <GameCanvas gameState={gameState} touchState={touchState} />
+      )}
 
       {/* Coordinate Display (only visible when playing) */}
       {gameState.gameView === "playing" &&
@@ -132,6 +186,25 @@ const Game: React.FC = () => {
 
       {/* Bottom Toolbar (shown when docked UI is visible) */}
       {showDockedUI && isInitialized && <BottomToolbar />}
+
+      {/* Win Screen Overlay (rendered only when gameView is 'won' and initialized) */}
+      {isInitialized && gameState.gameView === "won" && renderWinScreen()}
+
+      {/* Optional: Loading indicator if not initialized */}
+      {!isInitialized && (
+        <div
+          style={{
+            position: "fixed",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            color: "white",
+            fontFamily: "monospace",
+          }}
+        >
+          Initializing...
+        </div>
+      )}
     </div>
   );
 };

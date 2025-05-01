@@ -4,9 +4,6 @@ import { IAsteroid } from "../types"; // Import the interface
 export class Asteroid extends GameObject implements IAsteroid {
   type: "asteroid"; // Type of the object
   spin: number; // radians per frame
-  orbitR: number; // big radius – gives “straight line” illusion
-  orbitAngle: number; // Current angle in the orbit
-  orbitSpeed: number; // Angular speed in radians per frame
   angle: number; // Visual rotation angle, separate from orbit angle
   orbitCenterX: number; // Store the center of the orbit
   orbitCenterY: number; // Store the center of the orbit
@@ -27,19 +24,13 @@ export class Asteroid extends GameObject implements IAsteroid {
     this.type = "asteroid"; // Set the type for the object
     this.orbitCenterX = cx;
     this.orbitCenterY = cy;
-    this.orbitR = orbitRadius;
-    this.orbitAngle = initialOrbitAngle;
 
     this.spin = (Math.random() - 0.5) * 0.01;
-    this.orbitSpeed = (Math.random() - 0.5) * 0.0004;
     this.angle = Math.random() * Math.PI * 2;
   }
 
-  update(): void {
-    this.orbitAngle += this.orbitSpeed;
-    this.x = this.orbitCenterX + Math.cos(this.orbitAngle) * this.orbitR;
-    this.y = this.orbitCenterY + Math.sin(this.orbitAngle) * this.orbitR;
-    this.angle += this.spin;
+  update(currentTimeSeconds: number): void {
+    this.angle = this.spin * currentTimeSeconds;
     this.angle %= Math.PI * 2;
   }
 }

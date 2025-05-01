@@ -1,0 +1,106 @@
+/* Inherit general layout from Market.css */
+.quest-panel {
+  border: 2px solid #aaaaaa; /* Grey border for contract/quest log */
+  background-color: rgba(20, 20, 20, 0.9); /* Dark grey background */
+  color: #cccccc; /* Lighter grey text */
+  /* Ensure it fills height like other market screens */
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.quest-list {
+  flex-grow: 1; /* Take remaining vertical space */
+  overflow-y: auto; /* Enable scrolling */
+  padding: 15px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px; /* Space between quest items */
+
+  /* Custom Scrollbar (optional, copy from Market.css if desired) */
+  scrollbar-width: thin;
+  scrollbar-color: #aaaaaa rgba(20, 20, 20, 0.9);
+}
+
+.quest-list::-webkit-scrollbar {
+  width: 8px;
+}
+.quest-list::-webkit-scrollbar-track {
+  background: rgba(20, 20, 20, 0.9);
+}
+.quest-list::-webkit-scrollbar-thumb {
+  background-color: #aaaaaa;
+  border-radius: 4px;
+  border: 1px solid #666666;
+}
+
+.quest-item {
+  background-color: rgba(0, 0, 0, 0.2);
+  border: 1px solid #555555; /* Dimmer grey border */
+  padding: 12px 15px;
+  border-radius: 4px;
+}
+
+.quest-title {
+  font-weight: bold;
+  color: #ffffff; /* White title */
+  font-size: 1.2em;
+  margin-bottom: 8px;
+  border-bottom: 1px solid #666666;
+  padding-bottom: 5px;
+}
+
+.quest-description {
+  font-size: 0.9em;
+  color: #bbbbbb;
+  margin-bottom: 15px;
+  line-height: 1.4;
+}
+
+.quest-overall-progress {
+  font-size: 1em;
+  color: #ffff00; /* Yellow progress */
+  margin-bottom: 15px;
+  font-weight: bold;
+}
+
+.quest-objectives {
+  display: flex;
+  flex-direction: column;
+  gap: 8px; /* Space between objectives */
+  margin-left: 5px; /* Indent objectives slightly */
+}
+
+.objective-item {
+  font-size: 0.95em;
+  color: #cccccc;
+  transition: color 0.3s;
+  padding-left: 5px;
+  position: relative; /* For pseudo-elements if needed */
+  white-space: pre-wrap; /* Allow wrapping for long progress text */
+}
+
+.objective-item.done {
+  color: #00ff00; /* Green for completed */
+  /* text-decoration: line-through; */ /* Optional */
+}
+/* Style for the checkmark/box prefix */
+.objective-item::before {
+  /* content: '[ ] '; */ /* Handled in QuestEngine text generation */
+  /* display: inline-block; */
+  /* width: 1.2em; */
+}
+.objective-item.done::before {
+  /* content: '[✔] '; */ /* Handled in QuestEngine text generation */
+  /* color: #00ff00; */
+}
+
+.objective-item.incomplete {
+  color: #dddddd; /* Slightly brighter grey for active/incomplete */
+}
+
+/* Ensure footer stays at bottom */
+.quest-panel .market-footer {
+  flex-shrink: 0; /* Prevent footer from shrinking */
+  margin-top: auto; /* Push footer to bottom if content is short */
+}

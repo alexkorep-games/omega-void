@@ -388,3 +388,86 @@ td:nth-child(4) {
 
 /* --- Styles for Upgrade Screen List --- */
 /* Added to UpgradeScreen.css */
+
+/* Styles for Station Info Screen Actions */
+.station-info-actions {
+  margin-top: 20px;
+  display: flex;
+  justify-content: space-around; /* Space out buttons */
+  gap: 15px;
+  padding: 10px 0;
+  border-top: 1px solid #555; /* Separator */
+}
+
+.station-info-button,
+.station-info-toggle-button {
+  padding: 8px 15px;
+  background-color: rgba(70, 70, 70, 0.5);
+  border: 1px solid #aaa;
+  color: #ccc;
+  font-family: monospace;
+  font-size: 0.9em;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+  min-width: 120px; /* Ensure buttons have some width */
+  text-align: center;
+}
+
+.station-info-button:hover,
+.station-info-toggle-button:hover {
+  background-color: rgba(90, 90, 90, 0.7);
+  border-color: #fff;
+  color: #fff;
+}
+
+.station-info-toggle-button.active {
+  background-color: rgba(0, 100, 0, 0.6); /* Greenish when active */
+  border-color: #0f0;
+  color: #5f5;
+}
+.station-info-toggle-button.active:hover {
+  background-color: rgba(0, 150, 0, 0.7);
+  border-color: #5f5;
+  color: #fff;
+}
+
+/* Styles for Quest Action Section and Buttons */
+.station-quest-actions {
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px dashed rgba(255, 255, 0, 0.5); /* Yellow dashed separator */
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center; /* Center buttons horizontally */
+}
+
+/* Use existing button styles but add quest-specific overrides */
+.station-info-button.quest-action {
+  background-color: rgba(0, 100, 0, 0.2); /* Slight green hint for action */
+  border-color: #00cc00;
+  color: #55ff55;
+  min-width: 250px; /* Make quest buttons wider */
+}
+.station-info-button.quest-action:hover:not(:disabled) {
+  background-color: rgba(0, 150, 0, 0.3);
+  border-color: #55ff55;
+  color: #ffffff;
+}
+
+/* Style for disabled quest buttons */
+.station-info-button.quest-action:disabled {
+  background-color: transparent; /* Less prominent background */
+  border-color: #555500; /* Dim yellow border */
+  color: #888800; /* Dim yellow text */
+  opacity: 0.7;
+  cursor: not-allowed; /* Indicate non-interactive */
+}
+
+/* Visual cue for disabled state requirements using ::after pseudo-element */
+.station-info-button.quest-action:disabled::after {
+  content: " [!]"; /* Add indicator */
+  color: #ff5555; /* Red color for warning */
+  font-weight: bold;
+  margin-left: 5px; /* Space from button text */
+}

@@ -84,3 +84,6 @@ export const LARGE_EXPLOSION_PARTICLE_LENGTH = 10;
 export const LARGE_EXPLOSION_PARTICLE_THICKNESS = 2;
 export const LARGE_EXPLOSION_DURATION =
   DESTRUCTION_ANIMATION_DURATION_BASE * 1.2; // 1200ms
+
+export const BASE_CARGO_CAPACITY = 10; // Base cargo capacity
+export const DEFAULT_ANIMATION_DURATION = 1000; // Default animation duration in ms

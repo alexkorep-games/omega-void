@@ -1,5 +1,5 @@
 // src/hooks/useGameState.ts
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef, useEffect } from "react"; // Added useEffect
 import { atom, useAtom } from "jotai";
 import {
   IGameState,
@@ -27,6 +27,15 @@ import {
   CommodityState,
 } from "../game/Market"; // Import Market components
 import { distance } from "../utils/geometry"; // Import distance
+// Import quest system components
+import {
+  QuestEngine,
+  GameEvent,
+  V01_QUEST_DEFINITIONS,
+  QuestItemId,
+  initialQuestState,
+} from "../quests";
+import { FIXED_STATIONS } from "../game/world/FixedStations"; // Import fixed stations
 
 // Simple world seed for market generation for now
 const WORLD_SEED = 12345;
@@ -88,13 +97,31 @@ const gameStateAtom = atom<IGameState>(initialGameState);
  */
 export function useGameState() {
   const [gameState, setGameStateInternal] = useAtom(gameStateAtom);
-  const worldManager = useMemo(() => new InfiniteWorldManager({}), []);
+  // Ensure worldManager uses fixed stations
+  const worldManager = useMemo(
+    () => new InfiniteWorldManager({ fixedStations: FIXED_STATIONS }),
+    []
+  );
   const saveIntervalId = useRef<number | null>(null);
+  // Initialize QuestEngine with definitions
+  const questEngineRef = useRef(new QuestEngine(V01_QUEST_DEFINITIONS));
 
   // --- Calculate derived state: Total Cargo Capacity ---
   const totalCargoCapacity = useMemo(() => {
     return gameState.baseCargoCapacity + gameState.extraCargoCapacity;
   }, [gameState.baseCargoCapacity, gameState.extraCargoCapacity]);
+
+  // --- Calculate emancipation score based on current quest state ---
+  const emancipationScore = useMemo(() => {
+    // Ensure quest state is initialized before calculating
+    if (!gameState.questState || !gameState.questState.quests["freedom_v01"]) {
+      return 0;
+    }
+    return questEngineRef.current.calculateQuestCompletion(
+      "freedom_v01",
+      gameState.questState
+    );
+  }, [gameState.questState]);
 
   // --- Helper to Set Game View ---
   const setGameView = useCallback(
@@ -143,29 +170,136 @@ export function useGameState() {
     [setGameStateInternal]
   );
 
+  // --- Callback to emit quest events and update quest state ---
+  const emitQuestEvent = useCallback(
+    (event: GameEvent) => {
+      // Use setGameStateInternal to ensure updates are based on the latest state
+      setGameStateInternal((prevState) => {
+        // Ensure player exists and quest state is initialized
+        if (!prevState.player || !prevState.questState) return prevState;
+
+        // Pass the *previous* state as the context for the event check
+        const currentContextState = { ...prevState };
+        const nextQuestState = questEngineRef.current.update(
+          prevState.questState,
+          event,
+          currentContextState
+        );
+
+        // If the quest state changed, update it and check for win condition
+        if (nextQuestState !== prevState.questState) {
+          // console.log("Quest state updated by event:", event.type); // Reduce console noise
+
+          // Recalculate score based on the *new* quest state
+          const newScore = questEngineRef.current.calculateQuestCompletion(
+            "freedom_v01",
+            nextQuestState
+          );
+          const isWon = newScore >= 100;
+
+          // Only transition to 'won' if not already won
+          const newGameView =
+            isWon && prevState.gameView !== "won" ? "won" : prevState.gameView;
+
+          if (newGameView === "won" && prevState.gameView !== "won") {
+            console.log("WIN CONDITION MET! Emancipation Score >= 100%");
+            // Optionally stop game loop or other actions here (loop stop handled in Game.tsx)
+          }
+          // Return the updated game state with the new quest state and potentially new game view
+          return {
+            ...prevState,
+            questState: nextQuestState,
+            gameView: newGameView,
+          };
+        }
+        // If quest state didn't change, return the previous state
+        return prevState;
+      });
+    },
+    [setGameStateInternal]
+  ); // Dependency on setGameStateInternal
+
   // --- Helper to Update Player State Fields ---
   // Provides a simpler way to update cash, cargo etc. from logic hooks
   const updatePlayerState = useCallback(
     (updater: (prevState: IGameState) => Partial<IGameState>) => {
       setGameStateInternal((prev) => {
         const changes = updater(prev);
-        // If the player object itself is being updated, ensure it's merged correctly
+        const nextState = { ...prev, ...changes };
+
+        // Deep merge player object if provided
         if (changes.player && typeof changes.player === "object") {
-          return {
-            ...prev,
-            ...changes,
-            player: {
-              ...(prev.player as IPlayer), // Spread existing player state
-              ...(changes.player as Partial<IPlayer>), // Apply partial updates
-            },
+          nextState.player = {
+            ...(prev.player as IPlayer),
+            ...(changes.player as Partial<IPlayer>),
           };
         }
-        // Otherwise, just apply the top-level changes
-        return { ...prev, ...changes };
+
+        // Emit CREDITS_CHANGE event if cash was modified
+        if (changes.cash !== undefined && changes.cash !== prev.cash) {
+          const delta = changes.cash - prev.cash;
+          // Use setTimeout to ensure event processes against the next state
+          setTimeout(
+            () =>
+              emitQuestEvent({
+                type: "CREDITS_CHANGE",
+                delta,
+                total: changes.cash as number,
+              }),
+            0
+          );
+        }
+
+        // Emit ITEM_ACQUIRED/REMOVED for regular cargo if needed by quests (e.g., deliver X machinery)
+        // Compare previous and next cargo holds
+        if (changes.cargoHold && changes.cargoHold !== prev.cargoHold) {
+          const prevCargo = prev.cargoHold;
+          const nextCargo = changes.cargoHold;
+
+          // Check for added items (potential PURCHASE or other acquisition)
+          nextCargo.forEach((qty, key) => {
+            const prevQty = prevCargo.get(key) || 0;
+            if (qty > prevQty) {
+              // Assuming 'buy' for now, could be refined if needed
+              setTimeout(
+                () =>
+                  emitQuestEvent({
+                    type: "ITEM_ACQUIRED",
+                    itemId: key,
+                    quantity: qty - prevQty,
+                    method: "buy",
+                    stationId: prev.dockingStationId ?? "",
+                  }),
+                0
+              );
+            }
+          });
+
+          // Check for removed items (potential SELL or consumption/barter)
+          prevCargo.forEach((qty, key) => {
+            const nextQty = nextCargo.get(key) || 0;
+            if (qty > nextQty) {
+              // Assuming 'sell' for now, could be refined (e.g., barter in StationInfoScreen emits ITEM_REMOVED directly)
+              setTimeout(
+                () =>
+                  emitQuestEvent({
+                    type: "ITEM_REMOVED",
+                    itemId: key,
+                    quantity: qty - nextQty,
+                    method: "sell",
+                    stationId: prev.dockingStationId ?? "",
+                  }),
+                0
+              );
+            }
+          });
+        }
+
+        return nextState;
       });
     },
-    [setGameStateInternal]
-  );
+    [setGameStateInternal, emitQuestEvent]
+  ); // Add emitQuestEvent dependency
 
   // --- Helper to Update Market Quantity ---
   const updateMarketQuantity = useCallback(
@@ -206,47 +340,48 @@ export function useGameState() {
   // completeDocking doesn't need the ID passed anymore, it reads from state
   const completeDocking = useCallback(() => {
     console.log("Action: Complete Docking");
+    let dockedStationId: string | null = null;
     setGameStateInternal((prev) => {
-      // <-- prev has the dockingStationId
-      if (!prev.dockingStationId) {
-        console.error("Cannot complete docking without a station ID in state!");
+      dockedStationId = prev.dockingStationId;
+      // ... (rest of docking logic as before) ...
+      if (!dockedStationId) {
+        console.error("Docking failed: No station ID");
         return {
           ...prev,
           gameView: "playing",
           animationState: { ...prev.animationState, type: null, progress: 0 },
-        }; // Fallback
+        };
       }
-      const station = worldManager.getStationById(prev.dockingStationId);
+      const station = worldManager.getStationById(dockedStationId);
       let newMarket: MarketSnapshot | null = null;
-      if (station) {
-        // Use station name or ID parts for logging
-        const stationIdentifier = station.name || `ID ${prev.dockingStationId}`;
-        console.log(`Generating market for ${stationIdentifier}`);
+      if (station)
         newMarket = MarketGenerator.generate(station, WORLD_SEED, Date.now());
-      } else {
-        console.error(
-          `Could not find station ${prev.dockingStationId} to generate market!`
-        );
-      }
-
-      // Add station to discovered list if not already present
-      let updatedDiscoveredStations = [...prev.discoveredStations];
-      if (!updatedDiscoveredStations.includes(prev.dockingStationId)) {
-        updatedDiscoveredStations.push(prev.dockingStationId);
-        console.log(`Added ${prev.dockingStationId} to discovered stations.`);
-      }
-
-      console.log("SETTING MARKET TO", newMarket);
+      // Use different seed?
+      else
+        console.error(`Could not find station ${dockedStationId} for market!`);
+      const updatedDiscoveredStations = [...prev.discoveredStations];
+      if (!updatedDiscoveredStations.includes(dockedStationId))
+        updatedDiscoveredStations.push(dockedStationId);
       return {
-        ...prev, // Use the state before animation finished to get dockingStationId
+        ...prev,
         gameView: "trade_select",
-        animationState: { ...prev.animationState, type: null, progress: 0 }, // Ensure animation state is reset
+        animationState: { ...prev.animationState, type: null, progress: 0 },
         market: newMarket,
-        lastDockedStationId: prev.dockingStationId, // Store the last docked station
-        discoveredStations: updatedDiscoveredStations, // Update discovered stations
+        lastDockedStationId: dockedStationId,
+        discoveredStations: updatedDiscoveredStations,
       };
     });
-  }, [setGameStateInternal, worldManager]); // Depends on worldManager
+    // Emit DOCK_FINISH event after state update is scheduled
+    if (dockedStationId)
+      setTimeout(
+        () =>
+          emitQuestEvent({
+            type: "DOCK_FINISH",
+            stationId: dockedStationId || "",
+          }),
+        0
+      );
+  }, [setGameStateInternal, worldManager, emitQuestEvent]);
 
   const initiateUndocking = useCallback(() => {
     console.log("Action: Initiate Undocking");
@@ -271,7 +406,17 @@ export function useGameState() {
       return;
     }
     console.log("Initializing game state...");
-    const loadedData = loadGameState();
+    const loadedData = loadGameState(); // Loads all data including quests
+
+    // Ensure loaded quest data is valid, otherwise use initial
+    const validQuestState =
+      loadedData.questState && typeof loadedData.questState === "object"
+        ? loadedData.questState
+        : initialQuestState;
+    const validQuestInventory =
+      loadedData.questInventory instanceof Map
+        ? loadedData.questInventory
+        : new Map<string, number>();
 
     // Calculate initial derived state from loaded data
     const initialExtraCargo = loadedData.cargoPodLevel * 5;
@@ -302,7 +447,9 @@ export function useGameState() {
         // Load Derived Upgrade Effects
         extraCargoCapacity: initialExtraCargo,
         shootCooldownFactor: initialShootCooldownFactor,
-
+        // Load quest data
+        questState: validQuestState,
+        questInventory: validQuestInventory,
         isInitialized: true,
         // Reset other dynamic parts of state if necessary
         enemies: [],
@@ -351,6 +498,9 @@ export function useGameState() {
             engineBoosterLevel: currentSyncState.engineBoosterLevel,
             hasAutoloader: currentSyncState.hasAutoloader,
             hasNavComputer: currentSyncState.hasNavComputer,
+            // Save quest data
+            questState: currentSyncState.questState,
+            questInventory: currentSyncState.questInventory,
           });
         } else {
           // Should not happen after initialization
@@ -378,9 +528,12 @@ export function useGameState() {
       currentTouchState: ITouchState | undefined
     ) => {
       setGameStateInternal((currentGameState) => {
-        if (!currentGameState.isInitialized) {
+        // Skip update if not initialized or game is won
+        if (
+          !currentGameState.isInitialized ||
+          currentGameState.gameView === "won"
+        )
           return currentGameState;
-        }
 
         // --- Calculate Navigation Data ---
         let navTargetDirection: number | null = null;
@@ -636,6 +789,19 @@ export function useGameState() {
           return nextLogicState;
         }
 
+        // --- Final State Check (Win Condition) ---
+        // Check win condition again after all updates for the frame
+        const finalScore = questEngineRef.current.calculateQuestCompletion(
+          "freedom_v01",
+          nextLogicState.questState
+        );
+        if (finalScore >= 100 && nextLogicState.gameView !== "won") {
+          console.log(
+            "WIN CONDITION MET (End of Frame)! Emancipation Score >= 100%"
+          );
+          return { ...nextLogicState, gameView: "won" }; // Transition to 'won' state
+        }
+
         // --- No major state transition detected, just return logic results ---
         // Update nav data calculated at the start
         return {
@@ -646,7 +812,7 @@ export function useGameState() {
         };
       }); // End setGameStateInternal
     },
-    [setGameStateInternal, worldManager]
+    [setGameStateInternal, worldManager, emitQuestEvent, addQuestItem]
   ); // End updateGame useCallback
 
   // --- Upgrade Purchase Logic ---
@@ -722,15 +888,25 @@ export function useGameState() {
             // Display effect is in HUD
             break;
         }
+        // Emit event after state update is scheduled
+        setTimeout(
+          () =>
+            emitQuestEvent({
+              type: "SHIP_UPGRADED",
+              upgradeId: upgradeKey,
+              level: nextLevel,
+            }),
+          0
+        );
+        purchased = true;
         console.log(
           `Purchased ${upgradeKey} Level ${nextLevel} for ${cost} CR.`
         );
-        purchased = true;
         return updatedState;
       });
       return purchased; // Indicate if purchase was successful
     },
-    [setGameStateInternal]
+    [setGameStateInternal, emitQuestEvent]
   );
 
   // --- Helper Function ---
@@ -741,6 +917,80 @@ export function useGameState() {
       return worldManager.getStationById(stationId);
     },
     [worldManager] // Depends only on worldManager
+  );
+
+  // --- Add a quest item to the inventory and emit event ---
+  const addQuestItem = useCallback(
+    (itemId: QuestItemId, quantity: number = 1) => {
+      setGameStateInternal((prev) => {
+        const currentCount = prev.questInventory.get(itemId) || 0;
+        const newInventory = new Map(prev.questInventory);
+        newInventory.set(itemId, currentCount + quantity);
+        // Emit event *after* state update is scheduled
+        // Use setTimeout to ensure the event processes against the *next* state
+        setTimeout(
+          () =>
+            emitQuestEvent({
+              type: "ITEM_ACQUIRED",
+              itemId,
+              quantity,
+              method: "reward",
+            }),
+          0
+        ); // Assuming 'reward' for now
+        console.log(
+          `Added quest item: ${itemId} (x${quantity}). New total: ${newInventory.get(
+            itemId
+          )}`
+        );
+        return { ...prev, questInventory: newInventory };
+      });
+    },
+    [setGameStateInternal, emitQuestEvent]
+  );
+
+  // --- Remove a quest item from the inventory and emit event ---
+  const removeQuestItem = useCallback(
+    (itemId: QuestItemId, quantity: number = 1) => {
+      let success = false;
+      setGameStateInternal((prev) => {
+        const currentCount = prev.questInventory.get(itemId) || 0;
+        if (currentCount < quantity) {
+          console.warn(
+            `Cannot remove quest item ${itemId}: Have ${currentCount}, need ${quantity}`
+          );
+          success = false;
+          return prev; // Not enough items, return previous state
+        }
+        const newInventory = new Map(prev.questInventory);
+        const newCount = currentCount - quantity;
+        if (newCount <= 0) {
+          newInventory.delete(itemId);
+        } else {
+          newInventory.set(itemId, newCount);
+        }
+        success = true;
+        // Emit event *after* state update is scheduled
+        setTimeout(
+          () =>
+            emitQuestEvent({
+              type: "ITEM_REMOVED",
+              itemId,
+              quantity,
+              method: "consumed",
+            }),
+          0
+        ); // Assuming 'consumed'
+        console.log(
+          `Removed quest item: ${itemId} (x${quantity}). New total: ${
+            newInventory.get(itemId) ?? 0
+          }`
+        );
+        return { ...prev, questInventory: newInventory };
+      });
+      return success; // Note: this returns success based on the state *before* the async update completes
+    },
+    [setGameStateInternal, emitQuestEvent]
   );
 
   const startNewGame = useCallback(() => {
@@ -762,6 +1012,9 @@ export function useGameState() {
     const defaultLastDocked = null;
     const defaultDiscoveredStations: string[] = []; // Empty array
     const defaultKnownPrices = new Map<string, Map<string, number>>();
+    // Reset quest data to initial state
+    const defaultQuestState = initialQuestState;
+    const defaultQuestInventory = new Map<string, number>();
 
     setGameStateInternal((prev) => ({
       ...initialGameState, // Start with initial structure and defaults
@@ -780,7 +1033,9 @@ export function useGameState() {
       hasNavComputer: false,
       extraCargoCapacity: 0,
       shootCooldownFactor: 1.0,
-
+      // Reset quest data
+      questState: defaultQuestState,
+      questInventory: defaultQuestInventory,
       gameView: "playing", // Start directly in playing view
       isInitialized: true, // It's now initialized with new game state
       // Clear any lingering dynamic state
@@ -820,6 +1075,9 @@ export function useGameState() {
       engineBoosterLevel: 0,
       hasAutoloader: false,
       hasNavComputer: false,
+      // Save reset quest data
+      questState: defaultQuestState,
+      questInventory: defaultQuestInventory,
     });
 
     // Restart the save interval
@@ -845,6 +1103,9 @@ export function useGameState() {
             engineBoosterLevel: currentSyncState.engineBoosterLevel,
             hasAutoloader: currentSyncState.hasAutoloader,
             hasNavComputer: currentSyncState.hasNavComputer,
+            // Save quest data
+            questState: currentSyncState.questState,
+            questInventory: currentSyncState.questInventory,
           });
         }
         return currentSyncState;
@@ -869,5 +1130,11 @@ export function useGameState() {
     saveStationPrices, // Expose the new function
     purchaseUpgrade, // Expose upgrade purchase function
     totalCargoCapacity, // Expose derived cargo capacity
+    // Quest related exports
+    emitQuestEvent,
+    addQuestItem,
+    removeQuestItem,
+    questEngine: questEngineRef.current, // Expose engine instance for helpers like getObjectiveProgressText
+    emancipationScore, // Expose calculated score
   };
 }

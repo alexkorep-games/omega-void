@@ -1,16 +1,41 @@
 // src/game/state.ts
-import { IGameState, IPlayer, ITouchState } from "./types"; // Added IPosition
+import { IGameState, IPlayer, ICamera, ITouchState } from "./types";
 import { Player } from "./entities/Player";
 import {
   GAME_WIDTH,
+  GAME_HEIGHT,
   GAME_VIEW_HEIGHT,
   DEFAULT_STARTING_CASH,
   DEFAULT_STARTING_SHIELD,
+  DEFAULT_ANIMATION_DURATION,
+  BASE_CARGO_CAPACITY,
 } from "./config";
+import { initialQuestState } from "../quests/QuestState"; // Import initial quest state
 
-// Create default player instance
+// // Create default player instance
 export const initialPlayerState: IPlayer = new Player(0, 0);
 initialPlayerState.maxShield = DEFAULT_STARTING_SHIELD; // Initialize maxShield
+
+// TODO refactor this to use the player instance
+const initialPlayer: IPlayer = {
+  id: "player",
+  x: 0,
+  y: 0,
+  angle: -Math.PI / 2, // Pointing up
+  vx: 0,
+  vy: 0,
+  size: 20,
+  radius: 10,
+  color: "#00FF00",
+  shieldLevel: 100,
+  maxShield: 100,
+};
+
+// Initial camera position (centered on player initially)
+const initialCamera: ICamera = {
+  x: initialPlayer.x - GAME_WIDTH / 2,
+  y: initialPlayer.y - GAME_HEIGHT / 2,
+};
 
 export const initialTouchState: ITouchState = {
   move: {
@@ -24,49 +49,49 @@ export const initialTouchState: ITouchState = {
   shoot: { active: false, id: null, x: 0, y: 0 },
 };
 
+// Initial game state
 export const initialGameState: IGameState = {
   player: initialPlayerState,
   enemies: [],
   projectiles: [],
   visibleBackgroundObjects: [],
-  camera: { x: 0, y: 0 },
+  camera: initialCamera,
   lastEnemySpawnTime: 0,
   lastShotTime: 0,
   enemyIdCounter: 0,
-  // Game Flow properties
   gameView: "playing", // Start in playing mode
-  dockingStationId: null, // No station docked initially
+  dockingStationId: null,
   animationState: {
-    type: null, // 'docking' or 'undocking'
-    progress: 0, // Milliseconds elapsed
-    duration: 1500, // Total duration in ms
+    type: null,
+    progress: 0,
+    duration: DEFAULT_ANIMATION_DURATION,
   },
-  // Player Resource properties
-  cash: DEFAULT_STARTING_CASH, // Starting cash
-  cargoHold: new Map<string, number>(), // Start with empty cargo
-  baseCargoCapacity: 10, // Base capacity before upgrades
-  extraCargoCapacity: 0, // Capacity added by upgrades
-  lastDockedStationId: null, // Track last station for respawn
-  respawnTimer: 0, // Timer for respawn delay
+  cash: DEFAULT_STARTING_CASH,
+  lastDockedStationId: null,
+  respawnTimer: 0,
   isInitialized: false,
-  market: null, // No market data initially
-  // Destruction animations
-  activeDestructionAnimations: [], // Initialize as empty array
-  // Station Log & Navigation
-  discoveredStations: [], // List of discovered station IDs in order
-  navTargetStationId: null, // ID of the station to navigate towards
-  navTargetDirection: null, // Calculated angle to nav target
-  navTargetCoordinates: null, // Coordinates of nav target
-  navTargetDistance: null, // Distance to nav target
-  viewTargetStationId: null, // Station ID to view in details screen
+  cargoHold: new Map<string, number>(),
+  baseCargoCapacity: BASE_CARGO_CAPACITY,
+  extraCargoCapacity: 0,
+  market: null,
+  activeDestructionAnimations: [],
+  discoveredStations: [],
+  navTargetStationId: null,
+  navTargetDirection: null,
+  navTargetCoordinates: null,
+  navTargetDistance: null,
+  viewTargetStationId: null,
   knownStationPrices: new Map<string, Map<string, number>>(),
-  // --- Upgrades ---
+  // Upgrade levels
   cargoPodLevel: 0,
   shieldCapacitorLevel: 0,
   engineBoosterLevel: 0,
   hasAutoloader: false,
   hasNavComputer: false,
   shootCooldownFactor: 1.0,
+  // --- Quest System ---
+  questState: initialQuestState, // Initialize quest state
+  questInventory: new Map<string, number>(), // Initialize empty quest inventory
 };
 
 // updateCamera function remains the same

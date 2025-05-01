@@ -8,7 +8,7 @@ interface ToolbarButtonProps {
   label: string;
   targetView: GameView;
   currentView: GameView;
-  onClick: (state: GameView) => void;
+  onClick: (state: GameView | (() => void)) => void; // Allow function for action buttons
   disabled?: boolean;
   title?: string;
 }
@@ -34,17 +34,28 @@ const ToolbarButton: React.FC<ToolbarButtonProps> = ({
       currentView === "buy_cargo" ||
       currentView === "sell_cargo" ||
       currentView === "upgrade_ship"; // Add upgrade screen here
+  } else if (targetView === "contract_log") {
+    // Make Contract button active for its view
+    isActive = currentView === "contract_log";
   } else {
     // Default: active only if exact match
     isActive = currentView === targetView;
   }
+
+  const handleClick = () => {
+    if (!disabled) {
+      // If targetView is a valid GameView, pass it to onClick
+      // If it's an action (like undock), the action itself is passed in button definition
+      onClick(targetView);
+    }
+  };
 
   return (
     <button
       className={`toolbar-button ${isActive ? "active" : ""} ${
         disabled ? "disabled" : ""
       }`}
-      onClick={() => !disabled && onClick(targetView)}
+      onClick={handleClick} // Use internal handler
       disabled={disabled}
       title={title || label}
     >
@@ -57,39 +68,50 @@ const BottomToolbar: React.FC = () => {
   const { gameState, setGameView, initiateUndocking } = useGameState();
 
   const handleNavigate = useCallback(
-    (targetView: GameView) => {
-      // Always navigate to the *docked* station info when clicking the main Info button
-      if (targetView === "station_info") {
-        setGameView("station_info");
-      }
-      // Always navigate to the trade select screen when clicking Trade button (or related)
-      else if (targetView === "trade_select") {
-        setGameView("trade_select");
+    (targetViewOrAction: GameView | (() => void)) => {
+      if (typeof targetViewOrAction === "function") {
+        // If it's an action function (like initiateUndocking), call it
+        targetViewOrAction();
       } else {
-        setGameView(targetView);
+        // Otherwise, it's a GameView, set the view
+        // Special handling for primary navigation buttons to reset sub-views if needed
+        if (targetViewOrAction === "station_info") setGameView("station_info");
+        else if (targetViewOrAction === "trade_select")
+          setGameView("trade_select");
+        // Add other primary views if necessary
+        else setGameView(targetViewOrAction); // Default navigation
       }
     },
-    [setGameView]
+    [setGameView] // Removed initiateUndocking from deps, passed directly
   );
 
   // Define the buttons and their target game views or actions
   const buttons: Array<{
     label: string;
-    targetView: GameView;
-    action?: () => void;
+    targetView: GameView | (() => void);
+    title?: string;
   }> = [
     {
-      label: "Trade", // Label remains "Trade"
-      targetView: "trade_select", // Always targets the trade select screen
-      action: () => setGameView("trade_select"), // Ensure it goes to trade_select
+      label: "Trade",
+      targetView: "trade_select",
+      title: "Access Market & Shipyard",
     },
-    { label: "Undock", targetView: "undocking", action: initiateUndocking },
-    { label: "Info", targetView: "station_info" }, // Always targets the main info screen
+    { label: "Undock", targetView: initiateUndocking, title: "Leave Station" }, // Pass action directly
+    {
+      label: "Info",
+      targetView: "station_info",
+      title: "View Station Information",
+    },
+    {
+      label: "Contract",
+      targetView: "contract_log",
+      title: "View Contract Status",
+    }, // NEW Contract button
     {
       label: "Messages",
       targetView: "chat_log",
       action: () => setGameView("chat_log"),
-    },
+    }, // Keep if needed
   ];
 
   // Determine which views show the toolbar
@@ -102,6 +124,7 @@ const BottomToolbar: React.FC = () => {
     "station_log", // Show on Station Log
     "station_details", // Show on Station Details
     "upgrade_ship", // Show on Upgrade Screen
+    "contract_log", // Show toolbar on contract log screen
   ];
 
   // Only render if the current gameView is one where the toolbar should be visible
@@ -115,10 +138,15 @@ const BottomToolbar: React.FC = () => {
         <ToolbarButton
           key={button.label}
           label={button.label}
-          targetView={button.targetView}
+          // Pass the targetView or action function to onClick handler
+          targetView={
+            typeof button.targetView === "string"
+              ? button.targetView
+              : gameState.gameView
+          } // Pass dummy view if action
           currentView={gameState.gameView}
-          onClick={button.action || handleNavigate} // Use specific action if provided, else navigate
-          title={button.label} // Simple title for now
+          onClick={() => handleNavigate(button.targetView)} // Pass target/action to handler
+          title={button.title}
         />
       ))}
     </div>

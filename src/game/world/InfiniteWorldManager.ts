@@ -1,6 +1,12 @@
 // src/game/world/InfiniteWorldManager.ts
 import { SeedablePRNG } from "./SeedablePRNG";
 import { Asteroid } from "../entities/Asteroid";
+import { FIXED_STATIONS } from "./FixedStations"; // Import fixed stations
+import {
+  Beacon,
+  BEACON_COLOR,
+  BEACON_ACTIVATED_COLOR,
+} from "../entities/Beacon"; // Import Beacon entity and colors
 import {
   IWorldManagerConfig,
   BackgroundObject,
@@ -8,6 +14,7 @@ import {
   EconomyType,
   TechLevel,
   IStation,
+  IBeacon,
 } from "../types";
 import {
   WORLD_CELL_SIZE,
@@ -149,9 +156,10 @@ export class InfiniteWorldManager {
   ];
 
   private config: Required<IWorldManagerConfig>; // Use Required to ensure all props are set
-  private prng: SeedablePRNG;
   private avgStarsPerCell: number;
   private generatedObjectsCache: Map<string, BackgroundObject[]> = new Map(); // Cache generated cell objects
+  private fixedStationsMap: Map<string, IStation>; // Use Map for faster lookup
+  private generatedBeacons: Map<string, IBeacon>; // Store generated beacons
 
   constructor(config: IWorldManagerConfig = {}) {
     // Provide default values using || and ?? operators
@@ -173,11 +181,37 @@ export class InfiniteWorldManager {
       // --- Add defaults for new config options ---
       economyTypes: config.economyTypes ?? DEFAULT_ECONOMY_TYPES,
       techLevels: config.techLevels ?? DEFAULT_TECH_LEVELS,
+      fixedStations: config.fixedStations ?? FIXED_STATIONS, // Use provided or default
     };
 
-    this.prng = new SeedablePRNG();
     this.avgStarsPerCell =
       this.config.starBaseDensity * this.config.cellSize * this.config.cellSize;
+    // Initialize fixed stations map
+    this.fixedStationsMap = new Map(
+      this.config.fixedStations.map((fs) => [fs.id, fs])
+    );
+    // Initialize and generate beacons
+    this.generatedBeacons = new Map();
+    this._generateBeacons(); // Call beacon generation
+    console.log(
+      `WorldManager Initialized. Fixed Stations: ${this.fixedStationsMap.size}, Beacons: ${this.generatedBeacons.size}`
+    );
+  }
+
+  // NEW: Method to generate fixed beacons
+  private _generateBeacons(): void {
+    // Define beacon coordinates and IDs (match quest requirements)
+    const beaconCoords = [
+      { x: -4500, y: 4800, idSuffix: "nw_key1" }, // Beacon 1
+      { x: 4800, y: 4700, idSuffix: "ne_key2" }, // Beacon 2
+      { x: -4800, y: -4600, idSuffix: "sw_key3" }, // Beacon 3
+      { x: 4700, y: -4800, idSuffix: "se_key4" }, // Beacon 4
+    ];
+    beaconCoords.forEach((coord) => {
+      const beacon = new Beacon(coord.x, coord.y, coord.idSuffix);
+      this.generatedBeacons.set(beacon.id, beacon);
+    });
+    console.log(`Generated ${this.generatedBeacons.size} Beacons.`);
   }
 
   private _getCellSeed(cellX: number, cellY: number): number {
@@ -208,20 +242,32 @@ export class InfiniteWorldManager {
 
     const objects: BackgroundObject[] = [];
     const cellSeed = this._getCellSeed(cellX, cellY);
-    this.prng.setSeed(cellSeed); // Use the deterministic cell seed
-
+    const cellPrng = new SeedablePRNG(cellSeed);
     const cellWorldX = cellX * this.config.cellSize;
     const cellWorldY = cellY * this.config.cellSize;
 
-    // --- Generate Stars ---
-    const numStars = this.prng.randomInt(
+    // Check if this cell contains a fixed station
+    let hasFixedStation = false;
+    for (const fs of this.fixedStationsMap.values()) {
+      const fixedCellX = Math.floor(fs.x / this.config.cellSize);
+      const fixedCellY = Math.floor(fs.y / this.config.cellSize);
+      if (fixedCellX === cellX && fixedCellY === cellY) {
+        objects.push(fs); // Add fixed station reference
+        hasFixedStation = true; // Mark that this cell has a fixed station
+        break; // Assume only one fixed station per cell max
+      }
+    }
+
+    // Generate Stars
+    const numStars = cellPrng.randomInt(
       Math.floor(this.avgStarsPerCell * 0.5),
       Math.ceil(this.avgStarsPerCell * 1.5) + 1
     );
     for (let i = 0; i < numStars; i++) {
-      const offsetX = this.prng.random() * this.config.cellSize;
-      const offsetY = this.prng.random() * this.config.cellSize;
-      const size = this.prng.randomFloat(
+      // ... star generation logic ...
+      const offsetX = cellPrng.random() * this.config.cellSize;
+      const offsetY = cellPrng.random() * this.config.cellSize;
+      const size = cellPrng.randomFloat(
         this.config.minStarSize,
         this.config.maxStarSize
       );
@@ -235,79 +281,74 @@ export class InfiniteWorldManager {
       });
     }
 
-    // --- Attempt to Generate Station ---
-    if (this.prng.random() < this.config.stationProbability) {
-      const offsetX = this.prng.randomFloat(0.3, 0.7) * this.config.cellSize;
-      const offsetY = this.prng.randomFloat(0.3, 0.7) * this.config.cellSize;
+    // Generate Procedural Station (only if no fixed station in this cell)
+    if (
+      !hasFixedStation &&
+      cellPrng.random() < this.config.stationProbability
+    ) {
+      // ... procedural station generation logic ...
+      const offsetX = cellPrng.randomFloat(0.3, 0.7) * this.config.cellSize;
+      const offsetY = cellPrng.randomFloat(0.3, 0.7) * this.config.cellSize;
       const stationX = cellWorldX + offsetX;
       const stationY = cellWorldY + offsetY;
-      const size = this.prng.randomFloat(
+      const size = cellPrng.randomFloat(
         this.config.minStationSize,
         this.config.maxStationSize
       );
-      const stationTypeIndex = this.prng.randomInt(
-        0,
-        this.config.stationTypes.length
-      );
-      const stationType = this.config.stationTypes[stationTypeIndex];
-      const id = `station_${cellX}_${cellY}`;
-
-      // --- Generate Economy & Tech Level (Deterministically) ---
-      const economyIndex = this.prng.randomInt(
-        0,
-        this.config.economyTypes.length
-      );
-      const techLevelIndex = this.prng.randomInt(
-        0,
-        this.config.techLevels.length
-      );
-      const economyType = this.config.economyTypes[economyIndex];
-      const techLevel = this.config.techLevels[techLevelIndex];
-
-      // Generate Name (using static arrays and PRNG)
-      let stationName = "";
-      const nameStyle = this.prng.randomInt(0, 5);
-      const coreName =
-        InfiniteWorldManager.stationCoreNames[
-          this.prng.randomInt(0, InfiniteWorldManager.stationCoreNames.length)
+      const stationType =
+        this.config.stationTypes[
+          cellPrng.randomInt(0, this.config.stationTypes.length)
         ];
+      const id = `station_${cellX}_${cellY}`;
+      const economyType =
+        this.config.economyTypes[
+          cellPrng.randomInt(0, this.config.economyTypes.length)
+        ];
+      const techLevel =
+        this.config.techLevels[
+          cellPrng.randomInt(0, this.config.techLevels.length)
+        ];
+      let stationName = "";
+      const nameStyle = cellPrng.randomInt(0, 5);
       const prefix =
         InfiniteWorldManager.stationPrefixes[
-          this.prng.randomInt(0, InfiniteWorldManager.stationPrefixes.length)
+          cellPrng.randomInt(0, InfiniteWorldManager.stationPrefixes.length)
+        ];
+      const coreName =
+        InfiniteWorldManager.stationCoreNames[
+          cellPrng.randomInt(0, InfiniteWorldManager.stationCoreNames.length)
         ];
       const designator =
         InfiniteWorldManager.stationDesignators[
-          this.prng.randomInt(0, InfiniteWorldManager.stationDesignators.length)
+          cellPrng.randomInt(0, InfiniteWorldManager.stationDesignators.length)
         ];
       const numeral =
         InfiniteWorldManager.stationNumerals[
-          this.prng.randomInt(0, InfiniteWorldManager.stationNumerals.length)
+          cellPrng.randomInt(0, InfiniteWorldManager.stationNumerals.length)
         ];
-      const number = this.prng.randomInt(1, 999);
-      const shortNum = this.prng.randomInt(1, 12);
-
       switch (nameStyle) {
         case 0:
-          stationName = `${prefix} ${coreName} ${number}`;
+          stationName = `${prefix} ${coreName}`;
           break;
         case 1:
-          stationName = `${coreName} ${numeral}`;
-          break;
-        case 2:
           stationName = `${coreName} ${designator}`;
           break;
+        case 2:
+          stationName = `${prefix} ${numeral}`;
+          break;
         case 3:
-          stationName = `${prefix} ${shortNum}`;
+          stationName = `${coreName} ${numeral}`;
           break;
-        case 4: {
-          const letter = String.fromCharCode(65 + this.prng.randomInt(0, 5));
-          stationName = `${coreName} ${shortNum}-${letter}`;
+        case 4:
+          stationName = `${prefix} ${coreName} ${designator}`;
           break;
-        }
         default:
-          stationName = `${coreName} Station ${number}`;
+          stationName = `${coreName} Station ${cellPrng.randomInt(1, 999)}`;
           break;
       }
+      const initialAngle = cellPrng.random() * Math.PI * 2;
+      const rotationSpeed =
+        cellPrng.randomFloat(0.1, 1.6) * (cellPrng.random() < 0.5 ? 1 : -1);
 
       objects.push({
         id: id,
@@ -315,44 +356,38 @@ export class InfiniteWorldManager {
         name: stationName,
         x: stationX,
         y: stationY,
+        isFixed: false,
         size: size,
         radius: size / 2,
         color: this.config.stationColor,
         stationType: stationType,
-        initialAngle: this.prng.random() * Math.PI * 2,
-        rotationSpeed:
-          this.prng.randomFloat(0.1, 1.6) * (this.prng.random() < 0.5 ? 1 : -1),
-        angle: 0, // Initial angle will be set based on initialAngle later
-        // --- Assign generated market properties ---
+        initialAngle: initialAngle,
+        rotationSpeed: rotationSpeed,
+        angle: initialAngle, // Initialize angle
         economyType: economyType,
         techLevel: techLevel,
-        coordinates: { x: stationX, y: stationY }, // Store coordinates
+        coordinates: { x: stationX, y: stationY },
       });
     }
 
-    // --- Generate Asteroids ---
-    const densityNoise = this.prng.random(); // 0 to 1
-    const highDensity = densityNoise > 0.45; // Threshold for high density belts
-    const baseChance = highDensity ? 0.9 : 0.3; // Base chance of spawning any asteroids
-
-    if (this.prng.random() < baseChance) {
-      const n = highDensity ? this.prng.randomInt(8, 16) : 1; // Cluster (8-15) vs. singleton
+    // Generate Asteroids
+    const densityNoise = cellPrng.random();
+    const highDensity = densityNoise > 0.45;
+    const baseChance = highDensity ? 0.9 : 0.3;
+    if (cellPrng.random() < baseChance) {
+      // ... asteroid generation logic ...
+      const n = highDensity ? cellPrng.randomInt(8, 16) : 1;
       for (let i = 0; i < n; i++) {
-        const localX =
-          cellWorldX + this.prng.randomFloat(0, this.config.cellSize);
-        const localY =
-          cellWorldY + this.prng.randomFloat(0, this.config.cellSize);
-
-        const orbitRadius = this.prng.randomFloat(10, 50);
-        const initialAngle = this.prng.randomFloat(0, Math.PI * 2);
-
+        const orbitRadius = cellPrng.randomFloat(10, 50);
+        const initialAngle = cellPrng.randomFloat(0, Math.PI * 2);
         const asteroid = new Asteroid(
-          localX, // Center X of orbit
-          localY, // Center Y of orbit
-          initialAngle, // Initial angular position on orbit
-          orbitRadius, // Radius of the orbit
-          this.prng.randomFloat(10, 28) // Size (diameter) of the asteroid
+          cellWorldX + this.config.cellSize / 2, // Orbit center X
+          cellWorldY + this.config.cellSize / 2, // Orbit center Y
+          initialAngle,
+          orbitRadius,
+          cellPrng.randomFloat(10, 28) // Size (diameter) of the asteroid
         );
+        // Initial position update
         objects.push(asteroid);
       }
     }
@@ -376,40 +411,69 @@ export class InfiniteWorldManager {
     viewHeight: number
   ): BackgroundObject[] {
     const visibleObjects: BackgroundObject[] = [];
+    const addedIds = new Set<string>(); // Track added object IDs to avoid duplicates
 
+    // Calculate view boundaries with buffer
     const bufferX = (viewWidth * (this.config.viewBufferFactor - 1)) / 2;
     const bufferY = (viewHeight * (this.config.viewBufferFactor - 1)) / 2;
-
     const viewLeft = cameraX - bufferX;
     const viewTop = cameraY - bufferY;
     const viewRight = cameraX + viewWidth + bufferX;
     const viewBottom = cameraY + viewHeight + bufferY;
 
+    // Determine cell range to check
     const minCellX = Math.floor(viewLeft / this.config.cellSize);
     const maxCellX = Math.floor(viewRight / this.config.cellSize);
     const minCellY = Math.floor(viewTop / this.config.cellSize);
     const maxCellY = Math.floor(viewBottom / this.config.cellSize);
 
+    const currentTimeSeconds = Date.now() / 1000.0; // For dynamic updates (rotation, orbit)
+
+    // Iterate through relevant cells
     for (let cx = minCellX; cx <= maxCellX; cx++) {
       for (let cy = minCellY; cy <= maxCellY; cy++) {
         const cellObjects = this._generateObjectsForCell(cx, cy);
-        visibleObjects.push(...cellObjects);
+        cellObjects.forEach((obj) => {
+          // Check if object is within view bounds and not already added
+          if (
+            !addedIds.has(obj.id) &&
+            obj.x >= viewLeft &&
+            obj.x <= viewRight &&
+            obj.y >= viewTop &&
+            obj.y <= viewBottom
+          ) {
+            // Update dynamic properties (like asteroid orbit, station rotation)
+            if (obj.type === "asteroid") {
+              (obj as Asteroid).update(currentTimeSeconds);
+            } else if (obj.type === "station") {
+              const station = obj as IStation;
+              station.angle =
+                (station.initialAngle +
+                  currentTimeSeconds * station.rotationSpeed) %
+                (Math.PI * 2);
+              if (station.angle < 0) station.angle += Math.PI * 2;
+            }
+            visibleObjects.push(obj);
+            addedIds.add(obj.id);
+          }
+        });
       }
     }
 
-    // Update dynamic properties like station angle *after* retrieval/generation
-    const currentTimeSeconds = Date.now() / 1000.0;
-    visibleObjects.forEach((obj) => {
-      if (obj.type === "station") {
-        // Update angle based on time
-        obj.angle =
-          (obj.initialAngle + currentTimeSeconds * obj.rotationSpeed) %
-          (Math.PI * 2);
-        if (obj.angle < 0) {
-          obj.angle += Math.PI * 2;
-        }
+    // Add visible Beacons (they are not in cell cache)
+    for (const beacon of this.generatedBeacons.values()) {
+      if (
+        !addedIds.has(beacon.id) &&
+        beacon.x >= viewLeft &&
+        beacon.x <= viewRight &&
+        beacon.y >= viewTop &&
+        beacon.y <= viewBottom
+      ) {
+        // Beacon state (color) is managed internally or by game logic, just add if visible
+        visibleObjects.push(beacon);
+        addedIds.add(beacon.id);
       }
-    });
+    }
 
     return visibleObjects;
   }
@@ -418,32 +482,64 @@ export class InfiniteWorldManager {
    * Retrieves a specific station by its ID, generating the cell if necessary.
    * Returns null if the ID format is incorrect or the station doesn't exist in that cell.
    */
-  getStationById(stationId: string): IStation | null {
-    if (!stationId || !stationId.startsWith("station_")) {
-      return null;
+  getStationById(stationId: string | null): IStation | null {
+    if (!stationId) return null;
+
+    // Check fixed stations first
+    const fixedStation = this.fixedStationsMap.get(stationId);
+    if (fixedStation) {
+      // Update angle dynamically based on current time
+      const currentTimeSeconds = Date.now() / 1000.0;
+      fixedStation.angle =
+        (fixedStation.initialAngle +
+          currentTimeSeconds * fixedStation.rotationSpeed) %
+        (Math.PI * 2);
+      if (fixedStation.angle < 0) fixedStation.angle += Math.PI * 2;
+      return fixedStation;
     }
+
+    // Check cache for procedural stations
+    for (const cellCache of this.generatedObjectsCache.values()) {
+      const found = cellCache.find(
+        (obj) => obj.id === stationId && obj.type === "station"
+      );
+      if (found) {
+        // Update angle dynamically based on current time
+        const station = found as IStation;
+        const currentTimeSeconds = Date.now() / 1000.0;
+        station.angle =
+          (station.initialAngle + currentTimeSeconds * station.rotationSpeed) %
+          (Math.PI * 2);
+        if (station.angle < 0) station.angle += Math.PI * 2;
+        return station;
+      }
+    }
+
+    // If not in cache, determine cell and generate/find (for procedural stations)
+    if (!stationId.startsWith("station_")) return null; // Fixed stations handled above
     try {
       const parts = stationId.split("_");
+      // Expecting "station_X_Y" format for procedural
       if (parts.length !== 3) return null;
       const cellX = parseInt(parts[1], 10);
       const cellY = parseInt(parts[2], 10);
       if (isNaN(cellX) || isNaN(cellY)) return null;
 
+      // Generate objects for the cell (or retrieve from cache)
       const cellObjects = this._generateObjectsForCell(cellX, cellY);
-      const station = cellObjects.find((obj) => obj.id === stationId);
+      const station = cellObjects.find(
+        (obj): obj is IStation => obj.id === stationId && obj.type === "station"
+      );
 
-      // Update angle for the specific station before returning
-      if (station && station.type === "station") {
+      if (station) {
+        // Update angle dynamically based on current time
         const currentTimeSeconds = Date.now() / 1000.0;
         station.angle =
           (station.initialAngle + currentTimeSeconds * station.rotationSpeed) %
           (Math.PI * 2);
-        if (station.angle < 0) {
-          station.angle += Math.PI * 2;
-        }
-        return station;
+        if (station.angle < 0) station.angle += Math.PI * 2;
       }
-      return null; // Station not found in its designated cell
+      return station || null; // Return found station or null
     } catch (e) {
       console.error(`Error getting station by ID ${stationId}:`, e);
       return null;
@@ -472,5 +568,29 @@ export class InfiniteWorldManager {
       }
     }
     return enemyIdsToRemove;
+  }
+
+  // NEW: Get a specific beacon by its ID
+  getBeaconById(beaconId: string): IBeacon | null {
+    return this.generatedBeacons.get(beaconId) || null;
+  }
+
+  // NEW: Update the state (and color) of a beacon
+  updateBeaconState(beaconId: string, active: boolean): void {
+    const beacon = this.generatedBeacons.get(beaconId);
+    if (beacon) {
+      // Only update if state actually changed
+      if (beacon.isActive !== active) {
+        beacon.isActive = active;
+        beacon.color = active ? BEACON_ACTIVATED_COLOR : BEACON_COLOR; // Update color
+        console.log(
+          `Beacon ${beaconId} state updated to: ${
+            active ? "ACTIVE" : "INACTIVE"
+          }`
+        );
+      }
+    } else {
+      console.warn(`Attempted to update non-existent beacon: ${beaconId}`);
+    }
   }
 }

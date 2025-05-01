@@ -6,6 +6,7 @@ import {
   IStar,
   IStation,
   IPosition,
+  IBeacon,
 } from "../game/types";
 import * as C from "../game/config"; // Use C for brevity
 
@@ -19,6 +20,7 @@ import KonvaHUD from "./canvas/KonvaHUD";
 import KonvaTouchControls from "./canvas/KonvaTouchControls";
 import KonvaDestructionParticle from "./canvas/KonvaDestructionParticle";
 import KonvaAsteroid from "./canvas/KonvaAsteroid"; // Import Asteroid renderer
+import KonvaBeacon from "./canvas/KonvaBeacon"; // Import Beacon renderer
 
 // --- Interfaces ---
 interface GameCanvasProps {
@@ -139,6 +141,17 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
             <KonvaAsteroid
               key={asteroid.id}
               asteroid={asteroid}
+              offsetX={offsetX}
+              offsetY={offsetY}
+            />
+          ))}
+        {/* Beacons */}
+        {gameState.visibleBackgroundObjects
+          .filter((obj) => obj.type === "beacon")
+          .map((beacon) => (
+            <KonvaBeacon
+              key={beacon.id}
+              beacon={beacon as IBeacon}
               offsetX={offsetX}
               offsetY={offsetY}
             />

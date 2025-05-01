@@ -1,5 +1,6 @@
 // src/game/types.ts
 import { MarketSnapshot } from "./Market"; // Import MarketSnapshot
+import { QuestState } from "../quests/QuestState"; // Import QuestState
 
 // Basic position
 export interface IPosition {
@@ -27,6 +28,7 @@ export interface IPlayer extends IGameObject {
 // Enemy specific
 export interface IEnemy extends IGameObject {
   angle: number; // Usually facing direction
+  role?: "hunter" | "pirate" | "drone"; // Added for potential quest logic
 }
 
 // Projectile specific
@@ -44,7 +46,8 @@ export type EconomyType =
   | "Poor Industrial"
   | "Industrial"
   | "Rich Industrial"
-  | "High Tech";
+  | "High Tech"
+  | "Pirate";
 
 export type TechLevel =
   | "TL0" // Pre-industrial
@@ -78,18 +81,26 @@ export interface IStation extends IPosition {
   economyType: EconomyType;
   techLevel: TechLevel;
   coordinates: IPosition;
+  isFixed?: boolean; // Optional flag for fixed stations
+}
+
+// NEW: Beacon type
+export interface IBeacon extends IPosition {
+  id: string;
+  type: "beacon";
+  size: number;
+  radius: number;
+  color: string;
+  isActive: boolean; // Whether the player has interacted with it
 }
 
 export interface IAsteroid extends IPosition, IGameObject {
   type: "asteroid";
   spin: number; // radians per frame
-  orbitR: number; // big radius – gives “straight line” illusion
-  orbitAngle: number;
-  orbitSpeed: number; // tiny – e.g. 0.0002
   angle: number; // Visual rotation angle, updated by spin
 }
 
-export type BackgroundObject = IStar | IStation | IAsteroid;
+export type BackgroundObject = IStar | IStation | IAsteroid | IBeacon; // Added IBeacon
 
 // Camera
 export type ICamera = IPosition;
@@ -129,7 +140,9 @@ export type GameView =
   | "trade_select"
   | "upgrade_ship" // New view for upgrades
   | "destroyed"
-  | "chat_log";
+  | "chat_log"
+  | "contract_log" // New view for quest/contract status
+  | "won"; // State after completing the objective
 
 // Animation State
 export interface IAnimationState {
@@ -164,6 +177,13 @@ export interface DestructionAnimationData {
   particles: ParticleState[]; // Pre-calculated particle parameters
 }
 // --- End Destruction Animation ---
+
+// --- Quest Item ---
+export interface QuestItemDefinition {
+  id: string;
+  name: string;
+  description: string;
+}
 
 // Game State
 export interface IGameState {
@@ -202,6 +222,9 @@ export interface IGameState {
   hasAutoloader: boolean; // false/true
   hasNavComputer: boolean; // false/true
   shootCooldownFactor: number; // 1.0 or 0.5
+  // --- Quest System ---
+  questState: QuestState;
+  questInventory: Map<string, number>; // Map<QuestItemID, count>
 }
 
 // World Manager Config
@@ -222,6 +245,7 @@ export interface IWorldManagerConfig {
   viewBufferFactor?: number;
   economyTypes?: EconomyType[];
   techLevels?: TechLevel[];
+  fixedStations?: IStation[]; // Added for fixed stations
 }
 
 // Update function signature used in useGameLoop
@@ -230,6 +254,7 @@ export type UpdateCallback = (deltaTime: number, now: number) => void;
 // --- Chat ---
 export interface ChatMessage {
   id: string | number;
-  sender: "user" | "ai";
+  sender: "user" | "ai" | "system"; // Added system sender
   text: string;
+  timestamp?: number;
 }
