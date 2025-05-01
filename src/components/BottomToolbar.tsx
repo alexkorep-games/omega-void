@@ -35,6 +35,8 @@ const ToolbarButton: React.FC<ToolbarButtonProps> = ({
   } else if (targetView === "chat_log") {
     // Added chat log active state check
     isActive = currentView === "chat_log";
+  } else if (targetView === "station_log") {
+    isActive = true;
   }
 
   const handleClick = () => {
@@ -110,8 +112,9 @@ const BottomToolbar: React.FC = () => {
     "station_log",
     "station_details",
     "upgrade_ship",
+    "contract_log",
   ];
-
+console.log('gameState.gameView', gameState.gameView);
   // Only render if the current gameView is one where the toolbar should be visible
   if (!toolbarVisibleViews.includes(gameState.gameView)) {
     return null;
