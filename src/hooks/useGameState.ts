@@ -518,7 +518,7 @@ export function useGameState() {
         ...prevState,
         player: loadedPlayer,
         cash: loadedData.cash,
-        cargoHold: new Map(loadedData.cargoHold),
+        cargoHold: loadedData.cargoHold,
         lastDockedStationId: loadedData.lastDockedStationId,
         discoveredStations: loadedData.discoveredStations,
         knownStationPrices: loadedData.knownStationPrices,

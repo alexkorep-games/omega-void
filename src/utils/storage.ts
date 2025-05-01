@@ -49,9 +49,9 @@ export function loadGameState(): SaveData {
     if (jsonString) {
       const loadedData: SaveData = JSON.parse(jsonString);
       // Convert arrays back to Maps
-      const cargoHoldMap = new Map(loadedData.cargoHold);
+      const cargoHoldMap = loadedData.cargoHold;
       const knownPricesMap = loadedData.knownStationPrices;
-      const questInventoryMap = new Map(loadedData.questInventory); // Convert quest inventory array back to Map
+      const questInventoryMap = loadedData.questInventory;
 
       // Validate loaded quest state structure (simple check)
       const validQuestState =

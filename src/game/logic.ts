@@ -18,12 +18,8 @@ import { distance } from "../utils/geometry";
 import * as C from "./config"; // Use C for brevity
 
 // --- Constants for Hexagon Docking ---
-const DOCKING_ENTRANCE_CENTER_ANGLE = Math.PI;
-const DOCKING_ENTRANCE_HALF_SPAN = Math.PI / 12;
-const DOCKING_MIN_RELATIVE_ANGLE =
-  DOCKING_ENTRANCE_CENTER_ANGLE - DOCKING_ENTRANCE_HALF_SPAN;
-const DOCKING_MAX_RELATIVE_ANGLE =
-  DOCKING_ENTRANCE_CENTER_ANGLE + DOCKING_ENTRANCE_HALF_SPAN;
+const DOCKING_MIN_RELATIVE_ANGLE = -Math.PI + Math.PI / 6;
+const DOCKING_MAX_RELATIVE_ANGLE = Math.PI - Math.PI / 6;
 
 /**
  * Normalizes an angle to the range [-PI, PI].
@@ -357,13 +353,14 @@ function handleCollisions(
           const worldAngle = Math.atan2(dy, dx);
           const relativeAngle = normalizeAngle(worldAngle - station.angle); // Angle relative to station's orientation
           const isAngleCorrect =
-            relativeAngle >= DOCKING_MIN_RELATIVE_ANGLE &&
-            relativeAngle <= DOCKING_MAX_RELATIVE_ANGLE;
+            relativeAngle <= DOCKING_MIN_RELATIVE_ANGLE ||
+            relativeAngle >= DOCKING_MAX_RELATIVE_ANGLE;
 
+          const stationEntranceDepth = 10;
           // Trigger docking if angle is correct, close enough, and speed is low
           if (
             isAngleCorrect &&
-            distToCenter < player.radius + station.radius * 1.2
+            distToCenter < player.radius + station.radius - stationEntranceDepth
           ) {
             dockingTriggerStationId = station.id;
             player.vx = 0;
@@ -371,8 +368,16 @@ function handleCollisions(
             break; // Docking triggered, stop checking other objects for player
           }
 
+          const distToCenterPushBackAccountingEntrance = isAngleCorrect
+            ? -stationEntranceDepth
+            : 0;
+
           // Apply pushback if overlapping and not docking
-          if (!dockingTriggerStationId && distToCenter < pushbackThreshold) {
+          if (
+            !dockingTriggerStationId &&
+            distToCenter <
+              pushbackThreshold + distToCenterPushBackAccountingEntrance
+          ) {
             const pushAngle = Math.atan2(
               player.y - station.y,
               player.x - station.x
