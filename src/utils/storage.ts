@@ -1,4 +1,5 @@
 // src/utils/storage.ts
+import { DEFAULT_STARTING_CASH } from "../game/config";
 import { IPosition } from "../game/types";
 import { QuestState, initialQuestState } from "../quests/QuestState"; // Import QuestState and initialQuestState
 
@@ -8,10 +9,10 @@ const SAVE_KEY = "omegaVoidSaveData_v0.1"; // Update version if save format chan
 interface SaveData {
   coordinates: IPosition;
   cash: number;
-  cargoHold: [string, number][]; // Store Map as array of key-value pairs
+  cargoHold: Map<string, number>; // Store Map as array of key-value pairs
   lastDockedStationId: string | null;
   discoveredStations: string[];
-  knownStationPrices: [string, [string, number][]][]; // Store nested Map
+  knownStationPrices: Map<string, Map<string, number>>;
   // Upgrade levels
   cargoPodLevel: number;
   shieldCapacitorLevel: number;
@@ -20,28 +21,17 @@ interface SaveData {
   hasNavComputer: boolean;
   // Quest data
   questState: QuestState;
-  questInventory: [string, number][]; // Store Map as array
+  questInventory: Map<string, number>;
 }
 
 // --- Save Game State ---
-export function saveGameState(
-  data: Omit<
-    SaveData,
-    "cargoHold" | "knownStationPrices" | "questInventory"
-  > & {
-    cargoHold: Map<string, number>;
-    knownStationPrices: Map<string, Map<string, number>>;
-    questInventory: Map<string, number>; // Add quest inventory to input type
-  }
-): void {
+export function saveGameState(data: SaveData): void {
   try {
     const saveData: SaveData = {
       ...data,
-      cargoHold: Array.from(data.cargoHold.entries()),
-      knownStationPrices: Array.from(data.knownStationPrices.entries()).map(
-        ([stationId, priceMap]) => [stationId, Array.from(priceMap.entries())]
-      ),
-      questInventory: Array.from(data.questInventory.entries()), // Convert quest inventory Map to array
+      cargoHold: data.cargoHold,
+      knownStationPrices: data.knownStationPrices,
+      questInventory: data.questInventory,
     };
     const jsonString = JSON.stringify(saveData);
     localStorage.setItem(SAVE_KEY, jsonString);
@@ -52,23 +42,15 @@ export function saveGameState(
 }
 
 // --- Load Game State ---
-export function loadGameState(): SaveData & {
-  cargoHold: Map<string, number>;
-  knownStationPrices: Map<string, Map<string, number>>;
-  questInventory: Map<string, number>; // Add quest inventory to output type
-} {
+// Update the return type of loadGameState to correctly reflect the structure
+export function loadGameState(): SaveData {
   try {
     const jsonString = localStorage.getItem(SAVE_KEY);
     if (jsonString) {
       const loadedData: SaveData = JSON.parse(jsonString);
       // Convert arrays back to Maps
       const cargoHoldMap = new Map(loadedData.cargoHold);
-      const knownPricesMap = new Map(
-        loadedData.knownStationPrices.map(([stationId, priceArray]) => [
-          stationId,
-          new Map(priceArray),
-        ])
-      );
+      const knownPricesMap = loadedData.knownStationPrices;
       const questInventoryMap = new Map(loadedData.questInventory); // Convert quest inventory array back to Map
 
       // Validate loaded quest state structure (simple check)
@@ -95,18 +77,18 @@ export function loadGameState(): SaveData & {
   console.log("No valid save data found, returning defaults.");
   return {
     coordinates: { x: 0, y: 0 },
-    cash: 500, // Default starting cash
-    cargoHold: new Map<string, number>(),
+    cash: DEFAULT_STARTING_CASH,
+    cargoHold: new Map(),
     lastDockedStationId: null,
     discoveredStations: [],
-    knownStationPrices: new Map<string, Map<string, number>>(),
+    knownStationPrices: new Map(),
     cargoPodLevel: 0,
     shieldCapacitorLevel: 0,
     engineBoosterLevel: 0,
     hasAutoloader: false,
     hasNavComputer: false,
-    questState: initialQuestState, // Default quest state
-    questInventory: new Map<string, number>(), // Default empty quest inventory
+    questState: initialQuestState,
+    questInventory: new Map(),
   };
 }
 

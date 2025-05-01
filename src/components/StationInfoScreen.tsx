@@ -1,7 +1,6 @@
 /* src/components/StationInfoScreen.tsx */
 import React, { useCallback } from "react";
 import { useGameState } from "../hooks/useGameState";
-import { GameView } from "../game/types"; // Import GameView type
 import "./Market.css"; // Reuse Market CSS for layout and theming
 
 const StationInfoScreen: React.FC = () => {

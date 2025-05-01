@@ -67,7 +67,7 @@ describe("logic.ts", () => {
   test("playing update with no input is no-op", () => {
     const state = makeBaseState();
     const now = performance.now();
-    const newState = updateGameStateLogic(
+    const { newState } = updateGameStateLogic(
       state,
       undefined,
       worldManager,
@@ -91,19 +91,19 @@ describe("logic.ts", () => {
     };
     const now = performance.now();
     // advance more than respawnTimer
-    const result = updateGameStateLogic(
+    const { newState } = updateGameStateLogic(
       deadState,
       undefined,
       worldManager,
       100,
       now
     );
-    expect(result.gameView).toBe("playing");
-    expect(result.respawnTimer).toBe(0);
-    expect(result.enemies).toHaveLength(0);
-    expect(result.projectiles).toHaveLength(0);
+    expect(newState.gameView).toBe("playing");
+    expect(newState.respawnTimer).toBe(0);
+    expect(newState.enemies).toHaveLength(0);
+    expect(newState.projectiles).toHaveLength(0);
     // New player instance at some position (not NaN)
-    expect(result.player.x).not.toBeNaN();
-    expect(result.player.shieldLevel).toBe(C.DEFAULT_STARTING_SHIELD);
+    expect(newState.player.x).not.toBeNaN();
+    expect(newState.player.shieldLevel).toBe(C.DEFAULT_STARTING_SHIELD);
   });
 });

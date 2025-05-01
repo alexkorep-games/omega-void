@@ -221,7 +221,6 @@ export function useGameState() {
                     itemId: key,
                     quantity: qty - prevQty,
                     method: "buy",
-                    stationId: prev.dockingStationId ?? "",
                   }),
                 0
               );
@@ -237,7 +236,6 @@ export function useGameState() {
                     itemId: key,
                     quantity: qty - nextQty,
                     method: "sell",
-                    stationId: prev.dockingStationId ?? "",
                   }),
                 0
               );
@@ -354,7 +352,7 @@ export function useGameState() {
           );
           return prev;
         }
-        let updatedState = { ...prev };
+        const updatedState = { ...prev };
         updatedState.cash -= cost;
         const nextLevel = currentLevel + 1;
         switch (upgradeKey) {
@@ -520,7 +518,7 @@ export function useGameState() {
         ...prevState,
         player: loadedPlayer,
         cash: loadedData.cash,
-        cargoHold: loadedData.cargoHold,
+        cargoHold: new Map(loadedData.cargoHold),
         lastDockedStationId: loadedData.lastDockedStationId,
         discoveredStations: loadedData.discoveredStations,
         knownStationPrices: loadedData.knownStationPrices,
