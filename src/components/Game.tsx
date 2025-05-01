@@ -165,7 +165,7 @@ const Game: React.FC = () => {
     "trade_select",
     "upgrade_ship",
     "chat_log",
-    // "contract_log" // <-- REMOVED from toolbar list
+    "contract_log",
   ].includes(gameState.gameView);
 
   return (

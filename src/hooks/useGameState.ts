@@ -1,5 +1,5 @@
 // src/hooks/useGameState.ts
-import { useCallback, useMemo, useRef, useEffect } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { atom, useAtom } from "jotai";
 import {
   IGameState,
@@ -87,6 +87,7 @@ export const UPGRADE_CONFIG: Record<
 };
 
 const gameStateAtom = atom<IGameState>(initialGameState);
+const questEngine = new QuestEngine(V01_QUEST_DEFINITIONS);
 
 export function useGameState() {
   const [gameState, setGameStateInternal] = useAtom(gameStateAtom);
@@ -95,7 +96,6 @@ export function useGameState() {
     []
   );
   const saveIntervalId = useRef<number | null>(null);
-  const questEngineRef = useRef(new QuestEngine(V01_QUEST_DEFINITIONS));
 
   const totalCargoCapacity = useMemo(() => {
     return gameState.baseCargoCapacity + gameState.extraCargoCapacity;
@@ -105,7 +105,7 @@ export function useGameState() {
     if (!gameState.questState || !gameState.questState.quests["freedom_v01"]) {
       return 0;
     }
-    return questEngineRef.current.calculateQuestCompletion(
+    return questEngine.calculateQuestCompletion(
       "freedom_v01",
       gameState.questState
     );
@@ -156,13 +156,13 @@ export function useGameState() {
       setGameStateInternal((prevState) => {
         if (!prevState.player || !prevState.questState) return prevState;
         const currentContextState = { ...prevState };
-        const nextQuestState = questEngineRef.current.update(
+        const nextQuestState = questEngine.update(
           prevState.questState,
           event,
           currentContextState
         );
         if (nextQuestState !== prevState.questState) {
-          const newScore = questEngineRef.current.calculateQuestCompletion(
+          const newScore = questEngine.calculateQuestCompletion(
             "freedom_v01",
             nextQuestState
           );
@@ -829,7 +829,7 @@ export function useGameState() {
         }
 
         // --- Final State Check (Win Condition) ---
-        const finalScore = questEngineRef.current.calculateQuestCompletion(
+        const finalScore = questEngine.calculateQuestCompletion(
           "freedom_v01",
           nextLogicState.questState
         );
@@ -973,7 +973,7 @@ export function useGameState() {
     emitQuestEvent,
     addQuestItem,
     removeQuestItem,
-    questEngine: questEngineRef.current,
+    questEngine: questEngine,
     emancipationScore,
   };
 }

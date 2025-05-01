@@ -114,7 +114,6 @@ const BottomToolbar: React.FC = () => {
     "upgrade_ship",
     "contract_log",
   ];
-console.log('gameState.gameView', gameState.gameView);
   // Only render if the current gameView is one where the toolbar should be visible
   if (!toolbarVisibleViews.includes(gameState.gameView)) {
     return null;
