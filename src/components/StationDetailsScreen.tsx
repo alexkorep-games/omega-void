@@ -27,8 +27,12 @@ const StationDetailsScreen: React.FC<StationDetailsScreenProps> = ({
     setNavTarget,
     saveStationPrices,
   } = useGameState();
-  const { navTargetStationId, cash } = gameState;
+  const { navTargetStationId, cash, market: currentMarket } = gameState; // Get currentMarket
   const [station, setStation] = useState<IStation | null>(null);
+  // State to hold the generated market snapshot for the VIEWED station
+  const [stationMarket, setStationMarket] = useState<MarketSnapshot | null>(
+    null
+  );
 
   useEffect(() => {
     // Fetch station data when the stationId prop changes
@@ -37,7 +41,7 @@ const StationDetailsScreen: React.FC<StationDetailsScreenProps> = ({
       if (foundStation) {
         setStation(foundStation);
 
-        // Generate market data for this station
+        // Generate market data for THIS (viewed) station
         const marketData = MarketGenerator.generate(
           foundStation,
           WORLD_SEED,
@@ -52,7 +56,7 @@ const StationDetailsScreen: React.FC<StationDetailsScreenProps> = ({
 
         // Save prices to game state (which handles localStorage persistence)
         saveStationPrices(stationId, prices);
-        // Set local state to display prices
+        // Set local state to display prices for the VIEWED station
         setStationMarket(marketData);
       } else {
         setStation(null);
@@ -62,7 +66,9 @@ const StationDetailsScreen: React.FC<StationDetailsScreenProps> = ({
       setStation(null); // Clear station if ID is null
       setStationMarket(null); // Clear market if ID is null
     }
-  }, [stationId, findStationById, saveStationPrices]); // Add saveStationPrices to dependencies
+    // Dependencies: stationId, findStationById, saveStationPrices
+    // Note: Don't add currentMarket here, as it changes frequently and shouldn't trigger re-fetching VIEWED station data
+  }, [stationId, findStationById, saveStationPrices]);
 
   const handleLogClick = useCallback(() => {
     setGameView("station_log"); // Navigate back to the log
@@ -75,11 +81,7 @@ const StationDetailsScreen: React.FC<StationDetailsScreenProps> = ({
     setNavTarget(newTargetId);
   }, [station, navTargetStationId, setNavTarget]);
 
-  // State to hold the generated market snapshot for display
-  const [stationMarket, setStationMarket] = useState<MarketSnapshot | null>(
-    null
-  );
-
+  // --- Loading / Error States ---
   if (!stationId) {
     return (
       <div className="market-container info-screen">
@@ -117,13 +119,13 @@ const StationDetailsScreen: React.FC<StationDetailsScreenProps> = ({
 
   return (
     <div className="market-container info-screen">
-      {" "}
       {/* Use info-screen class for styling */}
       <div className="market-header">
         <div className="market-title">{station.name}</div>
         <div className="market-credits">{cash.toFixed(1)} CR</div>
       </div>
       <div className="station-info-content">
+        {/* ... (Station Info items remain the same) ... */}
         <div className="info-item">
           <span className="info-label">Type:</span>
           <span className="info-value">{station.stationType}</span>
@@ -157,47 +159,77 @@ const StationDetailsScreen: React.FC<StationDetailsScreenProps> = ({
             >
               Commodity Prices
             </h3>
-            {/* Reuse market table structure */}
             <div
               className="market-table-container"
-              style={{ maxHeight: "150px" }}
+              style={{ maxHeight: "180px" }} // Increase height slightly if needed
             >
-              {" "}
-              {/* Limit height */}
               <table className="market-table">
                 <thead>
                   <tr>
                     <th>Commodity</th>
                     <th>Unit</th>
-                    <th>Price (CR)</th>
-                    {/* Hide 4th column */}
-                    <th style={{ display: "none" }}></th>
+                    <th>Price</th>
+                    <th>Diff</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {COMMODITIES.filter((c) => stationMarket.get(c.key)).map(
-                    (commodityDef) => {
-                      const marketState = stationMarket.get(commodityDef.key);
-                      return (
-                        <tr key={commodityDef.key}>
-                          <td>{commodityDef.key}</td>
-                          <td>{getCommodityUnit(commodityDef.key)}</td>
-                          <td>
-                            {marketState ? marketState.price.toFixed(1) : "-"}
-                          </td>
-                          <td style={{ display: "none" }}></td>
-                        </tr>
-                      );
+                  {COMMODITIES.filter(
+                    (c) => !!stationMarket.get(c.key) // Ensure the viewed station has the commodity
+                  ).map((commodityDef) => {
+                    const targetMarketInfo = stationMarket.get(
+                      commodityDef.key
+                    )!; // We know it exists due to filter
+                    const currentMarketInfo = currentMarket?.get(
+                      // Get from DOCKED market (might be null)
+                      commodityDef.key
+                    );
+
+                    let diffText = "-";
+                    let diffColor = "#aaaaaa"; // Default grey for difference
+
+                    // Calculate difference ONLY if we are docked somewhere AND that market has the item
+                    if (currentMarket && currentMarketInfo) {
+                      const diff =
+                        targetMarketInfo.price - currentMarketInfo.price;
+                      if (!isNaN(diff)) {
+                        diffText = `${diff > 0 ? "+" : ""}${diff.toFixed(1)}`;
+                        if (diff > 0.1) diffColor = "#00FF00";
+                        // Green for profit opportunity (target higher)
+                        else if (diff < -0.1) diffColor = "#FF5555"; // Red for loss (target lower)
+                      }
+                    } else if (currentMarket && !currentMarketInfo) {
+                      // Docked, but current station doesn't trade this item
+                      diffText = "N/A";
                     }
-                  )}
+                    // If not docked (currentMarket is null), diffText remains '-'
+
+                    return (
+                      <tr key={commodityDef.key}>
+                        <td>{commodityDef.key}</td>
+                        <td>{getCommodityUnit(commodityDef.key)}</td>
+                        <td>{targetMarketInfo.price.toFixed(1)}</td>
+                        <td
+                          style={{ color: diffColor, textAlign: "right" }}
+                          title={
+                            currentMarket
+                              ? `vs Current: ${
+                                  currentMarketInfo?.price.toFixed(1) ?? "N/A"
+                                }`
+                              : "Not docked"
+                          }
+                        >
+                          {diffText}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           </div>
         )}
-        {/* Add more details as needed */}
 
-        {/* Action Buttons Area */}
+        {/* ... (Action Buttons Area remains the same) ... */}
         <div className="station-info-actions">
           <button className="station-info-button" onClick={handleLogClick}>
             BACK TO LOG
