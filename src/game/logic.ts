@@ -609,8 +609,28 @@ export function updateGameStateLogic(
       );
     }
 
-    // Spawn new enemies
+    // --- Enemy Spawning Check ---
+    // Check if player is near any visible station *before* spawning
+    const isPlayerNearStation = newState.visibleBackgroundObjects.some(
+      (obj) => {
+        // Check only stations and ensure player exists
+        if (obj.type === "station" && newState.player) {
+          const dist = distance(
+            newState.player.x,
+            newState.player.y,
+            obj.x,
+            obj.y
+          );
+          // Check distance against the threshold defined in config
+          return dist < C.ENEMY_SPAWN_NEAR_STATION_THRESHOLD;
+        }
+        return false; // Not a station or player missing
+      }
+    );
+
+    // Spawn new enemies ONLY IF NOT near a station
     if (
+      !isPlayerNearStation &&
       now - newState.lastEnemySpawnTime > C.ENEMY_SPAWN_INTERVAL &&
       newState.enemies.length < C.MAX_ENEMIES
     ) {

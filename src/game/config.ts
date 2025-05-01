@@ -65,6 +65,7 @@ export const DEFAULT_STARTING_SHIELD = 100;
 // Gameplay Tuning
 export const ENEMY_SHIELD_DAMAGE = 10;
 export const RESPAWN_DELAY_MS = 3000;
+export const ENEMY_SPAWN_NEAR_STATION_THRESHOLD = 600;
 
 // *** NEW: Destruction Animation Config ***
 export const DESTRUCTION_ANIMATION_DURATION_BASE = 1000; // Base duration in ms
