@@ -280,7 +280,7 @@ export const COMMODITIES: CommodityDefinition[] = [
     },
   },
   {
-    key: "Narcotics", // Or "Controlled Substances", "Spices" etc.
+    key: "Controlled Substances", // Or "Controlled Substances", "Spices" etc.
     basePrice: 2500, // High value
     baseQuantity: 0.8, // Low quantity
     unit: "kg", // Valuable per kg

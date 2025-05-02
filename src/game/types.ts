@@ -57,7 +57,8 @@ export type TechLevel =
   | "TL4" // Common Interstellar
   | "TL5" // Advanced Interstellar
   | "TL6" // Exotic/Experimental Tech
-  | "TL7"; // Theoretical/Hyper Tech
+  | "TL7" // Theoretical/Hyper Tech
+  | "TL8"; // Transcendent Tech
 
 // Background objects from World Manager
 export interface IStar extends IPosition {
