@@ -3,7 +3,7 @@ import { createPlayer, updateGameStateLogic } from "./logic";
 import { IGameState } from "./types";
 import { InfiniteWorldManager } from "./world/InfiniteWorldManager";
 import * as C from "./config";
-import { CommodityState, MarketSnapshot } from "./Market";
+import { MarketSnapshot } from "./Market";
 
 // Minimal mock for InfiniteWorldManager
 class MockWorldManager implements Partial<InfiniteWorldManager> {
@@ -21,16 +21,7 @@ const worldManager = new MockWorldManager() as unknown as InfiniteWorldManager;
 
 // Helper to build a baseline game state
 function makeBaseState(): IGameState {
-  const market: MarketSnapshot = {
-    timestamp: Date.now(),
-    table: new Map<string, CommodityState>(),
-    get(key: string) {
-      return this.table.get(key);
-    },
-    entries() {
-      return this.table.entries();
-    },
-  };
+  const market: MarketSnapshot = new MarketSnapshot(Date.now(), {});
 
   return {
     player: createPlayer(10, 20),
@@ -41,7 +32,7 @@ function makeBaseState(): IGameState {
     lastShotTime: 0,
     visibleBackgroundObjects: [],
     activeDestructionAnimations: [],
-    cargoHold: new Map(),
+    cargoHold: {},
     camera: { x: 0, y: 0 },
     gameView: "playing" as const,
     respawnTimer: 0,

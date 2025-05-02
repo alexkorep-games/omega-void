@@ -70,7 +70,7 @@ export const initialGameState: IGameState = {
   lastDockedStationId: null,
   respawnTimer: 0,
   isInitialized: false,
-  cargoHold: new Map<string, number>(),
+  cargoHold: {},
   baseCargoCapacity: BASE_CARGO_CAPACITY,
   extraCargoCapacity: 0,
   market: null,
@@ -81,7 +81,7 @@ export const initialGameState: IGameState = {
   navTargetCoordinates: null,
   navTargetDistance: null,
   viewTargetStationId: null,
-  knownStationPrices: new Map<string, Map<string, number>>(),
+  knownStationPrices: {},
   // Upgrade levels
   cargoPodLevel: 0,
   shieldCapacitorLevel: 0,
@@ -91,7 +91,7 @@ export const initialGameState: IGameState = {
   shootCooldownFactor: 1.0,
   // --- Quest System ---
   questState: initialQuestState, // Initialize quest state
-  questInventory: new Map<string, number>(), // Initialize empty quest inventory
+  questInventory: {}, // Initialize empty quest inventory
 };
 
 // updateCamera function remains the same

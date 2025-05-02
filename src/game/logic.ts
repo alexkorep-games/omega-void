@@ -492,7 +492,7 @@ export function updateGameStateLogic(
       newState = {
         ...newState,
         player: respawnedPlayer,
-        cargoHold: new Map(), // Lose cargo on destruction
+        cargoHold: {}, // Initialize as an empty Record
         gameView: "playing", // Back to playing
         respawnTimer: 0,
         enemies: [], // Clear enemies

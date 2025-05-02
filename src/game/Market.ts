@@ -250,23 +250,25 @@ export interface CommodityState {
   quantity: number; // units available
 }
 
+export type CommodityPrices = Record<string, number>;
+export type CommodityTable = Record<string, CommodityState>;
 export class MarketSnapshot {
   readonly timestamp: number; // visit serial (0,1,2,…)
-  readonly table: Map<string, CommodityState>;
+  readonly table: Record<string, CommodityState>;
 
-  constructor(timestamp: number, table: Map<string, CommodityState>) {
+  constructor(timestamp: number, table: CommodityTable) {
     this.timestamp = timestamp;
     this.table = table;
   }
 
   /** Get price+stock for a given commodity key */
   get(key: string): CommodityState | undefined {
-    return this.table.get(key);
+    return this.table[key];
   }
 
   /** Iterate through all commodities */
   entries(): IterableIterator<[string, CommodityState]> {
-    return this.table.entries();
+    return Object(this.table).entries();
   }
 }
 
@@ -295,7 +297,7 @@ export class MarketGenerator {
     );
     const rng = new SeedablePRNG(seed);
 
-    const table = new Map<string, CommodityState>();
+    const table: CommodityTable = {};
 
     for (const c of COMMODITIES) {
       // Check tech gate
@@ -343,7 +345,7 @@ export class MarketGenerator {
 
       // Only add to market if quantity > 0 or price > 0 (should always be true for price)
       if (quantity > 0 || price > 0) {
-        table.set(c.key, { price, quantity });
+        table[c.key] = { price, quantity };
       }
     }
 

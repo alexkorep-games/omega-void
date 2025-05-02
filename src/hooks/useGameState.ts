@@ -8,6 +8,7 @@ import {
   GameView,
   IPlayer,
   IPosition,
+  CargoHold,
 } from "../game/types";
 import { initialGameState } from "../game/state";
 import { updateGameStateLogic, createPlayer } from "../game/logic";
@@ -88,6 +89,9 @@ export const UPGRADE_CONFIG: Record<
 
 const gameStateAtom = atom<IGameState>(initialGameState);
 const questEngine = new QuestEngine(V01_QUEST_DEFINITIONS);
+
+// Define default known prices as an empty Record
+const defaultKnownPrices: Record<string, CommodityState> = {};
 
 export function useGameState() {
   const [gameState, setGameStateInternal] = useAtom(gameStateAtom);
@@ -251,9 +255,8 @@ export function useGameState() {
   const addQuestItem = useCallback(
     (itemId: QuestItemId, quantity: number = 1) => {
       setGameStateInternal((prev) => {
-        const currentCount = prev.questInventory.get(itemId) || 0;
-        const newInventory = new Map(prev.questInventory);
-        newInventory.set(itemId, currentCount + quantity);
+        const currentCount = prev.questInventory[itemId] || 0;
+        const newInventory = { ...prev.questInventory, [itemId]: currentCount + quantity };
         setTimeout(
           () =>
             emitQuestEvent({
@@ -265,9 +268,7 @@ export function useGameState() {
           0
         );
         console.log(
-          `Added quest item: ${itemId} (x${quantity}). New total: ${newInventory.get(
-            itemId
-          )}`
+          `Added quest item: ${itemId} (x${quantity}). New total: ${newInventory[itemId]}`
         );
         return { ...prev, questInventory: newInventory };
       });
@@ -279,7 +280,7 @@ export function useGameState() {
     (itemId: QuestItemId, quantity: number = 1) => {
       let success = false;
       setGameStateInternal((prev) => {
-        const currentCount = prev.questInventory.get(itemId) || 0;
+        const currentCount = prev.questInventory[itemId] || 0;
         if (currentCount < quantity) {
           console.warn(
             `Cannot remove quest item ${itemId}: Have ${currentCount}, need ${quantity}`
@@ -287,12 +288,12 @@ export function useGameState() {
           success = false;
           return prev;
         }
-        const newInventory = new Map(prev.questInventory);
+        const newInventory = { ...prev.questInventory };
         const newCount = currentCount - quantity;
         if (newCount <= 0) {
-          newInventory.delete(itemId);
+          delete newInventory[itemId];
         } else {
-          newInventory.set(itemId, newCount);
+          newInventory[itemId] = newCount;
         }
         success = true;
         setTimeout(
@@ -307,7 +308,7 @@ export function useGameState() {
         );
         console.log(
           `Removed quest item: ${itemId} (x${quantity}). New total: ${
-            newInventory.get(itemId) ?? 0
+            newInventory[itemId] ?? 0
           }`
         );
         return { ...prev, questInventory: newInventory };
@@ -418,10 +419,9 @@ export function useGameState() {
   );
 
   const saveStationPrices = useCallback(
-    (stationId: string, prices: Map<string, number>) => {
+    (stationId: string, prices: Record<string, number>) => {
       setGameStateInternal((prev) => {
-        const newKnownPrices = new Map(prev.knownStationPrices);
-        newKnownPrices.set(stationId, prices);
+        const newKnownPrices = { ...prev.knownStationPrices, [stationId]: prices };
         return { ...prev, knownStationPrices: newKnownPrices };
       });
     },
@@ -858,12 +858,11 @@ export function useGameState() {
     }
     const defaultPosition = { x: 0, y: 0 };
     const defaultCash = initialGameState.cash;
-    const defaultCargo = new Map<string, number>();
+    const defaultCargo: CargoHold = {};
     const defaultLastDocked = null;
     const defaultDiscoveredStations: string[] = [];
-    const defaultKnownPrices = new Map<string, Map<string, number>>();
     const defaultQuestState = initialQuestState;
-    const defaultQuestInventory = new Map<string, number>();
+    const defaultQuestInventory: Record<string, number> = {}; // Replace Map with Record
     setGameStateInternal((prev) => ({
       ...initialGameState,
       player: createPlayer(defaultPosition.x, defaultPosition.y, 0),
@@ -871,7 +870,7 @@ export function useGameState() {
       cargoHold: defaultCargo,
       lastDockedStationId: defaultLastDocked,
       discoveredStations: defaultDiscoveredStations,
-      knownStationPrices: defaultKnownPrices,
+      knownStationPrices: {},
       cargoPodLevel: 0,
       shieldCapacitorLevel: 0,
       engineBoosterLevel: 0,

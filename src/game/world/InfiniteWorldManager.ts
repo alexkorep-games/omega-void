@@ -157,9 +157,9 @@ export class InfiniteWorldManager {
 
   private config: Required<IWorldManagerConfig>; // Use Required to ensure all props are set
   private avgStarsPerCell: number;
-  private generatedObjectsCache: Map<string, BackgroundObject[]> = new Map(); // Cache generated cell objects
-  private fixedStationsMap: Map<string, IStation>; // Use Map for faster lookup
-  private generatedBeacons: Map<string, IBeacon>; // Store generated beacons
+  private generatedObjectsCache: Record<string, BackgroundObject[]> = {}; // Replace Map with Record
+  private fixedStationsMap: Record<string, IStation> = {}; // Replace Map with Record
+  private generatedBeacons: Record<string, IBeacon> = {}; // Replace Map with Record
 
   constructor(config: IWorldManagerConfig = {}) {
     // Provide default values using || and ?? operators
@@ -187,14 +187,15 @@ export class InfiniteWorldManager {
     this.avgStarsPerCell =
       this.config.starBaseDensity * this.config.cellSize * this.config.cellSize;
     // Initialize fixed stations map
-    this.fixedStationsMap = new Map(
-      this.config.fixedStations.map((fs) => [fs.id, fs])
-    );
+    this.fixedStationsMap = this.config.fixedStations.reduce((acc, fs) => {
+      acc[fs.id] = fs;
+      return acc;
+    }, {} as Record<string, IStation>);
     // Initialize and generate beacons
-    this.generatedBeacons = new Map();
+    this.generatedBeacons = {};
     this._generateBeacons(); // Call beacon generation
     console.log(
-      `WorldManager Initialized. Fixed Stations: ${this.fixedStationsMap.size}, Beacons: ${this.generatedBeacons.size}`
+      `WorldManager Initialized. Fixed Stations: ${Object.keys(this.fixedStationsMap).length}, Beacons: ${Object.keys(this.generatedBeacons).length}`
     );
   }
 
@@ -209,9 +210,9 @@ export class InfiniteWorldManager {
     ];
     beaconCoords.forEach((coord) => {
       const beacon = new Beacon(coord.x, coord.y, coord.idSuffix);
-      this.generatedBeacons.set(beacon.id, beacon);
+      this.generatedBeacons[beacon.id] = beacon;
     });
-    console.log(`Generated ${this.generatedBeacons.size} Beacons.`);
+    console.log(`Generated ${Object.keys(this.generatedBeacons).length} Beacons.`);
   }
 
   private _getCellSeed(cellX: number, cellY: number): number {
@@ -236,8 +237,8 @@ export class InfiniteWorldManager {
     cellY: number
   ): BackgroundObject[] {
     const cellKey = `${cellX},${cellY}`;
-    if (this.generatedObjectsCache.has(cellKey)) {
-      return this.generatedObjectsCache.get(cellKey)!;
+    if (this.generatedObjectsCache[cellKey]) {
+      return this.generatedObjectsCache[cellKey];
     }
 
     const objects: BackgroundObject[] = [];
@@ -248,7 +249,7 @@ export class InfiniteWorldManager {
 
     // Check if this cell contains a fixed station
     let hasFixedStation = false;
-    for (const fs of this.fixedStationsMap.values()) {
+    for (const fs of Object.values(this.fixedStationsMap)) {
       const fixedCellX = Math.floor(fs.x / this.config.cellSize);
       const fixedCellY = Math.floor(fs.y / this.config.cellSize);
       if (fixedCellX === cellX && fixedCellY === cellY) {
@@ -392,7 +393,8 @@ export class InfiniteWorldManager {
       }
     }
 
-    this.generatedObjectsCache.set(cellKey, objects);
+    // Replace Map methods with Record operations
+    this.generatedObjectsCache[cellKey] = objects;
     return objects;
   }
 
@@ -434,7 +436,7 @@ export class InfiniteWorldManager {
       for (let cy = minCellY; cy <= maxCellY; cy++) {
         const cellObjects = this._generateObjectsForCell(cx, cy);
         cellObjects.forEach((obj) => {
-          // Check if object is within view bounds and not already added
+          // Replace Map methods with Record operations
           if (
             !addedIds.has(obj.id) &&
             obj.x >= viewLeft &&
@@ -461,7 +463,8 @@ export class InfiniteWorldManager {
     }
 
     // Add visible Beacons (they are not in cell cache)
-    for (const beacon of this.generatedBeacons.values()) {
+    for (const beaconId in this.generatedBeacons) {
+      const beacon = this.generatedBeacons[beaconId];
       if (
         !addedIds.has(beacon.id) &&
         beacon.x >= viewLeft &&
@@ -486,7 +489,7 @@ export class InfiniteWorldManager {
     if (!stationId) return null;
 
     // Check fixed stations first
-    const fixedStation = this.fixedStationsMap.get(stationId);
+    const fixedStation = this.fixedStationsMap[stationId];
     if (fixedStation) {
       // Update angle dynamically based on current time
       const currentTimeSeconds = Date.now() / 1000.0;
@@ -499,7 +502,7 @@ export class InfiniteWorldManager {
     }
 
     // Check cache for procedural stations
-    for (const cellCache of this.generatedObjectsCache.values()) {
+    for (const cellCache of Object.values(this.generatedObjectsCache)) {
       const found = cellCache.find(
         (obj) => obj.id === stationId && obj.type === "station"
       );
@@ -572,12 +575,12 @@ export class InfiniteWorldManager {
 
   // NEW: Get a specific beacon by its ID
   getBeaconById(beaconId: string): IBeacon | null {
-    return this.generatedBeacons.get(beaconId) || null;
+    return this.generatedBeacons[beaconId] || null;
   }
 
   // NEW: Update the state (and color) of a beacon
   updateBeaconState(beaconId: string, active: boolean): void {
-    const beacon = this.generatedBeacons.get(beaconId);
+    const beacon = this.generatedBeacons[beaconId];
     if (beacon) {
       // Only update if state actually changed
       if (beacon.isActive !== active) {

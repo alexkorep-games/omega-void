@@ -4,12 +4,17 @@ import { QuestState, QuestProgress, ObjectiveProgress } from "./QuestState";
 import { IGameState } from "../game/types";
 
 export class QuestEngine {
-  private definitions: Map<string, QuestDefinition>;
+  private definitions: Record<string, QuestDefinition>;
 
   constructor(definitions: QuestDefinition[]) {
-    this.definitions = new Map(definitions.map((def) => [def.id, def]));
+    this.definitions = definitions.reduce((acc, def) => {
+      acc[def.id] = def;
+      return acc;
+    }, {} as Record<string, QuestDefinition>);
     console.log(
-      `QuestEngine initialized with ${this.definitions.size} quest definitions.`
+      `QuestEngine initialized with ${
+        Object.keys(this.definitions).length
+      } quest definitions.`
     );
   }
 
@@ -22,7 +27,7 @@ export class QuestEngine {
     let stateChanged = false;
 
     // Initialize progress for any new quests
-    for (const questId of this.definitions.keys()) {
+    for (const questId of Object.keys(this.definitions)) {
       if (!nextState.quests[questId]) {
         nextState.quests[questId] = this.initializeQuestProgress(questId);
         stateChanged = true;
@@ -30,7 +35,7 @@ export class QuestEngine {
     }
 
     // Check objectives for all active quests
-    for (const questDef of this.definitions.values()) {
+    for (const questDef of Object.values(this.definitions)) {
       const questId = questDef.id;
       const questProgress = nextState.quests[questId];
       if (!questProgress) continue; // Should not happen after initialization step
@@ -74,7 +79,7 @@ export class QuestEngine {
   }
 
   private initializeQuestProgress(questId: string): QuestProgress {
-    const definition = this.definitions.get(questId);
+    const definition = this.definitions[questId];
     if (!definition) {
       console.error(
         `Cannot initialize progress for unknown quest ID: ${questId}`
@@ -107,12 +112,12 @@ export class QuestEngine {
           event.stationId === condition.stationId
         );
 
-      case "collectItem":
+      case "collectItem": {
         // Always check current state, update progress counter
-        const currentItemCount =
-          gameState.questInventory.get(condition.item) || 0;
+        const currentItemCount = gameState.questInventory[condition.item] || 0;
         objectiveProgress.current = currentItemCount;
         return currentItemCount >= condition.count;
+      }
 
       case "reachWaypoint":
         // Check event for waypoint reached
@@ -121,12 +126,12 @@ export class QuestEngine {
           event.waypointId === condition.waypointId
         );
 
-      case "haveCargo":
+      case "haveCargo": {
         // Always check current state, update progress counter
-        const currentCargoCount =
-          gameState.cargoHold.get(condition.commodity) || 0;
+        const currentCargoCount = gameState.cargoHold[condition.commodity] || 0;
         objectiveProgress.current = currentCargoCount;
         return currentCargoCount >= condition.count;
+      }
 
       case "killEnemy":
         // Update counter on event, then check total
@@ -141,7 +146,7 @@ export class QuestEngine {
         // Check if total count is met
         return ((objectiveProgress.current as number) || 0) >= condition.count;
 
-      case "deliverItem":
+      case "deliverItem": {
         // This condition is typically met by a specific player action (button press)
         // that consumes the item and potentially triggers an ITEM_REMOVED event.
         // The check here might verify if the player *could* deliver (docked + has item).
@@ -149,8 +154,7 @@ export class QuestEngine {
           gameState.gameView !== "playing" &&
           gameState.dockingStationId === condition.stationId;
         const hasRequiredItem =
-          (gameState.questInventory.get(condition.item) || 0) >=
-          condition.count;
+          (gameState.questInventory[condition.item] || 0) >= condition.count;
         objectiveProgress.data = {
           ...objectiveProgress.data,
           readyToDeliver: isDockedCorrectly && hasRequiredItem,
@@ -168,6 +172,7 @@ export class QuestEngine {
           return true;
         }
         return false;
+      }
 
       case "custom":
         // Pass full gameState to custom checks
@@ -185,7 +190,7 @@ export class QuestEngine {
     questId: string,
     questState: QuestState
   ): number {
-    const definition = this.definitions.get(questId);
+    const definition = this.definitions[questId];
     const progress = questState.quests[questId];
     if (!definition || !progress) return 0;
 
@@ -208,7 +213,7 @@ export class QuestEngine {
     objectiveId: string,
     questState: QuestState
   ): string {
-    const definition = this.definitions.get(questId);
+    const definition = this.definitions[questId];
     const objective = definition?.objectives.find(
       (obj) => obj.id === objectiveId
     );

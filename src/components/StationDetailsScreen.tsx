@@ -6,9 +6,11 @@ import {
   MarketGenerator,
   MarketSnapshot,
   getCommodityUnit,
-  COMMODITIES, // Import COMMODITIES list
+  COMMODITIES,
+  CommodityTable, // Import COMMODITIES list
 } from "../game/Market"; // Market logic
 import "./Market.css"; // Reuse Market CSS
+import { CommodityState, CommodityTable } from "../game/types"; // Import CommodityState and CommodityTable
 
 // Simple world seed for market generation (can be moved to config)
 const WORLD_SEED = 12345;
@@ -34,6 +36,9 @@ const StationDetailsScreen: React.FC<StationDetailsScreenProps> = ({
     null
   );
 
+  // State to hold temporary price edits
+  const [editedPrices, setEditedPrices] = useState<Record<string, number>>({});
+
   useEffect(() => {
     // Fetch station data when the stationId prop changes
     if (stationId) {
@@ -48,10 +53,9 @@ const StationDetailsScreen: React.FC<StationDetailsScreenProps> = ({
           Date.now()
         );
 
-        // Extract prices into a Map<string, number>
-        const prices = new Map<string, number>();
+        const prices: CommodityTable = {};
         for (const [key, state] of marketData.entries()) {
-          prices.set(key, state.price);
+          prices[key] = state.price;
         }
 
         // Save prices to game state (which handles localStorage persistence)
@@ -70,6 +74,20 @@ const StationDetailsScreen: React.FC<StationDetailsScreenProps> = ({
     // Note: Don't add currentMarket here, as it changes frequently and shouldn't trigger re-fetching VIEWED station data
   }, [stationId, findStationById, saveStationPrices]);
 
+  // Effect to initialize editedPrices when stationMarket changes
+  useEffect(() => {
+    if (stationMarket) {
+      const initialPrices: Record<string, number> = {};
+      // for (const [key, state] of stationMarket.table.entries()) { // OLD Map
+      Object.entries(stationMarket.table).forEach(([key, state]) => { // NEW Record
+        initialPrices[key] = state.price;
+      });
+      setEditedPrices(initialPrices);
+    } else {
+      setEditedPrices({}); // Clear if no market data
+    }
+  }, [stationMarket]);
+
   const handleLogClick = useCallback(() => {
     setGameView("station_log"); // Navigate back to the log
   }, [setGameView]);
@@ -80,6 +98,25 @@ const StationDetailsScreen: React.FC<StationDetailsScreenProps> = ({
     const newTargetId = navTargetStationId === station.id ? null : station.id;
     setNavTarget(newTargetId);
   }, [station, navTargetStationId, setNavTarget]);
+
+  const handlePriceChange = (commodityId: string, value: string) => {
+    const price = parseInt(value, 10);
+    if (!isNaN(price)) {
+      setEditedPrices((prev) => ({
+        ...prev,
+        [commodityId]: price,
+      }));
+    }
+  };
+
+  const handleSaveChanges = () => {
+    if (stationId) {
+      // Here we pass the Record<string, number> directly
+      saveStationPrices(stationId, editedPrices);
+      // Optionally provide user feedback (e.g., toast notification)
+      console.log("Prices saved for station:", stationId);
+    }
+  };
 
   // --- Loading / Error States ---
   if (!stationId) {
@@ -228,6 +265,52 @@ const StationDetailsScreen: React.FC<StationDetailsScreenProps> = ({
             </div>
           </div>
         )}
+
+        {/* Market Data Section */}
+        <div className="mt-4 p-4 bg-gray-700 rounded">
+          <h3 className="text-lg font-semibold mb-2">Market Data (Known Prices)</h3>
+          {/* Check size using Object.keys */}
+          {stationMarket && Object.keys(stationMarket.table).length > 0 ? (
+            <div>
+              <table className="w-full text-left table-auto">
+                <thead>
+                  <tr>
+                    <th className="px-4 py-2">Commodity</th>
+                    <th className="px-4 py-2">Known Price</th>
+                    <th className="px-4 py-2">Edit Price</th>
+                    {/* Add more columns if needed (e.g., Supply/Demand) */}
+                  </tr>
+                </thead>
+                <tbody>
+                  {/* Iterate using Object.entries */}
+                  {Object.entries(stationMarket.table).map(([key, state]) => (
+                    <tr key={key} className="border-t border-gray-600">
+                      <td className="px-4 py-2">{key}</td>
+                      <td className="px-4 py-2">{state.price} Cr</td>
+                      <td className="px-4 py-2">
+                        <input
+                          type="number"
+                          value={editedPrices[key] ?? ""}
+                          onChange={(e) => handlePriceChange(key, e.target.value)}
+                          className="bg-gray-800 border border-gray-600 rounded px-2 py-1 w-24"
+                        />
+                      </td>
+                      {/* Display supply/demand if available: <td className="px-4 py-2">{state.supply}</td> */}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <button
+                onClick={handleSaveChanges}
+                className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded transition duration-150"
+              >
+                Save Price Changes
+              </button>
+            </div>
+          ) : (
+            <p>No known market data for this station.</p>
+          )}
+        </div>
 
         {/* ... (Action Buttons Area remains the same) ... */}
         <div className="station-info-actions">

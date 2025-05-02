@@ -185,6 +185,27 @@ export interface QuestItemDefinition {
   description: string;
 }
 
+// Represents the state of a single commodity in a market
+export type CommodityState = {
+  price: number;
+  supply: number; // Or demand, depending on context
+  // Add other relevant state properties if needed (e.g., trend)
+};
+
+// Represents the entire market table (commodity -> state)
+// export type CommodityTable = Map<string, CommodityState>; // OLD
+export type CommodityTable = Record<string, CommodityState>; // NEW
+
+// Snapshot of market data at a specific time
+export interface IMarketSnapshot {
+  timestamp: number;
+  table: CommodityTable;
+}
+
+// Represents the player's cargo hold (commodity -> quantity)
+// export type CargoHold = Map<string, number>; // OLD - Removing alias
+// export type QuestInventory = Map<string, number>; // OLD
+
 // Game State
 export interface IGameState {
   player: IPlayer;
@@ -202,7 +223,8 @@ export interface IGameState {
   lastDockedStationId: string | null;
   respawnTimer: number;
   isInitialized: boolean;
-  cargoHold: Map<string, number>;
+  // cargoHold: Map<string, number>; // OLD
+  cargoHold: Record<string, number>; // NEW
   baseCargoCapacity: number; // Base capacity before upgrades
   extraCargoCapacity: number; // Capacity added by upgrades
   market: MarketSnapshot | null;
@@ -214,7 +236,8 @@ export interface IGameState {
   navTargetCoordinates: IPosition | null; // Coordinates of nav target
   navTargetDistance: number | null; // Added: Distance to nav target
   viewTargetStationId: string | null; // ID of station to view in details screen
-  knownStationPrices: Map<string, Map<string, number>>;
+  // knownStationPrices: Map<string, CommodityTable>; // OLD
+  knownStationPrices: Record<string, CommodityTable>; // NEW
   // --- Upgrades ---
   cargoPodLevel: number; // 0-4
   shieldCapacitorLevel: number; // 0-3
@@ -224,7 +247,8 @@ export interface IGameState {
   shootCooldownFactor: number; // 1.0 or 0.5
   // --- Quest System ---
   questState: QuestState;
-  questInventory: Map<string, number>; // Map<QuestItemID, count>
+  // questInventory: Map<string, number>; // OLD - Items needed for quests
+  questInventory: Record<string, number>; // NEW - Items needed for quests
 }
 
 // World Manager Config

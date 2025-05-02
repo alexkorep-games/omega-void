@@ -49,7 +49,7 @@ export function useTradeCargoLogic(mode: TradeMode) {
   // --- Memoized Calculations ---
   const cargoSpaceLeft = useMemo(() => {
     let used = 0;
-    cargoHold.forEach((quantity, key) => {
+    Object.entries(cargoHold).forEach(([key, quantity]) => {
       used += quantity * getTonnesPerUnit(key);
     });
     // Use totalCargoCapacity derived from the hook
@@ -75,7 +75,7 @@ export function useTradeCargoLogic(mode: TradeMode) {
       if (!market || quantity <= 0) return false;
 
       const marketInfo = market.get(key);
-      const playerHolding = cargoHold.get(key) || 0;
+      const playerHolding = cargoHold[key] || 0;
 
       if (!marketInfo) {
         showMessage("Error: Item not traded at this station.", "error");
@@ -102,12 +102,12 @@ export function useTradeCargoLogic(mode: TradeMode) {
 
         // --- Perform Buy Update ---
         updatePlayerState((prevState) => {
-          const newCargo = new Map(prevState.cargoHold);
-          newCargo.set(key, (newCargo.get(key) || 0) + quantity);
+          const updatedCargoHold = { ...prevState.cargoHold }; // Convert to Record
+          updatedCargoHold[key] = (updatedCargoHold[key] || 0) + quantity;
           return {
             ...prevState,
             cash: prevState.cash - cost,
-            cargoHold: newCargo,
+            cargoHold: updatedCargoHold,
           };
         });
         updateMarketQuantity(key, -quantity); // Decrease market stock
@@ -137,18 +137,18 @@ export function useTradeCargoLogic(mode: TradeMode) {
 
         // --- Perform Sell Update ---
         updatePlayerState((prevState) => {
-          const newCargo = new Map(prevState.cargoHold);
-          const currentQty = newCargo.get(key) || 0;
+          const updatedCargoHold = { ...prevState.cargoHold }; // Convert to Record
+          const currentQty = updatedCargoHold[key] || 0;
           const newQty = currentQty - quantity;
           if (newQty <= 0) {
-            newCargo.delete(key);
+            delete updatedCargoHold[key];
           } else {
-            newCargo.set(key, newQty);
+            updatedCargoHold[key] = newQty;
           }
           return {
             ...prevState,
             cash: prevState.cash + earnings,
-            cargoHold: newCargo,
+            cargoHold: updatedCargoHold,
           };
         });
         updateMarketQuantity(key, +quantity); // Increase market stock
@@ -192,13 +192,13 @@ export function useTradeCargoLogic(mode: TradeMode) {
             key,
             marketPrice: state.price,
             marketQuantity: state.quantity,
-            playerHolding: cargoHold.get(key) || 0, // Show holding even when buying
+            playerHolding: cargoHold[key] || 0, // Show holding even when buying
           })
         )
         .sort((a, b) => a.key.localeCompare(b.key)); // Sort alphabetically
     } else if (mode === "sell") {
-      items = Array.from(cargoHold.entries())
-        .filter((row) => row[1] > 0) // Only list items held
+      items = Object.entries(cargoHold)
+        .filter(([, holding]) => holding > 0) // Only list items held
         .map(([key, holding]): TradeItemDisplay | null => {
           const marketInfo = market.get(key);
           // Only list if market actually buys it (has a price > 0)
@@ -232,7 +232,7 @@ export function useTradeCargoLogic(mode: TradeMode) {
       if (mode === "buy") {
         quantityToTrade = 1;
       } else if (mode === "sell") {
-        quantityToTrade = cargoHold.get(key) || 0;
+        quantityToTrade = cargoHold[key] || 0;
       }
 
       if (quantityToTrade > 0) {

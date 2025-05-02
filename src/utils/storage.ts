@@ -9,10 +9,10 @@ const SAVE_KEY = "omegaVoidSaveData_v0.1"; // Update version if save format chan
 interface SaveData {
   coordinates: IPosition;
   cash: number;
-  cargoHold: Map<string, number>; // Store Map as array of key-value pairs
+  cargoHold: Record<string, number>; // Store Map as Record of key-value pairs
   lastDockedStationId: string | null;
   discoveredStations: string[];
-  knownStationPrices: Map<string, Map<string, number>>;
+  knownStationPrices: Record<string, Record<string, number>>;
   // Upgrade levels
   cargoPodLevel: number;
   shieldCapacitorLevel: number;
@@ -21,7 +21,7 @@ interface SaveData {
   hasNavComputer: boolean;
   // Quest data
   questState: QuestState;
-  questInventory: Map<string, number>;
+  questInventory: Record<string, number>;
 }
 
 // --- Save Game State ---
@@ -29,9 +29,9 @@ export function saveGameState(data: SaveData): void {
   try {
     const saveData: SaveData = {
       ...data,
-      cargoHold: data.cargoHold,
-      knownStationPrices: data.knownStationPrices,
-      questInventory: data.questInventory,
+      cargoHold: data.cargoHold, // Already a Record
+      knownStationPrices: data.knownStationPrices, // Already a Record
+      questInventory: data.questInventory, // Already a Record
     };
     const jsonString = JSON.stringify(saveData);
     localStorage.setItem(SAVE_KEY, jsonString);
@@ -48,10 +48,6 @@ export function loadGameState(): SaveData {
     const jsonString = localStorage.getItem(SAVE_KEY);
     if (jsonString) {
       const loadedData: SaveData = JSON.parse(jsonString);
-      // Convert arrays back to Maps
-      const cargoHoldMap = loadedData.cargoHold;
-      const knownPricesMap = loadedData.knownStationPrices;
-      const questInventoryMap = loadedData.questInventory;
 
       // Validate loaded quest state structure (simple check)
       const validQuestState =
@@ -63,10 +59,7 @@ export function loadGameState(): SaveData {
       console.log("Game state loaded.");
       return {
         ...loadedData,
-        cargoHold: cargoHoldMap,
-        knownStationPrices: knownPricesMap,
         questState: validQuestState, // Return validated or initial quest state
-        questInventory: questInventoryMap, // Return converted quest inventory
       };
     }
   } catch (error) {
@@ -78,17 +71,17 @@ export function loadGameState(): SaveData {
   return {
     coordinates: { x: 0, y: 0 },
     cash: DEFAULT_STARTING_CASH,
-    cargoHold: new Map(),
+    cargoHold: {},
     lastDockedStationId: null,
     discoveredStations: [],
-    knownStationPrices: new Map(),
+    knownStationPrices: {},
     cargoPodLevel: 0,
     shieldCapacitorLevel: 0,
     engineBoosterLevel: 0,
     hasAutoloader: false,
     hasNavComputer: false,
     questState: initialQuestState,
-    questInventory: new Map(),
+    questInventory: {},
   };
 }
 

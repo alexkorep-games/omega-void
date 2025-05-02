@@ -50,15 +50,15 @@ const StationInfoScreen: React.FC = () => {
   }, [cash, updatePlayerState, addQuestItem]);
 
   const fragBMachinery = 20;
-  const currentMachinery = cargoHold.get("Machinery") || 0;
+  const currentMachinery = cargoHold["Machinery"] || 0;
   const handleBarterFragmentB = useCallback(() => {
     if (currentMachinery >= fragBMachinery) {
       updatePlayerState((prev) => {
-        const newCargo = new Map(prev.cargoHold);
-        const current = newCargo.get("Machinery") || 0;
+        const newCargo = prev.cargoHold;
+        const current = newCargo["Machinery"] || 0;
         const remaining = current - fragBMachinery;
-        if (remaining <= 0) newCargo.delete("Machinery");
-        else newCargo.set("Machinery", remaining);
+        if (remaining <= 0) delete newCargo["Machinery"];
+        else newCargo["Machinery"] = remaining;
         return { cargoHold: newCargo };
       });
       addQuestItem("contract_frag_b");
@@ -68,7 +68,7 @@ const StationInfoScreen: React.FC = () => {
         `Need ${fragBMachinery}t Machinery, have ${currentMachinery}t`
       );
     }
-  }, [cargoHold, currentMachinery, updatePlayerState, addQuestItem]);
+  }, [currentMachinery, updatePlayerState, addQuestItem]);
 
   const handlePickupFragmentC = useCallback(() => {
     addQuestItem("contract_frag_c");
@@ -90,7 +90,7 @@ const StationInfoScreen: React.FC = () => {
   const isNavigating = navTargetStationId === station.id;
 
   // --- Determine quest action availability & titles (Keep as is) ---
-  const hasFragA = questInventory.has("contract_frag_a");
+  const hasFragA = "contract_frag_a" in questInventory;
   const canBuyFragA = station.id === "station_-10_4_fixA" && !hasFragA;
   const buyFragADisabled = cash < fragACost;
   const buyFragATitle = hasFragA
@@ -99,7 +99,7 @@ const StationInfoScreen: React.FC = () => {
     ? `Need ${fragACost} CR`
     : `Acquire Fragment (Cost: ${fragACost} CR)`;
 
-  const hasFragB = questInventory.has("contract_frag_b");
+  const hasFragB = "contract_frag_b" in questInventory;
   const canBarterFragB = station.id === "station_5_-8_fixB" && !hasFragB;
   const barterFragBDisabled = currentMachinery < fragBMachinery;
   const barterFragBTitle = hasFragB
@@ -108,7 +108,7 @@ const StationInfoScreen: React.FC = () => {
     ? `Requires ${fragBMachinery}t Machinery (Have: ${currentMachinery}t)`
     : `Exchange Machinery for Fragment`;
 
-  const hasFragC = questInventory.has("contract_frag_c");
+  const hasFragC = "contract_frag_c" in questInventory;
   const canPickupFragC = station.id === "station_0_0_fixC" && !hasFragC;
   const pickupFragCTitle = hasFragC
     ? "Fragment Charlie Acquired"
