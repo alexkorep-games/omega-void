@@ -378,15 +378,17 @@ export class InfiniteWorldManager {
     if (cellPrng.random() < baseChance) {
       // ... asteroid generation logic ...
       const n = highDensity ? cellPrng.randomInt(8, 16) : 1;
+      const groupOrbitalSpeed = cellPrng.randomFloat(0.1, 1.6);
       for (let i = 0; i < n; i++) {
-        const orbitRadius = cellPrng.randomFloat(10, 50);
+        const orbitRadius = cellPrng.randomFloat(2, 80);
         const initialAngle = cellPrng.randomFloat(0, Math.PI * 2);
         const asteroid = new Asteroid(
           cellWorldX + this.config.cellSize / 2, // Orbit center X
           cellWorldY + this.config.cellSize / 2, // Orbit center Y
           initialAngle,
           orbitRadius,
-          cellPrng.randomFloat(10, 28) // Size (diameter) of the asteroid
+          cellPrng.randomFloat(10, 48), // Size (diameter) of the asteroid
+          groupOrbitalSpeed
         );
         // Initial position update
         objects.push(asteroid);
