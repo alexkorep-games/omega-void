@@ -439,22 +439,6 @@ export function useGameState() {
     [setGameStateInternal]
   );
 
-  // Save known station prices (Record<string, number>)
-  const saveStationPrices = useCallback(
-    (stationId: string, prices: Record<string, number>) => {
-      setGameStateInternal((prev) => {
-        // Create a new knownStationPrices object
-        const newKnownPrices = {
-          ...prev.knownStationPrices, // Copy previous known prices
-          [stationId]: prices, // Set/update prices for the specific station
-        };
-        // Return new state with updated known prices
-        return { ...prev, knownStationPrices: newKnownPrices };
-      });
-    },
-    [setGameStateInternal]
-  );
-
   const completeDocking = useCallback(() => {
     console.log("Action: Complete Docking");
     let dockedStationId: string | null = null;
@@ -1068,7 +1052,6 @@ export function useGameState() {
     updateMarketQuantity,
     findStationById,
     startNewGame,
-    saveStationPrices,
     purchaseUpgrade,
     totalCargoCapacity,
     // Quest related exports

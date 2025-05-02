@@ -20,22 +20,14 @@ interface StationDetailsScreenProps {
 const StationDetailsScreen: React.FC<StationDetailsScreenProps> = ({
   stationId,
 }) => {
-  const {
-    gameState,
-    findStationById,
-    setGameView,
-    setNavTarget,
-    saveStationPrices,
-  } = useGameState();
+  const { gameState, findStationById, setGameView, setNavTarget } =
+    useGameState();
   const { navTargetStationId, cash, market: currentMarket } = gameState; // Get currentMarket (docked market)
   const [station, setStation] = useState<IStation | null>(null);
   // State to hold the generated market snapshot for the VIEWED station
   const [stationMarket, setStationMarket] = useState<MarketSnapshot | null>(
     null
   );
-
-  // State to hold temporary price edits for the VIEWED station
-  const [editedPrices, setEditedPrices] = useState<Record<string, number>>({});
 
   useEffect(() => {
     // Fetch station data when the stationId prop changes
@@ -52,31 +44,13 @@ const StationDetailsScreen: React.FC<StationDetailsScreenProps> = ({
         );
         // Set local state to display prices/qty for the VIEWED station
         setStationMarket(marketData);
-
-        // Get existing known prices or initialize from generated market
-        const existingKnownPrices = gameState.knownStationPrices[stationId];
-        if (existingKnownPrices) {
-          setEditedPrices(existingKnownPrices); // Load known prices for editing
-        } else {
-          // Initialize editedPrices from the generated market if no known prices exist
-          const initialPrices: Record<string, number> = {};
-          // Iterate over generated market table (which is now a Record)
-          Object.entries(marketData.table).forEach(([key, state]) => {
-            initialPrices[key] = state.price;
-          });
-          setEditedPrices(initialPrices);
-          // Optionally save these initial prices immediately
-          // saveStationPrices(stationId, initialPrices);
-        }
       } else {
         setStation(null);
         setStationMarket(null); // Clear market if station not found
-        setEditedPrices({});
       }
     } else {
       setStation(null); // Clear station if ID is null
       setStationMarket(null); // Clear market if ID is null
-      setEditedPrices({});
     }
   }, [stationId, findStationById, gameState.knownStationPrices]); // Add gameState.knownStationPrices dependency
 
@@ -89,42 +63,6 @@ const StationDetailsScreen: React.FC<StationDetailsScreenProps> = ({
     const newTargetId = navTargetStationId === station.id ? null : station.id;
     setNavTarget(newTargetId);
   }, [station, navTargetStationId, setNavTarget]);
-
-  const handlePriceChange = (commodityId: string, value: string) => {
-    // Allow empty string to clear value, parse only if not empty
-    if (value === "") {
-      setEditedPrices((prev) => {
-        const next = { ...prev };
-        // You might want to decide if deleting the key or setting to NaN/null is better
-        delete next[commodityId]; // Example: remove key if empty
-        // or: next[commodityId] = NaN;
-        return next;
-      });
-    } else {
-      const price = parseFloat(value); // Use parseFloat for decimals
-      if (!isNaN(price) && price >= 0) {
-        // Check for valid, non-negative number
-        setEditedPrices((prev) => ({
-          ...prev,
-          [commodityId]: price,
-        }));
-      }
-    }
-  };
-
-  const handleSaveChanges = () => {
-    if (stationId) {
-      // Filter out any potential NaN values before saving
-      const cleanPrices: Record<string, number> = {};
-      Object.entries(editedPrices).forEach(([key, value]) => {
-        if (!isNaN(value) && value !== null && value !== undefined) {
-          cleanPrices[key] = value;
-        }
-      });
-      saveStationPrices(stationId, cleanPrices);
-      alert("Prices saved for station: " + stationId); // Simple feedback
-    }
-  };
 
   // --- Loading / Error States ---
   if (!stationId) {
@@ -276,96 +214,6 @@ const StationDetailsScreen: React.FC<StationDetailsScreenProps> = ({
             </div>
           </div>
         )}
-
-        {/* Known Prices Editing Section */}
-        <div className="station-price-list" style={{ marginTop: "25px" }}>
-          <h3
-            className="market-subtitle"
-            style={{
-              color: "#ffffff",
-              marginBottom: "10px",
-              borderBottom: "1px solid #888800",
-              paddingBottom: "5px",
-            }}
-          >
-            Known Prices (Log)
-          </h3>
-          {/* Check if editedPrices has keys */}
-          {Object.keys(editedPrices).length > 0 ? (
-            <div>
-              <table className="w-full text-left table-auto market-table">
-                <thead>
-                  <tr>
-                    <th className="px-4 py-2">Commodity</th>
-                    <th className="px-4 py-2">Known Price</th>
-                    <th className="px-4 py-2">Edit Price</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {/* Iterate using Object.entries */}
-                  {COMMODITIES.map((commodityDef) => {
-                    // Always show row for editing, even if price is not known yet
-                    const currentKnownPrice = editedPrices[commodityDef.key];
-                    const priceDisplay =
-                      currentKnownPrice !== undefined &&
-                      !isNaN(currentKnownPrice)
-                        ? `${currentKnownPrice.toFixed(1)} Cr`
-                        : "-";
-                    const priceValue =
-                      currentKnownPrice !== undefined &&
-                      !isNaN(currentKnownPrice)
-                        ? currentKnownPrice.toString() // Use string for input value
-                        : ""; // Default to empty string
-
-                    return (
-                      <tr
-                        key={commodityDef.key}
-                        className="border-t border-gray-600"
-                      >
-                        <td className="px-4 py-2">{commodityDef.key}</td>
-                        <td className="px-4 py-2">{priceDisplay}</td>
-                        <td className="px-4 py-2">
-                          <input
-                            type="number"
-                            step="0.1" // Allow decimals
-                            min="0" // Prevent negative prices
-                            value={priceValue}
-                            onChange={(e) =>
-                              handlePriceChange(
-                                commodityDef.key,
-                                e.target.value
-                              )
-                            }
-                            placeholder="Enter Price"
-                            className="bg-gray-800 border border-gray-600 rounded px-2 py-1 w-24 text-yellow-400"
-                            style={{
-                              color: "#ffff00",
-                              backgroundColor: "rgba(0,0,0,0.4)",
-                            }} // Style similar to market
-                          />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-              <div style={{ textAlign: "center", marginTop: "15px" }}>
-                <button
-                  onClick={handleSaveChanges}
-                  className="station-info-button" // Reuse button style
-                  style={{ minWidth: "180px" }}
-                >
-                  Save Known Prices
-                </button>
-              </div>
-            </div>
-          ) : (
-            <p style={{ color: "#aaaaaa", fontStyle: "italic" }}>
-              No known price data logged for this station yet. Prices will
-              appear here once generated or manually entered.
-            </p>
-          )}
-        </div>
 
         {/* Action Buttons Area */}
         <div className="station-info-actions">

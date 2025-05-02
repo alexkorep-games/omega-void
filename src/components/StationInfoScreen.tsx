@@ -122,11 +122,6 @@ const StationInfoScreen: React.FC = () => {
       </div>
 
       <div className="station-info-content">
-        {/* Standard info items */}
-        <div className="info-item">
-          <span className="info-label">ID:</span>
-          <span className="info-value">{station.id}</span>
-        </div>
         <div className="info-item">
           <span className="info-label">Type:</span>
           <span className="info-value">{station.stationType}</span>
