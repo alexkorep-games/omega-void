@@ -371,27 +371,32 @@ export class InfiniteWorldManager {
       });
     }
 
-    // Generate Asteroids
-    const densityNoise = cellPrng.random();
-    const highDensity = densityNoise > 0.45;
-    const baseChance = highDensity ? 0.9 : 0.3;
-    if (cellPrng.random() < baseChance) {
-      // ... asteroid generation logic ...
-      const n = highDensity ? cellPrng.randomInt(8, 16) : 1;
-      const groupOrbitalSpeed = cellPrng.randomFloat(0.1, 1.6);
-      for (let i = 0; i < n; i++) {
-        const orbitRadius = cellPrng.randomFloat(2, 80);
-        const initialAngle = cellPrng.randomFloat(0, Math.PI * 2);
-        const asteroid = new Asteroid(
-          cellWorldX + this.config.cellSize / 2, // Orbit center X
-          cellWorldY + this.config.cellSize / 2, // Orbit center Y
-          initialAngle,
-          orbitRadius,
-          cellPrng.randomFloat(10, 48), // Size (diameter) of the asteroid
-          groupOrbitalSpeed
-        );
-        // Initial position update
-        objects.push(asteroid);
+    // Check if a station (fixed or procedural) was added to this cell earlier
+    const cellHasStation = objects.some((obj) => obj.type === "station");
+
+    // Generate Asteroids (only if no station is in this cell)
+    if (!cellHasStation) {
+      const densityNoise = cellPrng.random();
+      const highDensity = densityNoise > 0.45;
+      const baseChance = highDensity ? 0.9 : 0.3;
+      if (cellPrng.random() < baseChance) {
+        // ... asteroid generation logic ...
+        const n = highDensity ? cellPrng.randomInt(8, 16) : 1;
+        const groupOrbitalSpeed = cellPrng.randomFloat(0.001, 0.003);
+        for (let i = 0; i < n; i++) {
+          const orbitRadius = cellPrng.randomFloat(2, 120);
+          const initialAngle = cellPrng.randomFloat(0, Math.PI * 2);
+          const asteroid = new Asteroid(
+            cellWorldX + this.config.cellSize / 2, // Orbit center X
+            cellWorldY + this.config.cellSize / 2, // Orbit center Y
+            initialAngle,
+            orbitRadius,
+            cellPrng.randomFloat(10, 48), // Size (diameter) of the asteroid
+            groupOrbitalSpeed
+          );
+          // Initial position update
+          objects.push(asteroid);
+        }
       }
     }
 

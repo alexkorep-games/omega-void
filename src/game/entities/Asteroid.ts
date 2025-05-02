@@ -31,7 +31,7 @@ export class Asteroid extends GameObject implements IAsteroid {
     this.initialOrbitAngle = initialOrbitAngle;
     this.orbitRadius = orbitRadius;
 
-    this.orbitSpeed = groupOrbitalSpeed + orbitRadius * 0.01; // Speed of the orbit
+    this.orbitSpeed = groupOrbitalSpeed + orbitRadius * 0.001; // Speed of the orbit
 
     this.spin = (Math.random() - 0.5) * 5;
     this.angle = Math.random() * Math.PI * 2;
