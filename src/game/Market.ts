@@ -32,157 +32,300 @@ export function getTechLevelNumber(tl: TechLevel): number {
   return parseInt(tl.replace("TL", ""), 10);
 }
 
-// COMMODITIES array remains the same
+// COMMODITIES array - Expanded with more items and wider price range
 export const COMMODITIES: CommodityDefinition[] = [
+  // --- Basic Necessities ---
+  {
+    key: "Water",
+    basePrice: 3, // Very cheap
+    baseQuantity: 50,
+    unit: "t",
+    econEffect: {
+      "Poor Agricultural": { dp: 0, qMult: 1.2 },
+      Agricultural: { dp: -1, qMult: 1.5 },
+      "Rich Agricultural": { dp: -1, qMult: 1.7 },
+      "Poor Industrial": { dp: +1, qMult: 0.8 },
+      Industrial: { dp: +1, qMult: 0.7 },
+      "Rich Industrial": { dp: +2, qMult: 0.6 },
+    },
+  },
   {
     key: "Food",
-    basePrice: 6,
+    basePrice: 10, // Slightly higher base price
     baseQuantity: 40,
     unit: "t",
     econEffect: {
-      "Poor Agricultural": { dp: -1, qMult: 1.3 },
-      Agricultural: { dp: -1, qMult: 1.4 },
-      "Rich Agricultural": { dp: -2, qMult: 1.6 },
-      "Poor Industrial": { dp: +1, qMult: 0.7 },
-      Industrial: { dp: +1, qMult: 0.6 },
-      "Rich Industrial": { dp: +2, qMult: 0.5 },
+      "Poor Agricultural": { dp: -2, qMult: 1.3 },
+      Agricultural: { dp: -3, qMult: 1.4 },
+      "Rich Agricultural": { dp: -5, qMult: 1.6 },
+      "Poor Industrial": { dp: +3, qMult: 0.7 },
+      Industrial: { dp: +4, qMult: 0.6 },
+      "Rich Industrial": { dp: +6, qMult: 0.5 },
+      "High Tech": { dp: +5, qMult: 0.4 },
     },
   },
+  // --- Raw Materials ---
   {
-    key: "Textiles",
-    basePrice: 8,
-    baseQuantity: 35,
+    key: "Minerals",
+    basePrice: 20, // Increased base price
+    baseQuantity: 30,
     unit: "t",
     econEffect: {
-      "Poor Agricultural": { dp: -1, qMult: 1.2 },
-      Agricultural: { dp: -1, qMult: 1.2 },
-      "Rich Agricultural": { dp: -2, qMult: 1.3 },
-      Industrial: { dp: +1, qMult: 0.6 },
-    },
-  },
-  {
-    key: "Radioactives",
-    basePrice: 20,
-    baseQuantity: 15,
-    unit: "t",
-    minTechLevel: "TL3",
-  },
-  {
-    key: "Liquor", // Renamed
-    basePrice: 25,
-    baseQuantity: 20,
-    unit: "t",
-    econEffect: {
-      "Rich Agricultural": { dp: -3, qMult: 1.5 },
-    },
-  },
-  {
-    key: "Luxuries",
-    basePrice: 90,
-    baseQuantity: 5,
-    unit: "t",
-    minTechLevel: "TL4",
-    econEffect: {
-      "Rich Industrial": { dp: -5, qMult: 1.5 },
-    },
-  },
-  {
-    key: "Computers",
-    basePrice: 100,
-    baseQuantity: 4,
-    unit: "t",
-    minTechLevel: "TL3",
-    econEffect: {
-      "High Tech": { dp: -20, qMult: 3.0 },
-      "Rich Industrial": { dp: -10, qMult: 2.0 },
-      Industrial: { dp: -5, qMult: 1.2 },
-      "Poor Agricultural": { dp: +25, qMult: 0.1 },
-      "Rich Agricultural": { dp: +20, qMult: 0.15 },
-    },
-  },
-  {
-    key: "Machinery",
-    basePrice: 60,
-    baseQuantity: 10,
-    unit: "t",
-    minTechLevel: "TL2",
-    econEffect: {
-      Industrial: { dp: -5, qMult: 1.8 },
-      "Rich Industrial": { dp: -8, qMult: 2.2 },
+      "Poor Industrial": { dp: +2, qMult: 0.8 }, // Consumed by industry
+      Industrial: { dp: +3, qMult: 0.6 },
+      "Rich Industrial": { dp: +5, qMult: 0.4 },
     },
   },
   {
     key: "Alloys",
-    basePrice: 32,
+    basePrice: 75, // Increased base price
     baseQuantity: 25,
     unit: "t",
+    minTechLevel: "TL2",
     econEffect: {
-      "Poor Industrial": { dp: -2, qMult: 1.3 },
-      Industrial: { dp: 0, qMult: 1.1 },
+      "Poor Industrial": { dp: -5, qMult: 1.3 }, // Produced by industry
+      Industrial: { dp: -10, qMult: 1.5 },
+      "Rich Industrial": { dp: -15, qMult: 1.8 },
+      "High Tech": { dp: -5, qMult: 1.2 }, // Also produced/used
     },
   },
   {
-    key: "Firearms",
-    basePrice: 75,
+    key: "Rare Gases",
+    basePrice: 350,
     baseQuantity: 8,
     unit: "t",
-    minTechLevel: "TL4",
+    minTechLevel: "TL5",
     econEffect: {
-      "Rich Industrial": { dp: -8, qMult: 1.4 },
+      "High Tech": { dp: -20, qMult: 1.6 }, // Consumed/Produced? Let's say produced
+      Industrial: { dp: +10, qMult: 0.5 }, // Consumed?
+    },
+  },
+  {
+    key: "Radioactives",
+    basePrice: 150, // Increased base price
+    baseQuantity: 15,
+    unit: "t",
+    minTechLevel: "TL3",
+    econEffect: {
+      "High Tech": { dp: -15, qMult: 1.3 },
+      "Rich Industrial": { dp: -10, qMult: 1.1 },
+      Industrial: { dp: +5, qMult: 0.8 },
+    },
+  },
+  // --- Agricultural Goods ---
+  {
+    key: "Textiles",
+    basePrice: 15, // Increased base price
+    baseQuantity: 35,
+    unit: "t",
+    econEffect: {
+      "Poor Agricultural": { dp: -2, qMult: 1.2 },
+      Agricultural: { dp: -3, qMult: 1.3 },
+      "Rich Agricultural": { dp: -5, qMult: 1.5 },
+      Industrial: { dp: +3, qMult: 0.6 },
+      "Rich Industrial": { dp: +5, qMult: 0.4 },
+    },
+  },
+  {
+    key: "Liquor",
+    basePrice: 50, // Increased base price
+    baseQuantity: 20,
+    unit: "t",
+    econEffect: {
+      "Rich Agricultural": { dp: -10, qMult: 1.5 },
+      Agricultural: { dp: -5, qMult: 1.2 },
+      "Rich Industrial": { dp: +8, qMult: 0.7 }, // Higher demand maybe
     },
   },
   {
     key: "Furs",
-    basePrice: 70,
+    basePrice: 180, // Increased base price
     baseQuantity: 6,
     unit: "t",
     econEffect: {
-      "Poor Agricultural": { dp: -8, qMult: 2.2 },
-      "Rich Agricultural": { dp: -10, qMult: 2.5 },
-      "High Tech": { dp: +15, qMult: 0.2 },
+      "Poor Agricultural": { dp: -15, qMult: 2.2 },
+      Agricultural: { dp: -20, qMult: 2.0 },
+      "Rich Agricultural": { dp: -30, qMult: 2.5 },
+      "High Tech": { dp: +25, qMult: 0.2 },
+      "Rich Industrial": { dp: +20, qMult: 0.5 },
+    },
+  },
+  // --- Industrial Goods ---
+  {
+    key: "Machinery",
+    basePrice: 120, // Increased base price
+    baseQuantity: 10,
+    unit: "t",
+    minTechLevel: "TL2",
+    econEffect: {
+      "Poor Industrial": { dp: -5, qMult: 1.2 },
+      Industrial: { dp: -15, qMult: 1.8 },
+      "Rich Industrial": { dp: -25, qMult: 2.2 },
+      "Poor Agricultural": { dp: +10, qMult: 0.5 }, // Needs machinery
+      Agricultural: { dp: +8, qMult: 0.6 },
     },
   },
   {
-    key: "Minerals",
-    basePrice: 12,
-    baseQuantity: 30,
+    key: "Medicines",
+    basePrice: 80,
+    baseQuantity: 10,
     unit: "t",
-    econEffect: {},
+    minTechLevel: "TL3",
+    econEffect: {
+      "High Tech": { dp: -10, qMult: 1.5 },
+      "Rich Industrial": { dp: -5, qMult: 1.2 },
+      "Poor Agricultural": { dp: +10, qMult: 0.8 }, // Higher demand?
+      "Poor Industrial": { dp: +8, qMult: 0.9 }, // Higher demand?
+    },
+  },
+  {
+    key: "Robots",
+    basePrice: 1500, // High value industrial item
+    baseQuantity: 3,
+    unit: "t", // Assuming bulk or large robots
+    minTechLevel: "TL5",
+    econEffect: {
+      "High Tech": { dp: -150, qMult: 2.5 },
+      "Rich Industrial": { dp: -100, qMult: 1.8 },
+      Industrial: { dp: -50, qMult: 1.2 },
+      Agricultural: { dp: +80, qMult: 0.3 }, // Demand for automation
+    },
+  },
+  // --- High-Tech Goods ---
+  {
+    key: "Computers",
+    basePrice: 400, // Significantly increased base price
+    baseQuantity: 4,
+    unit: "t", // Bulk components/systems
+    minTechLevel: "TL3",
+    econEffect: {
+      "High Tech": { dp: -80, qMult: 3.0 },
+      "Rich Industrial": { dp: -40, qMult: 2.0 },
+      Industrial: { dp: -20, qMult: 1.2 },
+      "Poor Agricultural": { dp: +100, qMult: 0.1 },
+      "Rich Agricultural": { dp: +80, qMult: 0.15 },
+    },
+  },
+  {
+    key: "Adv Components", // Advanced Electronics / Quantum Processors etc.
+    basePrice: 1800,
+    baseQuantity: 2,
+    unit: "kg", // More valuable per mass
+    minTechLevel: "TL6",
+    econEffect: {
+      "High Tech": { dp: -200, qMult: 3.5 },
+      "Rich Industrial": { dp: +100, qMult: 0.5 }, // Consumes them
+    },
+  },
+  // --- Luxury & Rare Goods ---
+  {
+    key: "Luxuries",
+    basePrice: 500, // Increased base price
+    baseQuantity: 5,
+    unit: "t",
+    minTechLevel: "TL4",
+    econEffect: {
+      "Rich Industrial": { dp: -50, qMult: 1.5 },
+      "High Tech": { dp: -40, qMult: 1.3 },
+      "Rich Agricultural": { dp: -30, qMult: 1.2 }, // Some luxury production
+      "Poor Industrial": { dp: +50, qMult: 0.3 }, // High demand, low supply
+      "Poor Agricultural": { dp: +60, qMult: 0.2 },
+    },
+  },
+  {
+    key: "Gem-Stones",
+    basePrice: 80, // Increased base price per gram
+    baseQuantity: 10, // Base 10g available
+    unit: "g",
+    minTechLevel: "TL4",
+    econEffect: {
+      // Maybe slightly more common near mining/industrial?
+      "Rich Industrial": { dp: +10, qMult: 0.8 }, // Demand for jewelry
+      "High Tech": { dp: +15, qMult: 0.7 }, // Demand for tech uses?
+    },
   },
   {
     key: "Gold",
-    basePrice: 160,
-    baseQuantity: 1,
-    unit: "kg", // Changed unit
-    econEffect: {},
+    basePrice: 300, // Increased base price per kg
+    baseQuantity: 1, // Base 1kg available
+    unit: "kg",
+    econEffect: {
+      "Rich Industrial": { dp: +20, qMult: 0.9 }, // Demand
+      "High Tech": { dp: +30, qMult: 0.8 }, // Demand
+    },
     minTechLevel: "TL5",
   },
   {
     key: "Platinum",
-    basePrice: 200,
-    baseQuantity: 0.5,
+    basePrice: 550, // Increased base price per kg
+    baseQuantity: 0.5, // Base 0.5kg available
     unit: "kg",
     minTechLevel: "TL6",
-    econEffect: {},
-  }, // Example
+    econEffect: {
+      "High Tech": { dp: -30, qMult: 1.2 }, // Used in tech
+      "Rich Industrial": { dp: +20, qMult: 0.9 },
+    },
+  },
+  // --- Weapons & Illicit Goods (adjust names/themes as needed) ---
   {
-    key: "Gem-Stones",
-    basePrice: 20,
-    baseQuantity: 10,
-    unit: "g",
+    key: "Firearms",
+    basePrice: 300, // Increased base price
+    baseQuantity: 8,
+    unit: "t", // Could be kg/g if representing advanced personal weapons
     minTechLevel: "TL4",
-    econEffect: {},
-  }, // Example
+    econEffect: {
+      "Rich Industrial": { dp: -30, qMult: 1.4 }, // Production
+      "Poor Industrial": { dp: -10, qMult: 1.1 },
+      // Demand might increase in poorer/less stable systems - game logic could handle this
+    },
+  },
+  {
+    key: "Narcotics", // Or "Controlled Substances", "Spices" etc.
+    basePrice: 2500, // High value
+    baseQuantity: 0.8, // Low quantity
+    unit: "kg", // Valuable per kg
+    minTechLevel: "TL4", // Requires some processing
+    econEffect: {
+      // Often produced illicitly, hard to model with economy type
+      // Let's assume higher demand in rich places, maybe some prod in poor?
+      "Poor Agricultural": { dp: -100, qMult: 1.1 }, // Hidden labs?
+      "Poor Industrial": { dp: -150, qMult: 1.2 }, // Hidden labs?
+      "Rich Industrial": { dp: +200, qMult: 0.5 }, // High demand
+      "High Tech": { dp: +150, qMult: 0.6 }, // High demand
+    },
+  },
+  // --- Very Rare & Exotic ---
   {
     key: "Alien Items",
-    basePrice: 60,
-    baseQuantity: 2,
-    unit: "t",
+    basePrice: 1200, // Increased base price
+    baseQuantity: 1, // Even lower base quantity
+    unit: "t", // Assuming bulky artifacts or tech pieces
     minTechLevel: "TL7",
     econEffect: {
-      "High Tech": { dp: -10, qMult: 1.5 },
+      "High Tech": { dp: -150, qMult: 1.8 }, // Interest/Research
     },
-  }, // Example
+  },
+  {
+    key: "Bio-Samples", // Rare genetic material, exotic lifeforms etc.
+    basePrice: 3000,
+    baseQuantity: 0.2, // Very rare
+    unit: "kg",
+    minTechLevel: "TL6",
+    econEffect: {
+      "High Tech": { dp: -300, qMult: 2.0 }, // Research demand/production
+      "Rich Agricultural": { dp: -100, qMult: 1.2 }, // Potential source
+    },
+  },
+  {
+    key: "Antimatter", // Extremely rare and valuable
+    basePrice: 8000, // Very high base price
+    baseQuantity: 0.05, // Extremely low quantity (50g base)
+    unit: "g",
+    minTechLevel: "TL8", // Requires top-tier tech
+    econEffect: {
+      "High Tech": { dp: -1000, qMult: 4.0 }, // Only produced/handled here, massive multiplier needed
+    },
+  },
 ];
 
 // Utility Helpers remain the same
@@ -239,37 +382,60 @@ export class MarketGenerator {
     const table: CommodityTable = {}; // Initialize as empty object (Record)
 
     for (const c of COMMODITIES) {
+      // Check Tech Level requirement
       if (
         c.minTechLevel &&
         getTechLevelNumber(station.techLevel) <
           getTechLevelNumber(c.minTechLevel)
       ) {
-        continue;
+        continue; // Skip commodity if tech level is too low
       }
 
+      // Get economy adjustments
       const econAdj = c.econEffect?.[station.economyType];
-      const dPrice = econAdj?.dp ?? 0;
-      const qMult = econAdj?.qMult ?? 1;
+      const dPrice = econAdj?.dp ?? 0; // Price delta based on economy
+      const qMult = econAdj?.qMult ?? 1; // Quantity multiplier based on economy
 
+      // Tech level adjustment (higher tech slightly reduces prices baseline)
       const techLevelNum = getTechLevelNumber(station.techLevel);
-      const techAdj = (techLevelNum - 3) * 2;
+      // Make tech adjustment less impactful on price, maybe more on quantity?
+      // Let's keep the original price adjustment for now.
+      const techAdj = (techLevelNum - 3) * (c.basePrice * 0.02); // Affects price less proportionally
 
+      // Calculate base price and quantity for this station
       let price = Math.max(1, c.basePrice + dPrice - techAdj);
-      let quantity = Math.round(c.baseQuantity * qMult);
+      let quantity = c.baseQuantity * qMult;
 
-      const priceJitter = (rng.random() - 0.5) * 0.1;
-      const qtyJitter = (rng.random() - 0.5) * 0.2;
+      // Apply random jitter based on PRNG
+      // Price jitter: +/- 10%
+      const priceJitter = (rng.random() - 0.5) * 0.2 * price; // Scale jitter with price
+      // Quantity jitter: +/- 20%
+      const qtyJitter = (rng.random() - 0.5) * 0.4 * quantity; // Scale jitter with quantity
 
-      price = Math.max(1, Math.round(price * (1 + priceJitter)));
-      quantity = Math.max(0, Math.round(quantity * (1 + qtyJitter)));
+      price = Math.max(1, Math.round(price + priceJitter));
+      quantity = Math.max(0, Math.round(quantity + qtyJitter));
 
-      if (quantity === 0 && c.baseQuantity === 0) continue;
-      if (c.baseQuantity === 0 && qMult <= 1 && quantity > 0) quantity = 0;
-      if (quantity === 0 && qMult > 0) continue; // Don't add if 0 qty
+      // --- Filtering Logic ---
+      // Ensure 0 base quantity items only appear if econ effect *increases* quantity
+      if (c.baseQuantity === 0 && qMult <= 1 && quantity > 0) {
+        quantity = 0;
+      }
+      // Don't add items with 0 quantity unless they specifically should exist with 0 quantity
+      // (This might happen if baseQuantity=0 and qMult > 1 but jitter makes it 0)
+      // Let's refine: only skip if the *intended* quantity before jitter was 0 or less.
+      const intendedQuantity = c.baseQuantity * qMult;
+      if (intendedQuantity <= 0 && quantity <= 0) {
+        continue;
+      }
+      // Always add if price > 0, even if quantity is 0 (indicates demand or potential future stock)
+      // Original logic: if (quantity === 0 && qMult > 0) continue;
+      // New logic: Allow 0 quantity entries if price > 0
 
-      if (quantity > 0 || price > 0) {
-        // Assign directly to the Record
-        table[c.key] = { price, quantity }; // This now matches CommodityState type
+      // Add to the market table if it makes sense to list it
+      // We list items even if quantity is 0, as long as price is > 0,
+      // indicating potential demand or that it *could* be stocked.
+      if (price > 0) {
+        table[c.key] = { price, quantity };
       }
     }
 
@@ -285,10 +451,18 @@ export class MarketGenerator {
   ): number {
     const ix = Math.floor(x);
     const iy = Math.floor(y);
-    let h = worldSeed ^ (ix << 16) ^ (iy << 8) ^ visitSerial;
-    h = (h ^ (h >>> 15)) * 0x2c1b3c6d;
-    h = (h ^ (h >>> 12)) * 0x297a2d39;
-    h = h ^ (h >>> 15);
-    return ((h >>> 0) % 2147483647) + 1; // Make positive and non-zero
+    // Simple hashing combination
+    let h = worldSeed;
+    h = h * 31 + ix;
+    h = h * 31 + iy;
+    h = h * 31 + visitSerial;
+    // Basic pseudo-random mixing (using parts of MurmurHash3 finalizer)
+    h ^= h >>> 16;
+    h *= 0x85ebca6b;
+    h ^= h >>> 13;
+    h *= 0xc2b2ae35;
+    h ^= h >>> 16;
+    // Ensure positive non-zero integer for PRNG seed
+    return ((h >>> 0) % 2147483647) + 1;
   }
 }
