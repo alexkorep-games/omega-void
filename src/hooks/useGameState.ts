@@ -9,6 +9,7 @@ import {
   IPlayer,
   IPosition,
   CommodityTable,
+  CargoHold,
   QuestInventory,
 } from "../game/types";
 import { initialGameState } from "../game/state";
@@ -84,6 +85,14 @@ export const UPGRADE_CONFIG: Record<
   },
 };
 
+// Map beacon IDs to their corresponding quest objective IDs for direct update
+const beaconToReachObjectiveMap: Record<string, string> = {
+  beacon_nw_key1: "reach_beacon_nw",
+  beacon_ne_key2: "reach_beacon_ne",
+  beacon_sw_key3: "reach_beacon_sw", // Assuming this maps to sw
+  beacon_se_key4: "reach_beacon_se", // Assuming this maps to se
+};
+
 const gameStateAtom = atom<IGameState>(initialGameState);
 const questEngine = new QuestEngine(V01_QUEST_DEFINITIONS);
 
@@ -96,8 +105,9 @@ export function useGameState() {
   const saveIntervalId = useRef<number | null>(null);
 
   const totalCargoCapacity = useMemo(() => {
-    return gameState.baseCargoCapacity + gameState.extraCargoCapacity;
-  }, [gameState.baseCargoCapacity, gameState.extraCargoCapacity]);
+    const cargoPodBonus = gameState.cargoPodLevel * 5; // Use cargoPodLevel from state
+    return gameState.baseCargoCapacity + cargoPodBonus;
+  }, [gameState.baseCargoCapacity, gameState.cargoPodLevel]); // Depend on cargoPodLevel
 
   const emancipationScore = useMemo(() => {
     if (!gameState.questState || !gameState.questState.quests["freedom_v01"]) {
@@ -366,7 +376,7 @@ export function useGameState() {
         switch (upgradeKey) {
           case "cargoPod":
             updatedState.cargoPodLevel = nextLevel;
-            updatedState.extraCargoCapacity = nextLevel * 5;
+            // extraCargoCapacity is derived via useMemo, no need to set here
             break;
           case "shieldCapacitor":
             updatedState.shieldCapacitorLevel = nextLevel;
@@ -377,8 +387,8 @@ export function useGameState() {
               updatedState.player = {
                 ...updatedState.player,
                 maxShield: newMaxShield,
-                // Optionally top up shield on upgrade? Current logic doesn't.
-                // shieldLevel: Math.min(newMaxShield, updatedState.player.shieldLevel)
+                // Top up shield on upgrade to new max
+                shieldLevel: newMaxShield,
               };
             }
             break;
@@ -440,64 +450,15 @@ export function useGameState() {
   );
 
   const completeDocking = useCallback(() => {
-    console.log("Action: Complete Docking");
-    let dockedStationId: string | null = null;
-    setGameStateInternal((prev) => {
-      dockedStationId = prev.dockingStationId;
-      if (!dockedStationId) {
-        console.error("Docking failed: No station ID");
-        return {
-          ...prev,
-          gameView: "playing",
-          animationState: { ...prev.animationState, type: null, progress: 0 },
-        };
-      }
-      const station = worldManager.getStationById(dockedStationId);
-      let newMarket: MarketSnapshot | null = null;
-      if (station) {
-        newMarket = MarketGenerator.generate(station, WORLD_SEED, Date.now());
-      } else {
-        console.error(`Could not find station ${dockedStationId} for market!`);
-      }
-      const updatedDiscoveredStations = [...prev.discoveredStations];
-      if (!updatedDiscoveredStations.includes(dockedStationId)) {
-        updatedDiscoveredStations.push(dockedStationId);
-      }
-      // Ensure known prices for the docked station are updated/initialized
-      const knownPrices = prev.knownStationPrices[dockedStationId] ?? {};
-      const newKnownPrices = { ...prev.knownStationPrices };
-      if (newMarket) {
-        Object.entries(newMarket.table).forEach(([key, state]) => {
-          if (knownPrices[key] === undefined) {
-            // Only add price if not already known
-            knownPrices[key] = state.price;
-          }
-        });
-        newKnownPrices[dockedStationId] = knownPrices;
-      }
-
-      return {
-        ...prev,
-        gameView: "trade_select", // Go to trade select screen after docking
-        animationState: { ...prev.animationState, type: null, progress: 0 },
-        market: newMarket,
-        lastDockedStationId: dockedStationId,
-        discoveredStations: updatedDiscoveredStations,
-        knownStationPrices: newKnownPrices, // Update known prices
-      };
-    });
-    // Emit event after state update
-    if (dockedStationId) {
-      setTimeout(
-        () =>
-          emitQuestEvent({
-            type: "DOCK_FINISH",
-            stationId: dockedStationId || "",
-          }),
-        0
-      );
-    }
-  }, [setGameStateInternal, worldManager, emitQuestEvent]); // emitQuestEvent is now defined
+    // This function is now primarily handled within the updateGame state transition logic
+    // It remains here mostly for potential external triggers if needed, but the main
+    // logic (market generation, state change) happens in updateGame.
+    console.log(
+      "Action: Complete Docking (called, but logic handled in updateGame)"
+    );
+    // The actual state change to 'trade_select' and market generation
+    // happens within the updateGame's docking completion check.
+  }, []); // Keep dependencies minimal or empty if logic is fully moved
 
   const initiateUndocking = useCallback(() => {
     console.log("Action: Initiate Undocking");
@@ -537,7 +498,8 @@ export function useGameState() {
         ? loadedData.questInventory
         : {}; // Default to empty Record
 
-    const initialExtraCargo = loadedData.cargoPodLevel * 5;
+    // Calculate initial derived values based on loaded upgrade levels
+    // extraCargoCapacity is now derived via useMemo, no need to store/load
     const initialShootCooldownFactor = loadedData.hasAutoloader ? 0.5 : 1.0;
 
     setGameStateInternal((prevState) => {
@@ -546,15 +508,18 @@ export function useGameState() {
         loadedData.coordinates.y,
         loadedData.shieldCapacitorLevel // Pass shield level for correct maxShield
       );
+      // Ensure player starts with full shields based on loaded capacity
+      loadedPlayer.shieldLevel = loadedPlayer.maxShield;
+
       return {
-        ...prevState, // Start with initial state defaults
+        ...initialGameState, // Start with base defaults to ensure all keys exist
+        // Overwrite with loaded data
         player: loadedPlayer,
         cash: loadedData.cash,
-        cargoHold: loadedData.cargoHold, // Already Record<string, number>
+        cargoHold: loadedData.cargoHold,
         lastDockedStationId: loadedData.lastDockedStationId,
         discoveredStations: loadedData.discoveredStations,
-        // Use the correct type for knownStationPrices from loadedData
-        knownStationPrices: loadedData.knownStationPrices, // Should be Record<string, Record<string, number>>
+        knownStationPrices: loadedData.knownStationPrices,
         // Load upgrades
         cargoPodLevel: loadedData.cargoPodLevel,
         shieldCapacitorLevel: loadedData.shieldCapacitorLevel,
@@ -562,18 +527,21 @@ export function useGameState() {
         hasAutoloader: loadedData.hasAutoloader,
         hasNavComputer: loadedData.hasNavComputer,
         // Set derived values
-        extraCargoCapacity: initialExtraCargo,
         shootCooldownFactor: initialShootCooldownFactor,
         // Load quest state
         questState: validQuestState,
-        questInventory: validQuestInventory, // Use the validated/defaulted Record
+        questInventory: validQuestInventory,
         // Set initialization flag and reset transient state
         isInitialized: true,
         gameView: "playing", // Start in playing view after load
         enemies: [],
         projectiles: [],
         visibleBackgroundObjects: [],
-        camera: { x: 0, y: 0 }, // Will be updated in first frame
+        camera: {
+          // Calculate initial camera based on loaded position
+          x: loadedData.coordinates.x - GAME_WIDTH / 2,
+          y: loadedData.coordinates.y - GAME_VIEW_HEIGHT / 2,
+        },
         dockingStationId: null,
         animationState: { ...initialGameState.animationState },
         respawnTimer: 0,
@@ -583,6 +551,12 @@ export function useGameState() {
         navTargetCoordinates: null,
         navTargetDistance: null,
         viewTargetStationId: null,
+        lastEnemySpawnTime: 0, // Reset timers
+        lastShotTime: 0,
+        enemyIdCounter: 0,
+        // Ensure base capacity is set (extra is derived)
+        baseCargoCapacity: initialGameState.baseCargoCapacity,
+        extraCargoCapacity: 0, // Will be calculated by totalCargoCapacity useMemo
       };
     });
 
@@ -603,17 +577,17 @@ export function useGameState() {
               y: currentSyncState.player.y,
             },
             cash: currentSyncState.cash,
-            cargoHold: currentSyncState.cargoHold, // Record<string, number>
+            cargoHold: currentSyncState.cargoHold,
             lastDockedStationId: currentSyncState.lastDockedStationId,
             discoveredStations: currentSyncState.discoveredStations,
-            knownStationPrices: currentSyncState.knownStationPrices, // Record<string, Record<string, number>>
+            knownStationPrices: currentSyncState.knownStationPrices,
             cargoPodLevel: currentSyncState.cargoPodLevel,
             shieldCapacitorLevel: currentSyncState.shieldCapacitorLevel,
             engineBoosterLevel: currentSyncState.engineBoosterLevel,
             hasAutoloader: currentSyncState.hasAutoloader,
             hasNavComputer: currentSyncState.hasNavComputer,
             questState: currentSyncState.questState,
-            questInventory: currentSyncState.questInventory, // Record<string, number>
+            questInventory: currentSyncState.questInventory,
           };
           saveGameState(dataToSave);
         } else {
@@ -631,7 +605,7 @@ export function useGameState() {
         saveIntervalId.current = null;
       }
     };
-  }, [setGameStateInternal, gameState.isInitialized]); // Keep dependency
+  }, [setGameStateInternal, gameState.isInitialized]);
 
   // --- Define updateGame AFTER its dependencies ---
   const updateGame = useCallback(
@@ -647,11 +621,10 @@ export function useGameState() {
         )
           return currentGameState;
 
+        // --- Calculate Nav Target Info ---
         let navTargetDirection: number | null = null;
         let navTargetCoordinates: IPosition | null = null;
         let navTargetDistance: number | null = null;
-        let activatedBeaconId: string | null = null;
-
         if (currentGameState.navTargetStationId && currentGameState.player) {
           const targetStation = worldManager.getStationById(
             currentGameState.navTargetStationId
@@ -688,8 +661,10 @@ export function useGameState() {
           navTargetCoordinates,
           navTargetDistance,
         };
+
+        // --- Run Core Game Logic ---
         const {
-          newState: nextLogicState,
+          newState: nextLogicState, // Contains updates from physics, collisions etc.
           activatedBeaconId: beaconIdFromLogic,
         } = updateGameStateLogic(
           stateForLogic,
@@ -698,39 +673,129 @@ export function useGameState() {
           deltaTime,
           now
         );
-        activatedBeaconId = beaconIdFromLogic;
 
-        // --- Beacon Activation Side Effects ---
+        // Use a clearer variable name for the activated beacon ID
+        const activatedBeaconId = beaconIdFromLogic;
+
+        // Start with the state returned by the core logic update
+        let stateToReturn = { ...nextLogicState };
+        let questStateModified = false;
+
+        // --- Beacon Activation Side Effects (Direct Quest State Update) ---
         if (activatedBeaconId) {
-          console.log(`Hook: Beacon ${activatedBeaconId} activated.`);
-          worldManager.updateBeaconState(activatedBeaconId, true);
-          addQuestItem("beacon_key", 1); // Use the callback
+          console.log(
+            `[useGameState] Beacon Activation Detected: ${activatedBeaconId}`
+          );
           const beacon = worldManager.getBeaconById(activatedBeaconId);
-          if (beacon) {
-            console.log(`[Quest Event] Emitting WAYPOINT_REACHED for ID: ${activatedBeaconId}`); // <-- ADD THIS LOG
-            emitQuestEvent({
-              type: "WAYPOINT_REACHED",
-              waypointId: activatedBeaconId,
-              coord: { x: beacon.x, y: beacon.y },
-            });
+
+          // Check if beacon exists and is NOT already active in the world state
+          if (beacon && !beacon.isActive) {
+            console.log(
+              `[useGameState] Beacon ${activatedBeaconId} is inactive, proceeding with direct quest update.`
+            );
+            worldManager.updateBeaconState(activatedBeaconId, true); // Update world state (visual)
+
+            // --- Direct Quest State Modification ---
+            const reachObjectiveId =
+              beaconToReachObjectiveMap[activatedBeaconId];
+            if (!reachObjectiveId) {
+              console.warn(
+                `[useGameState] No matching reach objective found for beacon ID: ${activatedBeaconId}`
+              );
+            } else {
+              // Perform a deep clone of the quest state for safe modification
+              const nextQuestState = structuredClone(
+                currentGameState.questState
+              ); // Use structuredClone for deep copy
+              const freedomQuest = nextQuestState.quests["freedom_v01"];
+
+              if (freedomQuest) {
+                let reachObjectiveMarkedDone = false;
+
+                // 1. Update reach_beacon_* objective
+                const reachObjective = freedomQuest[reachObjectiveId];
+                if (reachObjective && !reachObjective.done) {
+                  reachObjective.done = true;
+                  reachObjectiveMarkedDone = true; // Flag that this objective was newly completed
+                  questStateModified = true;
+                  console.log(
+                    `[useGameState] Marked objective ${reachObjectiveId} as done.`
+                  );
+                } else if (!reachObjective) {
+                  console.warn(
+                    `[useGameState] Objective ${reachObjectiveId} not found in quest state.`
+                  );
+                }
+
+                // 2. Update beaconKeys objective count *only if* the reach objective was newly completed
+                const keysObjective = freedomQuest["beaconKeys"];
+                if (keysObjective && reachObjectiveMarkedDone) {
+                  const currentCount = (keysObjective.current as number) || 0;
+                  const newCount = currentCount + 1;
+                  keysObjective.current = newCount;
+                  questStateModified = true;
+
+                  // Check if count now meets the target (e.g., 4) and mark done
+                  const targetKeys = 4; // Defined by quest objective
+                  if (newCount >= targetKeys && !keysObjective.done) {
+                    keysObjective.done = true;
+                    console.log(
+                      `[useGameState] Marked objective beaconKeys as done (reached ${newCount}).`
+                    );
+                  } else {
+                    console.log(
+                      `[useGameState] Incremented beaconKeys count to ${newCount}.`
+                    );
+                  }
+                } else if (!keysObjective) {
+                  console.warn(
+                    `[useGameState] Objective beaconKeys not found in quest state.`
+                  );
+                }
+
+                // If the quest state was modified, update the state we plan to return
+                if (questStateModified) {
+                  stateToReturn = {
+                    ...stateToReturn, // Keep other changes from logic update
+                    questState: nextQuestState, // Replace with our directly modified questState
+                  };
+                } else {
+                  console.log(
+                    `[useGameState] Beacon ${activatedBeaconId} processed, but no quest objectives needed updating (already done?).`
+                  );
+                }
+              } else {
+                console.warn(
+                  `[useGameState] freedom_v01 quest progress not found.`
+                );
+              }
+            }
+            // --- End Direct Quest State Modification ---
+          } else {
+            console.log(
+              `[useGameState] Beacon ${activatedBeaconId} already active or not found. Skipping direct quest update.`
+            );
           }
-        }
+        } // --- End of Beacon Activation Handling ---
 
         // --- Handle State Transitions (Docking, Undocking, Destruction, Respawn) ---
+        // Check transitions based on the *potentially modified* stateToReturn
+        const currentView = currentGameState.gameView; // View *before* this update cycle
+        const nextView = stateToReturn.gameView; // View determined by logic update
+
         // Docking Initiation
         if (
-          currentGameState.gameView === "playing" &&
+          currentView === "playing" &&
           !currentGameState.dockingStationId &&
-          nextLogicState.dockingStationId &&
-          nextLogicState.gameView === "playing"
+          stateToReturn.dockingStationId &&
+          nextView === "playing"
         ) {
           console.log("Hook: Detected docking initiation signal.");
-          let updatedPlayer = nextLogicState.player;
+          let updatedPlayer = stateToReturn.player;
           if (updatedPlayer instanceof Player) {
             updatedPlayer.vx = 0;
             updatedPlayer.vy = 0;
           } else if (updatedPlayer) {
-            // Recreate if not instance (shouldn't happen ideally)
             updatedPlayer = createPlayer(
               updatedPlayer.x,
               updatedPlayer.y,
@@ -741,27 +806,26 @@ export function useGameState() {
             updatedPlayer.vx = 0;
             updatedPlayer.vy = 0;
             console.warn(
-              "Player object was not an instance during docking initiation. Recreated."
+              "Player object not instance during docking initiation. Recreated."
             );
           }
           return {
-            ...nextLogicState,
-            player: updatedPlayer, // Use potentially recreated player
-            gameView: "docking", // Set view to docking
+            ...stateToReturn,
+            player: updatedPlayer,
+            gameView: "docking",
             animationState: {
-              // Start animation
               type: "docking",
               progress: 0,
               duration: currentGameState.animationState.duration,
             },
-            market: null, // Clear market immediately
+            market: null,
           };
         }
         // Docking Completion
         else if (
-          currentGameState.gameView === "docking" &&
+          currentView === "docking" &&
           currentGameState.animationState.type === "docking" &&
-          nextLogicState.animationState.type === null // Animation just finished
+          stateToReturn.animationState.type === null
         ) {
           console.log("Hook: Detected docking animation completion.");
           const stationId = currentGameState.dockingStationId;
@@ -775,7 +839,6 @@ export function useGameState() {
           if (stationId && !updatedDiscoveredStations.includes(stationId)) {
             updatedDiscoveredStations.push(stationId);
           }
-          // Generate market *after* confirming docking
           if (station) {
             newMarket = MarketGenerator.generate(
               station,
@@ -783,7 +846,6 @@ export function useGameState() {
               Date.now()
             );
           }
-          // Update known prices with generated data if needed
           const newKnownPrices = { ...currentGameState.knownStationPrices };
           if (stationId && newMarket) {
             const currentKnown = newKnownPrices[stationId] ?? {};
@@ -794,22 +856,18 @@ export function useGameState() {
             });
             newKnownPrices[stationId] = currentKnown;
           }
-
-          // Emit event *before* returning state to ensure context is correct
           if (stationId) {
             emitQuestEvent({ type: "DOCK_FINISH", stationId });
           }
-
           return {
-            ...nextLogicState,
-            gameView: "trade_select", // Change view
-            market: newMarket, // Set the newly generated market
+            ...stateToReturn,
+            gameView: "trade_select",
+            market: newMarket,
             lastDockedStationId: stationId,
             discoveredStations: updatedDiscoveredStations,
-            knownStationPrices: newKnownPrices, // Apply updated known prices
+            knownStationPrices: newKnownPrices,
             animationState: {
-              // Ensure animation state is fully reset
-              ...nextLogicState.animationState,
+              ...stateToReturn.animationState,
               type: null,
               progress: 0,
             },
@@ -817,19 +875,18 @@ export function useGameState() {
         }
         // Undocking Completion
         else if (
-          currentGameState.gameView === "undocking" &&
+          currentView === "undocking" &&
           currentGameState.animationState.type === "undocking" &&
-          nextLogicState.animationState.type === null // Animation just finished
+          stateToReturn.animationState.type === null
         ) {
           console.log("Hook: Detected undocking animation completion.");
-          let playerX = nextLogicState.player?.x ?? 0;
-          let playerY = nextLogicState.player?.y ?? 0;
-          let playerAngle = nextLogicState.player?.angle ?? -Math.PI / 2;
-          const stationId = currentGameState.lastDockedStationId; // Use last docked for position
+          let playerX = stateToReturn.player?.x ?? 0;
+          let playerY = stateToReturn.player?.y ?? 0;
+          let playerAngle = stateToReturn.player?.angle ?? -Math.PI / 2;
+          const stationId = currentGameState.lastDockedStationId;
           const station = stationId
             ? worldManager.getStationById(stationId)
             : null;
-          // Reposition player outside the station
           if (station) {
             const undockDist =
               station.radius +
@@ -840,8 +897,7 @@ export function useGameState() {
             playerY = station.y + Math.sin(exitAngle) * undockDist;
             playerAngle = exitAngle;
           }
-          // Ensure player object is correct instance and updated
-          let updatedPlayer = nextLogicState.player;
+          let updatedPlayer = stateToReturn.player;
           if (!(updatedPlayer instanceof Player) && updatedPlayer) {
             updatedPlayer = createPlayer(
               playerX,
@@ -861,65 +917,47 @@ export function useGameState() {
           updatedPlayer.vy = 0;
           updatedPlayer.angle = playerAngle;
           return {
-            ...nextLogicState,
+            ...stateToReturn,
             player: updatedPlayer,
-            gameView: "playing", // Back to playing
-            dockingStationId: null, // Clear docking ID
-            market: null, // Ensure market is null
+            gameView: "playing",
+            dockingStationId: null,
+            market: null,
             animationState: {
-              // Reset animation state
-              ...nextLogicState.animationState,
+              ...stateToReturn.animationState,
               type: null,
               progress: 0,
             },
           };
         }
         // Player Destruction
-        else if (
-          currentGameState.gameView === "playing" &&
-          nextLogicState.gameView === "destroyed"
-        ) {
+        else if (currentView === "playing" && nextView === "destroyed") {
           console.log("Hook: Detected destruction transition from logic.");
-          // State already contains gameView: "destroyed" and respawnTimer set
-          return {
-            ...nextLogicState,
-            projectiles: [], // Clear projectiles immediately
-            enemies: [], // Clear enemies immediately
-          };
+          return { ...stateToReturn, projectiles: [], enemies: [] }; // Clear immediately
         }
         // Player Respawn
-        else if (
-          currentGameState.gameView === "destroyed" &&
-          nextLogicState.gameView === "playing"
-        ) {
+        else if (currentView === "destroyed" && nextView === "playing") {
           console.log("Hook: Detected respawn completion from logic.");
-          // State already contains new player, playing view, cleared enemies/projectiles
-          return nextLogicState;
+          return stateToReturn; // State is already set up by logic
         }
 
         // --- Final State Check (Win Condition) ---
+        // Check win condition based on the *potentially modified* quest state
         const finalScore = questEngine.calculateQuestCompletion(
           "freedom_v01",
-          nextLogicState.questState
+          stateToReturn.questState // Use the state we are about to return
         );
-        if (finalScore >= 100 && nextLogicState.gameView !== "won") {
+        if (finalScore >= 100 && stateToReturn.gameView !== "won") {
           console.log(
             "WIN CONDITION MET (End of Frame)! Emancipation Score >= 100%"
           );
-          return { ...nextLogicState, gameView: "won" };
+          return { ...stateToReturn, gameView: "won" };
         }
 
-        // If no major transition occurred, return the updated logic state
-        // including updated nav target info
-        return {
-          ...nextLogicState,
-          navTargetDirection,
-          navTargetCoordinates,
-          navTargetDistance,
-        };
+        // If no major transition occurred, return the final updated state
+        return stateToReturn;
       });
     },
-    [setGameStateInternal, worldManager, emitQuestEvent, addQuestItem] // Add dependencies
+    [setGameStateInternal, worldManager, emitQuestEvent]
   );
 
   // --- Restart Game ---
@@ -934,11 +972,11 @@ export function useGameState() {
     // Define default starting values
     const defaultPosition = { x: 0, y: 0 };
     const defaultCash = initialGameState.cash;
-    const defaultCargo: Record<string, number> = {}; // Empty Record
+    const defaultCargo: CargoHold = {}; // Empty Record
     const defaultLastDocked = null;
     const defaultDiscoveredStations: string[] = [];
     const defaultQuestState = initialQuestState;
-    const defaultQuestInventory: Record<string, number> = {}; // Empty Record
+    const defaultQuestInventory: QuestInventory = {}; // Empty Record
     const defaultKnownPrices: Record<string, Record<string, number>> = {}; // Empty Prices Record
 
     // Reset state to initial values
@@ -956,7 +994,7 @@ export function useGameState() {
       engineBoosterLevel: 0,
       hasAutoloader: false,
       hasNavComputer: false,
-      extraCargoCapacity: 0,
+      // extraCargoCapacity: 0, // Derived via useMemo
       shootCooldownFactor: 1.0,
       // Reset quests
       questState: defaultQuestState,
