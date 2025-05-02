@@ -1,5 +1,5 @@
 // src/game/types.ts
-import { MarketSnapshot } from "./Market"; // Import MarketSnapshot
+import { MarketSnapshot } from "./Market"; // Import MarketSnapshot (ensure Market.ts doesn't import this file)
 import { QuestState } from "../quests/QuestState"; // Import QuestState
 
 // Basic position
@@ -21,7 +21,7 @@ export interface IPlayer extends IGameObject {
   angle: number;
   vx: number;
   vy: number;
-  shieldLevel: number; // Player shield percentage (0-100)
+  shieldLevel: number; // Player shield percentage (0-100 based on maxShield)
   maxShield: number; // Max shield capacity (can be increased by upgrades)
 }
 
@@ -152,7 +152,7 @@ export interface IAnimationState {
 }
 
 // --- Destruction Animation ---
-// Structure for individual particle parameters (previously in DestructionAnimation.tsx)
+// Structure for individual particle parameters
 export interface ParticleState {
   id: number;
   delay: number; // ms
@@ -165,7 +165,7 @@ export interface ParticleState {
   thickness: number;
 }
 
-// Updated data stored in gameState.activeDestructionAnimations
+// Data stored in gameState.activeDestructionAnimations
 export interface DestructionAnimationData {
   id: string;
   x: number;
@@ -186,24 +186,24 @@ export interface QuestItemDefinition {
 }
 
 // Represents the state of a single commodity in a market
-export type CommodityState = {
+export interface CommodityState {
   price: number;
-  supply: number; // Or demand, depending on context
-  // Add other relevant state properties if needed (e.g., trend)
-};
+  quantity: number; // Changed from supply for consistency
+}
 
-// Represents the entire market table (commodity -> state)
-export type CommodityTable = Record<string, CommodityState>; // NEW
+// Represents the entire market table (commodity -> state) - Use Record
+export type CommodityTable = Record<string, CommodityState>;
 
 // Snapshot of market data at a specific time
 export interface IMarketSnapshot {
   timestamp: number;
-  table: CommodityTable;
+  table: CommodityTable; // Use the Record type
 }
 
-// Represents the player's cargo hold (commodity -> quantity)
-// export type CargoHold = Map<string, number>; // OLD - Removing alias
-// export type QuestInventory = Map<string, number>; // OLD
+// Represents the player's cargo hold (commodity -> quantity) - Use Record
+export type CargoHold = Record<string, number>;
+// Represents quest items held by player - Use Record
+export type QuestInventory = Record<string, number>;
 
 // Game State
 export interface IGameState {
@@ -222,12 +222,11 @@ export interface IGameState {
   lastDockedStationId: string | null;
   respawnTimer: number;
   isInitialized: boolean;
-  // cargoHold: Map<string, number>; // OLD
-  cargoHold: Record<string, number>; // NEW
+  cargoHold: CargoHold; // Use the Record type alias
   baseCargoCapacity: number; // Base capacity before upgrades
   extraCargoCapacity: number; // Capacity added by upgrades
-  market: MarketSnapshot | null;
-  activeDestructionAnimations: DestructionAnimationData[]; // Stores data for canvas rendering
+  market: MarketSnapshot | null; // Use IMarketSnapshot (which uses CommodityTable Record)
+  activeDestructionAnimations: DestructionAnimationData[];
   // --- Station Log & Navigation ---
   discoveredStations: string[]; // Array of discovered station IDs, in order
   navTargetStationId: string | null; // ID of station to navigate to
@@ -235,8 +234,8 @@ export interface IGameState {
   navTargetCoordinates: IPosition | null; // Coordinates of nav target
   navTargetDistance: number | null; // Added: Distance to nav target
   viewTargetStationId: string | null; // ID of station to view in details screen
-  // knownStationPrices: Map<string, CommodityTable>; // OLD
-  knownStationPrices: Record<string, CommodityTable>; // NEW
+  // Store *just* the price for known stations, consistent with storage/saving logic
+  knownStationPrices: Record<string, Record<string, number>>;
   // --- Upgrades ---
   cargoPodLevel: number; // 0-4
   shieldCapacitorLevel: number; // 0-3
@@ -246,8 +245,7 @@ export interface IGameState {
   shootCooldownFactor: number; // 1.0 or 0.5
   // --- Quest System ---
   questState: QuestState;
-  // questInventory: Map<string, number>; // OLD - Items needed for quests
-  questInventory: Record<string, number>; // NEW - Items needed for quests
+  questInventory: QuestInventory; // Use the Record type alias
 }
 
 // World Manager Config

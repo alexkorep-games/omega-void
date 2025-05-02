@@ -1,27 +1,26 @@
 // src/hooks/useTradeCargoLogic.ts
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useGameState } from "./useGameState"; // Use Game 2's state hook
-import { getTonnesPerUnit, getCommodityUnit } from "../game/Market"; // Use Game 2's Market definitions
+import { useGameState } from "./useGameState";
+import { getTonnesPerUnit, getCommodityUnit } from "../game/Market";
+import { CargoHold } from "../game/types"; // Import the Record type alias
 
-// --- Types ---
-
+// Types
 type TradeMode = "buy" | "sell";
 
-// Unified display item structure
 interface TradeItemDisplay {
   key: string;
-  marketPrice: number; // Price market sells at (for buying) or buys at (for selling)
-  marketQuantity: number; // Qty available AT market (relevant for buying)
-  playerHolding: number; // Qty player currently holds (relevant for selling)
+  marketPrice: number;
+  marketQuantity: number;
+  playerHolding: number;
 }
 
 interface StatusMessage {
   text: string;
   type: "info" | "error" | "success";
-  timestamp: number; // To help clear old messages
+  timestamp: number;
 }
 
-const MESSAGE_DURATION = 2500; // ms
+const MESSAGE_DURATION = 2500;
 
 export function useTradeCargoLogic(mode: TradeMode) {
   const {
@@ -29,53 +28,52 @@ export function useTradeCargoLogic(mode: TradeMode) {
     updatePlayerState,
     updateMarketQuantity,
     totalCargoCapacity,
-  } = useGameState(); // Get totalCargoCapacity
+  } = useGameState();
 
   const {
     market,
     cash: playerCash,
-    cargoHold,
-    // cargoCapacity, // Use totalCargoCapacity instead
+    cargoHold, // This is Record<string, number>
     gameView,
   } = gameState;
 
-  // --- Internal State ---
+  // Internal State
   const [tradeItems, setTradeItems] = useState<TradeItemDisplay[]>([]);
   const [statusMessage, setStatusMessage] = useState<StatusMessage | null>(
     null
   );
-  const messageTimeoutRef = useRef<number | null>(null); // Use number for browser setTimeout return type
+  const messageTimeoutRef = useRef<number | null>(null);
 
-  // --- Memoized Calculations ---
+  // Memoized Calculations
   const cargoSpaceLeft = useMemo(() => {
     let used = 0;
+    // Iterate over Record
     Object.entries(cargoHold).forEach(([key, quantity]) => {
       used += quantity * getTonnesPerUnit(key);
     });
-    // Use totalCargoCapacity derived from the hook
     return Math.max(0, totalCargoCapacity - used);
   }, [cargoHold, totalCargoCapacity]);
 
-  // --- Helpers ---
+  // Helpers
   const showMessage = useCallback(
     (text: string, type: StatusMessage["type"]) => {
       if (messageTimeoutRef.current) clearTimeout(messageTimeoutRef.current);
       setStatusMessage({ text, type, timestamp: Date.now() });
       messageTimeoutRef.current = window.setTimeout(() => {
-        // Use window.setTimeout for explicit browser context
         setStatusMessage(null);
       }, MESSAGE_DURATION);
     },
     []
   );
 
-  // --- Core Trade Action ---
+  // Core Trade Action
   const performTrade = useCallback(
     (key: string, quantity: number, tradeMode: TradeMode) => {
       if (!market || quantity <= 0) return false;
 
+      // Use .get() method of MarketSnapshot (which now accesses the internal Record)
       const marketInfo = market.get(key);
-      const playerHolding = cargoHold[key] || 0;
+      const playerHolding = cargoHold[key] || 0; // Direct access for Record
 
       if (!marketInfo) {
         showMessage("Error: Item not traded at this station.", "error");
@@ -83,7 +81,7 @@ export function useTradeCargoLogic(mode: TradeMode) {
       }
 
       if (tradeMode === "buy") {
-        // --- Buy Validation ---
+        // Buy Validation
         const cost = quantity * marketInfo.price;
         const spaceNeeded = quantity * getTonnesPerUnit(key);
 
@@ -100,23 +98,23 @@ export function useTradeCargoLogic(mode: TradeMode) {
           return false;
         }
 
-        // --- Perform Buy Update ---
+        // Perform Buy Update
         updatePlayerState((prevState) => {
-          const updatedCargoHold = { ...prevState.cargoHold }; // Convert to Record
+          // Create new Record for immutability
+          const updatedCargoHold: CargoHold = { ...prevState.cargoHold };
           updatedCargoHold[key] = (updatedCargoHold[key] || 0) + quantity;
           return {
-            ...prevState,
             cash: prevState.cash - cost,
-            cargoHold: updatedCargoHold,
+            cargoHold: updatedCargoHold, // Assign the new Record
           };
         });
         updateMarketQuantity(key, -quantity); // Decrease market stock
         showMessage(
-          `Bought ${quantity} ${getCommodityUnit(key)} ${key}.`,
+          `Bought ${quantity}${getCommodityUnit(key)} ${key}.`,
           "success"
         );
       } else if (tradeMode === "sell") {
-        // --- Sell Validation ---
+        // Sell Validation
         if (playerHolding <= 0) {
           showMessage("Error: Cannot sell item you don't have.", "error");
           return false;
@@ -135,32 +133,30 @@ export function useTradeCargoLogic(mode: TradeMode) {
 
         const earnings = quantity * marketInfo.price;
 
-        // --- Perform Sell Update ---
+        // Perform Sell Update
         updatePlayerState((prevState) => {
-          const updatedCargoHold = { ...prevState.cargoHold }; // Convert to Record
-          const currentQty = updatedCargoHold[key] || 0;
+          const updatedCargoHold: CargoHold = { ...prevState.cargoHold };
+          const currentQty = updatedCargoHold[key] || 0; // Should exist due to validation
           const newQty = currentQty - quantity;
           if (newQty <= 0) {
-            delete updatedCargoHold[key];
+            delete updatedCargoHold[key]; // Remove key if 0
           } else {
-            updatedCargoHold[key] = newQty;
+            updatedCargoHold[key] = newQty; // Update key
           }
           return {
-            ...prevState,
             cash: prevState.cash + earnings,
-            cargoHold: updatedCargoHold,
+            cargoHold: updatedCargoHold, // Assign the new Record
           };
         });
         updateMarketQuantity(key, +quantity); // Increase market stock
         showMessage(
-          `Sold ${quantity} ${getCommodityUnit(key)} ${key}.`,
+          `Sold ${quantity}${getCommodityUnit(key)} ${key}.`,
           "success"
         );
       } else {
         console.error("Invalid trade mode:", tradeMode);
-        return false; // Should not happen
+        return false;
       }
-
       return true; // Trade successful
     },
     [
@@ -174,10 +170,9 @@ export function useTradeCargoLogic(mode: TradeMode) {
     ]
   );
 
-  // --- useEffect for Populating Data and Handling View Changes ---
+  // useEffect for Populating Data and Handling View Changes
   useEffect(() => {
     if (!market || !mode) {
-      // Clear state if not on a trading screen or market not loaded
       setTradeItems([]);
       setStatusMessage(null);
       if (messageTimeoutRef.current) clearTimeout(messageTimeoutRef.current);
@@ -186,53 +181,49 @@ export function useTradeCargoLogic(mode: TradeMode) {
 
     let items: TradeItemDisplay[] = [];
     if (mode === "buy") {
-      items = Array.from(market.entries())
+      // Use MarketSnapshot's entries() method (which now uses Object.entries)
+      items = market
+        .entries()
         .map(
           ([key, state]): TradeItemDisplay => ({
             key,
             marketPrice: state.price,
             marketQuantity: state.quantity,
-            playerHolding: cargoHold[key] || 0, // Show holding even when buying
+            playerHolding: cargoHold[key] || 0, // Direct access for Record
           })
         )
-        .sort((a, b) => a.key.localeCompare(b.key)); // Sort alphabetically
+        .sort((a, b) => a.key.localeCompare(b.key));
     } else if (mode === "sell") {
+      // Iterate over player's cargoHold Record
       items = Object.entries(cargoHold)
-        .filter(([, holding]) => holding > 0) // Only list items held
+        .filter(([, holding]) => holding > 0)
         .map(([key, holding]): TradeItemDisplay | null => {
-          const marketInfo = market.get(key);
-          // Only list if market actually buys it (has a price > 0)
+          const marketInfo = market.get(key); // Use MarketSnapshot method
           if (marketInfo && marketInfo.price > 0) {
             return {
               key,
-              marketPrice: marketInfo.price, // Price station buys at
-              marketQuantity: marketInfo.quantity, // Market stock (less relevant for selling display, but keep for consistency)
+              marketPrice: marketInfo.price,
+              marketQuantity: marketInfo.quantity,
               playerHolding: holding,
             };
           }
-          // Optionally, list items the market *doesn't* buy with price 0 if needed
-          // else if (marketInfo) { // Market exists but price is 0
-          //    return { key, marketPrice: 0, marketQuantity: marketInfo.quantity, playerHolding: holding };
-          // }
-          return null; // Don't list if market doesn't know about it or doesn't buy
+          return null;
         })
-        .filter((item): item is TradeItemDisplay => item !== null) // Remove null entries
-        .sort((a, b) => a.key.localeCompare(b.key)); // Sort alphabetically
+        .filter((item): item is TradeItemDisplay => item !== null)
+        .sort((a, b) => a.key.localeCompare(b.key));
     }
 
     setTradeItems(items);
-  }, [gameView, market, cargoHold, mode]); // Dependency on lastClickedItemKey to potentially preserve highlight
+  }, [gameView, market, cargoHold, mode]); // Dependencies
 
-  // --- Input Handlers ---
-
-  // Handles primary action on item click (Buy 1 / Sell All)
+  // Input Handlers
   const handleItemPrimaryAction = useCallback(
     (key: string) => {
       let quantityToTrade = 0;
       if (mode === "buy") {
         quantityToTrade = 1;
       } else if (mode === "sell") {
-        quantityToTrade = cargoHold[key] || 0;
+        quantityToTrade = cargoHold[key] || 0; // Direct access
       }
 
       if (quantityToTrade > 0) {
@@ -240,26 +231,19 @@ export function useTradeCargoLogic(mode: TradeMode) {
       } else {
         if (mode === "sell")
           showMessage("Error: Cannot sell 0 units.", "error");
-        // No message for buy 1 if stock/cash/space is zero, performTrade handles that
       }
     },
     [mode, performTrade, cargoHold, showMessage]
   );
 
-  // --- Return Values ---
+  // Return Values
   return {
-    mode, // 'buy', 'sell', or null
-    market, // Expose market snapshot used
-    tradeItems, // Unified list for display
-
-    // Primary actions
-    handleItemPrimaryAction, // Handles click (Buy 1 / Sell All)
-
-    // Player state relevant to trading
+    mode,
+    market,
+    tradeItems,
+    handleItemPrimaryAction,
     playerCash,
-    cargoSpaceLeft, // Relevant for buying
-
-    // UI feedback
+    cargoSpaceLeft,
     statusMessage,
   };
 }
