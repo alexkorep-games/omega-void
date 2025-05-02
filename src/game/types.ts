@@ -193,7 +193,6 @@ export type CommodityState = {
 };
 
 // Represents the entire market table (commodity -> state)
-// export type CommodityTable = Map<string, CommodityState>; // OLD
 export type CommodityTable = Record<string, CommodityState>; // NEW
 
 // Snapshot of market data at a specific time

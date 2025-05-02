@@ -1,7 +1,7 @@
 // src/game/Market.ts — Commodity & Market logic for Elite‑style trading
 // Adapted for Game 2
 
-import { IStation, EconomyType, TechLevel } from "./types"; // Use Game 2 types
+import { IStation, EconomyType, TechLevel, CommodityTable } from "./types"; // Use Game 2 types
 import { SeedablePRNG } from "./world/SeedablePRNG"; // Use Game 2 PRNG
 
 export interface CommodityDefinition {
@@ -250,11 +250,9 @@ export interface CommodityState {
   quantity: number; // units available
 }
 
-export type CommodityPrices = Record<string, number>;
-export type CommodityTable = Record<string, CommodityState>;
 export class MarketSnapshot {
   readonly timestamp: number; // visit serial (0,1,2,…)
-  readonly table: Record<string, CommodityState>;
+  readonly table: CommodityTable;
 
   constructor(timestamp: number, table: CommodityTable) {
     this.timestamp = timestamp;
