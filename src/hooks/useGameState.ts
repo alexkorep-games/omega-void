@@ -707,8 +707,8 @@ export function useGameState() {
           addQuestItem("beacon_key", 1); // Use the callback
           const beacon = worldManager.getBeaconById(activatedBeaconId);
           if (beacon) {
+            console.log(`[Quest Event] Emitting WAYPOINT_REACHED for ID: ${activatedBeaconId}`); // <-- ADD THIS LOG
             emitQuestEvent({
-              // Use the callback
               type: "WAYPOINT_REACHED",
               waypointId: activatedBeaconId,
               coord: { x: beacon.x, y: beacon.y },

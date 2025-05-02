@@ -78,6 +78,7 @@
   padding-left: 5px;
   position: relative; /* For pseudo-elements if needed */
   white-space: pre-wrap; /* Allow wrapping for long progress text */
+  text-align: left; /* Align text to the left */
 }
 
 .objective-item.done {

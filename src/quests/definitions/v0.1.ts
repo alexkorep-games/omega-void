@@ -32,6 +32,31 @@ export const V01_QUEST_DEFINITIONS: QuestDefinition[] = [
         id: "beaconKeys",
         description: "Collect 4 Beacon Access Keys", // Added description
         condition: { kind: "collectItem", item: "beacon_key", count: 4 },
+        // hidden: true, // Optional: uncomment to hide this overall objective
+      },
+      {
+        id: "reach_beacon_nw",
+        description: "Activate NW Beacon", // Matches beacon_nw_key1
+        condition: { kind: "reachWaypoint", waypointId: "beacon_nw_key1" },
+        hidden: true,
+      },
+      {
+        id: "reach_beacon_ne",
+        description: "Activate NE Beacon", // Matches beacon_ne_key2
+        condition: { kind: "reachWaypoint", waypointId: "beacon_ne_key2" },
+        hidden: true,
+      },
+      {
+        id: "reach_beacon_sw",
+        description: "Activate SW Beacon", // Matches beacon_sw_key3
+        condition: { kind: "reachWaypoint", waypointId: "beacon_sw_key3" },
+        hidden: true,
+      },
+      {
+        id: "reach_beacon_se",
+        description: "Activate SE Beacon", // Matches beacon_se_key4
+        condition: { kind: "reachWaypoint", waypointId: "beacon_se_key4" },
+        hidden: true,
       },
     ],
   },

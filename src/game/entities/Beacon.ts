@@ -12,6 +12,8 @@ export class Beacon extends GameObject implements IBeacon {
   constructor(x: number, y: number, idSuffix: string | number) {
     // Use BEACON_SIZE for both size and radius for simplicity in collision/rendering
     super(x, y, BEACON_SIZE, BEACON_COLOR, `beacon_${idSuffix}`);
+    // *** Override the ID set by GameObject to use ONLY the suffix ***
+    this.id = `beacon_${idSuffix}`;
     this.type = "beacon";
     this.isActive = false; // Starts inactive
   }
