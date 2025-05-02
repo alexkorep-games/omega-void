@@ -502,7 +502,7 @@ export function useGameState() {
     // extraCargoCapacity is now derived via useMemo, no need to store/load
     const initialShootCooldownFactor = loadedData.hasAutoloader ? 0.5 : 1.0;
 
-    setGameStateInternal((prevState) => {
+    setGameStateInternal(() => {
       const loadedPlayer = createPlayer(
         loadedData.coordinates.x,
         loadedData.coordinates.y,
