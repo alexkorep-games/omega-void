@@ -1,3 +1,4 @@
+// src/hooks/calculateNextGameState.ts
 import { IGameState, ITouchState, IPosition } from "../game/types";
 import { updateGameStateLogic, createPlayer } from "../game/logic";
 import { InfiniteWorldManager } from "../game/world/InfiniteWorldManager";
