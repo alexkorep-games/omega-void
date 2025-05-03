@@ -774,7 +774,7 @@ function calculateNavigationInfo(
 /**
  * Handles beacon activation side effects and directly updates quest state.
  */
-function handleBeaconActivationAndUpdateQuest(
+export function handleBeaconActivationAndUpdateQuest(
   currentState: IGameState,
   activatedBeaconId: string | null,
   worldManager: InfiniteWorldManager
