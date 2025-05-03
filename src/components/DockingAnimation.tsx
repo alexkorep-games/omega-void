@@ -3,7 +3,6 @@ import React from "react";
 import "../App.css"; // Import CSS for animations
 
 interface DockingAnimationProps {
-  type: "docking" | "undocking";
   progress: number; // 0 to 1
 }
 
@@ -38,37 +37,21 @@ const baseCircleStyle: React.CSSProperties = {
   opacity: 0,
 };
 
-const DockingAnimation: React.FC<DockingAnimationProps> = ({
-  type,
-  progress,
-}) => {
+const DockingAnimation: React.FC<DockingAnimationProps> = ({ progress }) => {
   const numCircles = 5;
   const circles = [];
-
-  // Adjust animation based on docking/undocking and progress
-  const text = type === "docking" ? "DOCKING..." : "UNDOCKING...";
 
   for (let i = 0; i < numCircles; i++) {
     const delay = i * 0.2; // Stagger the circles
     let scale, opacity;
 
-    if (type === "docking") {
-      // Circles expand from center
-      const effectiveProgress = Math.max(
-        0,
-        Math.min(1, (progress - delay) / (1 - delay * 0.8))
-      ); // Adjust progress based on delay
-      scale = effectiveProgress * 1.5; // Expand beyond container
-      opacity = 1 - effectiveProgress; // Fade out as they expand
-    } else {
-      // Circles shrink towards center (reverse)
-      const effectiveProgress = Math.max(
-        0,
-        Math.min(1, (progress - delay) / (1 - delay * 0.8))
-      );
-      scale = (1 - effectiveProgress) * 1.5; // Shrink from outside
-      opacity = effectiveProgress; // Fade in as they shrink
-    }
+    // Circles expand from center
+    const effectiveProgress = Math.max(
+      0,
+      Math.min(1, (progress - delay) / (1 - delay * 0.8))
+    ); // Adjust progress based on delay
+    scale = effectiveProgress * 1.5; // Expand beyond container
+    opacity = 1 - effectiveProgress; // Fade out as they expand
 
     // Clamp opacity and scale
     opacity = Math.max(0, Math.min(1, opacity));
@@ -92,18 +75,6 @@ const DockingAnimation: React.FC<DockingAnimationProps> = ({
   return (
     <div style={animationOverlayStyle}>
       <div style={circleContainerStyle}>{circles}</div>
-      <div
-        style={{
-          position: "absolute",
-          color: "#00FFFF",
-          fontSize: "24px",
-          fontFamily: "monospace",
-          letterSpacing: "4px",
-          opacity: Math.sin(progress * Math.PI), // Fade in/out text
-        }}
-      >
-        {text}
-      </div>
     </div>
   );
 };

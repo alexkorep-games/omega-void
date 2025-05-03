@@ -187,7 +187,6 @@ const Game: React.FC = () => {
         isInitialized &&
         gameState.animationState.duration > 0 && (
           <DockingAnimation
-            type={gameState.gameView}
             progress={
               gameState.animationState.progress /
               gameState.animationState.duration
