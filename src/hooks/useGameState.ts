@@ -13,7 +13,11 @@ import {
   QuestInventory,
 } from "../game/types";
 import { initialGameState } from "../game/state";
-import { createPlayer } from "../game/logic";
+import {
+  createPlayer,
+  calculateNextGameState,
+  questEngine,
+} from "../game/logic";
 import { InfiniteWorldManager } from "../game/world/InfiniteWorldManager";
 import { loadGameState, saveGameState, SaveData } from "../utils/storage"; // Import SaveData type
 import {
@@ -25,7 +29,6 @@ import {
 import { MarketSnapshot } from "../game/Market";
 import { GameEvent, QuestItemId, initialQuestState } from "../quests";
 import { FIXED_STATIONS } from "../game/world/FixedStations";
-import { calculateNextGameState, questEngine } from "./calculateNextGameState";
 
 export type UpgradeKey =
   | "cargoPod"
