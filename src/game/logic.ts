@@ -468,7 +468,6 @@ function handleCollisions(
   };
 }
 
-// Updated updateGameStateLogic return type to include activatedBeaconId
 export function updateGameStateLogic(
   currentState: IGameState,
   touchState: ITouchState | undefined,
@@ -577,7 +576,7 @@ export function updateGameStateLogic(
         // Cannot recover, maybe transition to an error state or main menu?
         // For now, just return the current (bad) state.
         console.error("Cannot recover player state!");
-        return { newState: currentState, activatedBeaconId: null };
+        return { newState: currentState, activatedBeaconId: null }; // Fix: Use currentState here
       }
     }
 
@@ -722,27 +721,25 @@ export function updateGameStateLogic(
   return { newState, activatedBeaconId };
 }
 
-/**
- * Calculates the next game state based on the current state, time delta,
- * input, world state, and events.
- * This function encapsulates the core game update logic previously inside
- * the setGameStateInternal callback within updateGame.
- */
-export const calculateNextGameState = (
-  currentGameState: IGameState,
-  deltaTime: number,
-  now: number,
-  currentTouchState: ITouchState | undefined,
-  worldManager: InfiniteWorldManager,
-  emitQuestEvent: (event: GameEvent) => void // Pass emitQuestEvent as a dependency
-): IGameState => {
-  if (!currentGameState.isInitialized || currentGameState.gameView === "won")
-    return currentGameState;
+// --- Helper Functions for calculateNextGameState ---
 
-  // --- Calculate Nav Target Info ---
+/**
+ * Calculates navigation target information based on the current state.
+ */
+function calculateNavigationInfo(
+  currentGameState: IGameState,
+  worldManager: InfiniteWorldManager
+): {
+  navTargetDirection: number | null;
+  navTargetCoordinates: IPosition | null;
+  navTargetDistance: number | null;
+  needsNavClear: boolean; // Flag if target station wasn't found
+} {
   let navTargetDirection: number | null = null;
   let navTargetCoordinates: IPosition | null = null;
   let navTargetDistance: number | null = null;
+  let needsNavClear = false;
+
   if (currentGameState.navTargetStationId && currentGameState.player) {
     const targetStation = worldManager.getStationById(
       currentGameState.navTargetStationId
@@ -760,212 +757,209 @@ export const calculateNextGameState = (
       );
     } else {
       console.warn(
-        `[calculateNextGameState] Nav target station ${currentGameState.navTargetStationId} not found. Clearing navigation.`
+        `[calculateNavigationInfo] Nav target station ${currentGameState.navTargetStationId} not found. Flagging for clear.`
       );
-      // Clear nav target if station not found
-      return {
-        ...currentGameState,
-        navTargetStationId: null,
-        navTargetDirection: null,
-        navTargetCoordinates: null,
-        navTargetDistance: null,
-      };
+      needsNavClear = true;
     }
   }
 
-  const stateForLogic = {
-    ...currentGameState,
+  return {
     navTargetDirection,
     navTargetCoordinates,
     navTargetDistance,
+    needsNavClear,
   };
+}
 
-  // --- Run Core Game Logic ---
-  const {
-    newState: nextLogicState, // Contains updates from physics, collisions etc.
-    activatedBeaconId: beaconIdFromLogic,
-  } = updateGameStateLogic(
-    stateForLogic,
-    currentTouchState,
-    worldManager,
-    deltaTime,
-    now
+/**
+ * Handles beacon activation side effects and directly updates quest state.
+ */
+function handleBeaconActivationAndUpdateQuest(
+  currentState: IGameState,
+  activatedBeaconId: string | null,
+  worldManager: InfiniteWorldManager
+): { updatedState: IGameState; questStateModified: boolean } {
+  if (!activatedBeaconId) {
+    return { updatedState: currentState, questStateModified: false };
+  }
+
+  console.log(
+    `[handleBeaconActivation] Beacon Activation Detected: ${activatedBeaconId}`
   );
-
-  // Use a clearer variable name for the activated beacon ID
-  const activatedBeaconId = beaconIdFromLogic;
-
-  // Start with the state returned by the core logic update
-  let stateToReturn = { ...nextLogicState };
+  const beacon = worldManager.getBeaconById(activatedBeaconId);
   let questStateModified = false;
+  let nextQuestState = currentState.questState; // Start with current quest state
 
-  // --- Beacon Activation Side Effects (Direct Quest State Update) ---
-  if (activatedBeaconId) {
+  // Check if beacon exists and is NOT already active in the world state
+  if (beacon && !beacon.isActive) {
     console.log(
-      `[calculateNextGameState] Beacon Activation Detected: ${activatedBeaconId}`
+      `[handleBeaconActivation] Beacon ${activatedBeaconId} is inactive, proceeding with direct quest update.`
     );
-    const beacon = worldManager.getBeaconById(activatedBeaconId);
+    worldManager.updateBeaconState(activatedBeaconId, true); // Update world state (visual)
 
-    // Check if beacon exists and is NOT already active in the world state
-    if (beacon && !beacon.isActive) {
-      console.log(
-        `[calculateNextGameState] Beacon ${activatedBeaconId} is inactive, proceeding with direct quest update.`
+    // --- Direct Quest State Modification ---
+    const reachObjectiveId = beaconToReachObjectiveMap[activatedBeaconId];
+    if (!reachObjectiveId) {
+      console.warn(
+        `[handleBeaconActivation] No matching reach objective found for beacon ID: ${activatedBeaconId}`
       );
-      worldManager.updateBeaconState(activatedBeaconId, true); // Update world state (visual)
+    } else {
+      // Perform a deep clone only if we intend to modify
+      const clonedQuestState = structuredClone(currentState.questState);
+      const freedomQuest = clonedQuestState.quests["freedom_v01"];
 
-      // --- Direct Quest State Modification ---
-      const reachObjectiveId = beaconToReachObjectiveMap[activatedBeaconId];
-      if (!reachObjectiveId) {
-        console.warn(
-          `[calculateNextGameState] No matching reach objective found for beacon ID: ${activatedBeaconId}`
-        );
-      } else {
-        // Perform a deep clone of the quest state for safe modification
-        // Use structuredClone for deep copy if available and appropriate,
-        // otherwise use a library or manual deep copy.
-        // For simplicity, assuming a shallow copy might suffice if quest state updates are careful,
-        // but a deep clone is safer. Using structuredClone here.
-        const nextQuestState = structuredClone(currentGameState.questState);
-        const freedomQuest = nextQuestState.quests["freedom_v01"];
+      if (freedomQuest) {
+        let reachObjectiveMarkedDone = false;
 
-        if (freedomQuest) {
-          let reachObjectiveMarkedDone = false;
-
-          // 1. Update reach_beacon_* objective
-          const reachObjective = freedomQuest[reachObjectiveId];
-          if (reachObjective && !reachObjective.done) {
-            reachObjective.done = true;
-            reachObjectiveMarkedDone = true; // Flag that this objective was newly completed
-            questStateModified = true;
-            console.log(
-              `[calculateNextGameState] Marked objective ${reachObjectiveId} as done.`
-            );
-          } else if (!reachObjective) {
-            console.warn(
-              `[calculateNextGameState] Objective ${reachObjectiveId} not found in quest state.`
-            );
-          } else if (reachObjective.done) {
-            console.log(
-              `[calculateNextGameState] Objective ${reachObjectiveId} was already done.`
-            );
-          }
-
-          // 2. Update beaconKeys objective count *only if* the reach objective was newly completed
-          const keysObjective = freedomQuest["beaconKeys"];
-          if (keysObjective && reachObjectiveMarkedDone) {
-            const currentCount = (keysObjective.current as number) || 0;
-            const newCount = currentCount + 1;
-            keysObjective.current = newCount;
-            questStateModified = true;
-
-            // Check if count now meets the target (e.g., 4) and mark done
-            const targetKeys = 4; // Defined by quest objective
-            if (newCount >= targetKeys && !keysObjective.done) {
-              keysObjective.done = true;
-              console.log(
-                `[calculateNextGameState] Marked objective beaconKeys as done (reached ${newCount}).`
-              );
-            } else {
-              console.log(
-                `[calculateNextGameState] Incremented beaconKeys count to ${newCount}.`
-              );
-            }
-          } else if (!keysObjective) {
-            console.warn(
-              `[calculateNextGameState] Objective beaconKeys not found in quest state.`
-            );
-          } else if (keysObjective && !reachObjectiveMarkedDone) {
-            console.log(
-              `[calculateNextGameState] BeaconKeys objective not incremented as reach objective ${reachObjectiveId} was not newly completed.`
-            );
-          }
-
-          // If the quest state was modified, update the state we plan to return
-          if (questStateModified) {
-            stateToReturn = {
-              ...stateToReturn, // Keep other changes from logic update
-              questState: nextQuestState, // Replace with our directly modified questState
-            };
-          } else {
-            console.log(
-              `[calculateNextGameState] Beacon ${activatedBeaconId} processed, but no quest objectives needed updating (already done?).`
-            );
-          }
-        } else {
+        // 1. Update reach_beacon_* objective
+        const reachObjective = freedomQuest[reachObjectiveId];
+        if (reachObjective && !reachObjective.done) {
+          reachObjective.done = true;
+          reachObjectiveMarkedDone = true; // Flag that this objective was newly completed
+          questStateModified = true;
+          console.log(
+            `[handleBeaconActivation] Marked objective ${reachObjectiveId} as done.`
+          );
+        } else if (!reachObjective) {
           console.warn(
-            `[calculateNextGameState] freedom_v01 quest progress not found.`
+            `[handleBeaconActivation] Objective ${reachObjectiveId} not found in quest state.`
+          );
+        } else if (reachObjective.done) {
+          console.log(
+            `[handleBeaconActivation] Objective ${reachObjectiveId} was already done.`
           );
         }
-      }
-      // --- End Direct Quest State Modification ---
-    } else if (beacon && beacon.isActive) {
-      console.log(
-        `[calculateNextGameState] Beacon ${activatedBeaconId} already active. Skipping direct quest update.`
-      );
-    } else if (!beacon) {
-      console.log(
-        `[calculateNextGameState] Beacon ${activatedBeaconId} not found. Skipping direct quest update.`
-      );
-    }
-  } // --- End of Beacon Activation Handling ---
 
-  // --- Handle State Transitions (Docking, Undocking, Destruction, Respawn) ---
-  // Check transitions based on the *potentially modified* stateToReturn
-  const currentView = currentGameState.gameView; // View *before* this update cycle
-  const nextView = stateToReturn.gameView; // View determined by logic update
+        // 2. Update beaconKeys objective count *only if* the reach objective was newly completed
+        const keysObjective = freedomQuest["beaconKeys"];
+        if (keysObjective && reachObjectiveMarkedDone) {
+          const currentCount = (keysObjective.current as number) || 0;
+          const newCount = currentCount + 1;
+          keysObjective.current = newCount;
+          questStateModified = true; // Mark modified even if only count changed
+
+          // Check if count now meets the target (e.g., 4) and mark done
+          const targetKeys = 4; // Defined by quest objective
+          if (newCount >= targetKeys && !keysObjective.done) {
+            keysObjective.done = true;
+            console.log(
+              `[handleBeaconActivation] Marked objective beaconKeys as done (reached ${newCount}).`
+            );
+          } else {
+            console.log(
+              `[handleBeaconActivation] Incremented beaconKeys count to ${newCount}.`
+            );
+          }
+        } else if (!keysObjective) {
+          console.warn(
+            `[handleBeaconActivation] Objective beaconKeys not found in quest state.`
+          );
+        } else if (keysObjective && !reachObjectiveMarkedDone) {
+          console.log(
+            `[handleBeaconActivation] BeaconKeys objective not incremented as reach objective ${reachObjectiveId} was not newly completed.`
+          );
+        }
+
+        // If the quest state was modified, update the state we plan to return
+        if (questStateModified) {
+          nextQuestState = clonedQuestState; // Use the modified clone
+        } else {
+          console.log(
+            `[handleBeaconActivation] Beacon ${activatedBeaconId} processed, but no quest objectives needed updating (already done?).`
+          );
+        }
+      } else {
+        console.warn(
+          `[handleBeaconActivation] freedom_v01 quest progress not found.`
+        );
+      }
+    }
+    // --- End Direct Quest State Modification ---
+  } else if (beacon && beacon.isActive) {
+    console.log(
+      `[handleBeaconActivation] Beacon ${activatedBeaconId} already active. Skipping direct quest update.`
+    );
+  } else if (!beacon) {
+    console.log(
+      `[handleBeaconActivation] Beacon ${activatedBeaconId} not found. Skipping direct quest update.`
+    );
+  }
+
+  // Return the potentially updated state
+  return {
+    updatedState: { ...currentState, questState: nextQuestState },
+    questStateModified,
+  };
+}
+
+/**
+ * Handles transitions between different game views (docking, undocking, etc.).
+ */
+function handleGameViewTransitions(
+  previousGameState: IGameState, // State *before* logic update
+  nextLogicState: IGameState, // State *after* logic update but *before* transitions
+  worldManager: InfiniteWorldManager,
+  emitQuestEvent: (event: GameEvent) => void
+): { updatedState: IGameState; transitionOccurred: boolean } {
+  const currentView = previousGameState.gameView;
+  const nextView = nextLogicState.gameView; // View determined by core logic
+  let stateToReturn = { ...nextLogicState }; // Start with the state from logic
+  let transitionOccurred = false;
 
   // Docking Initiation
   if (
     currentView === "playing" &&
-    !currentGameState.dockingStationId &&
-    stateToReturn.dockingStationId &&
-    nextView === "playing" // Make sure logic didn't already change view
+    !previousGameState.dockingStationId && // Check previous state for docking ID
+    nextLogicState.dockingStationId && // Check next state for trigger
+    nextView === "playing" // Ensure logic didn't already change view (e.g., to destroyed)
   ) {
-    console.log("[calculateNextGameState] Detected docking initiation signal.");
+    console.log("[handleGameViewTransitions] Detected docking initiation.");
+    transitionOccurred = true;
     let updatedPlayer = stateToReturn.player;
     if (updatedPlayer instanceof Player) {
       updatedPlayer.vx = 0;
       updatedPlayer.vy = 0;
     } else if (updatedPlayer) {
-      // Recreate if not an instance (e.g., loaded from save)
-      const shieldLevel = currentGameState.shieldCapacitorLevel;
+      // Recreate if not an instance
+      const shieldLevel = previousGameState.shieldCapacitorLevel;
       updatedPlayer = createPlayer(
         updatedPlayer.x,
         updatedPlayer.y,
         shieldLevel
       );
-      updatedPlayer.angle = currentGameState.player?.angle ?? -Math.PI / 2; // Preserve angle
+      updatedPlayer.angle = previousGameState.player?.angle ?? -Math.PI / 2;
       updatedPlayer.vx = 0;
       updatedPlayer.vy = 0;
       console.warn(
-        "[calculateNextGameState] Player object not instance during docking initiation. Recreated."
+        "[handleGameViewTransitions] Player object not instance during docking initiation. Recreated."
       );
     }
-    return {
+    stateToReturn = {
       ...stateToReturn,
       player: updatedPlayer,
-      gameView: "docking", // Change view state
+      gameView: "docking",
       animationState: {
         type: "docking",
         progress: 0,
-        duration: currentGameState.animationState.duration, // Use existing duration
+        duration: previousGameState.animationState.duration, // Use duration from previous state
       },
-      market: null, // Clear market while docking
+      market: null,
     };
   }
   // Docking Completion
   else if (
     currentView === "docking" &&
-    currentGameState.animationState.type === "docking" &&
-    stateToReturn.animationState.type === null // Logic cleared animation state
+    previousGameState.animationState.type === "docking" &&
+    nextLogicState.animationState.type === null // Logic cleared animation state
   ) {
-    console.log(
-      "[calculateNextGameState] Detected docking animation completion."
-    );
-    const stationId = currentGameState.dockingStationId;
+    console.log("[handleGameViewTransitions] Detected docking completion.");
+    transitionOccurred = true;
+    const stationId = previousGameState.dockingStationId; // Use ID from before logic
     const station = stationId ? worldManager.getStationById(stationId) : null;
     let newMarket: MarketSnapshot | null = null;
-    const updatedDiscoveredStations = [...currentGameState.discoveredStations];
+    const updatedDiscoveredStations = [
+      ...previousGameState.discoveredStations,
+    ];
 
     if (stationId && !updatedDiscoveredStations.includes(stationId)) {
       updatedDiscoveredStations.push(stationId);
@@ -975,12 +969,10 @@ export const calculateNextGameState = (
       newMarket = MarketGenerator.generate(station, WORLD_SEED, Date.now());
     }
 
-    const newKnownPrices = { ...currentGameState.knownStationPrices };
+    const newKnownPrices = { ...previousGameState.knownStationPrices };
     if (stationId && newMarket) {
       const currentKnown = newKnownPrices[stationId] ?? {};
       Object.entries(newMarket.table).forEach(([key, state]) => {
-        // Only add price if not already known - preserves older known prices
-        // if the item isn't currently sold. Might want different logic here.
         if (currentKnown[key] === undefined) {
           currentKnown[key] = state.price;
         }
@@ -989,127 +981,232 @@ export const calculateNextGameState = (
     }
 
     if (stationId) {
-      // Use the passed-in emitQuestEvent, wrapped in setTimeout
-      // to allow state update cycle to potentially finish first.
       setTimeout(() => emitQuestEvent({ type: "DOCK_FINISH", stationId }), 0);
     }
 
-    return {
+    stateToReturn = {
       ...stateToReturn,
-      gameView: "trade_select", // Change view state
+      gameView: "trade_select",
       market: newMarket,
       lastDockedStationId: stationId,
       discoveredStations: updatedDiscoveredStations,
       knownStationPrices: newKnownPrices,
       animationState: {
-        // Ensure animation state is fully reset
-        ...stateToReturn.animationState,
-        type: null,
-        progress: 0,
+        ...stateToReturn.animationState, // Keep potentially updated progress/duration if needed
+        type: null, // Ensure type is null
+        progress: 0, // Reset progress
       },
-      // dockingStationId remains from currentGameState as logic doesn't clear it here
+      // dockingStationId remains set from logic/previous state
     };
   }
   // Undocking Completion
   else if (
     currentView === "undocking" &&
-    currentGameState.animationState.type === "undocking" &&
-    stateToReturn.animationState.type === null // Logic cleared animation state
+    previousGameState.animationState.type === "undocking" &&
+    nextLogicState.animationState.type === null // Logic cleared animation state
   ) {
-    console.log(
-      "[calculateNextGameState] Detected undocking animation completion."
-    );
+    console.log("[handleGameViewTransitions] Detected undocking completion.");
+    transitionOccurred = true;
     let playerX = stateToReturn.player?.x ?? 0;
     let playerY = stateToReturn.player?.y ?? 0;
-    let playerAngle = stateToReturn.player?.angle ?? -Math.PI / 2; // Default angle
+    let playerAngle = stateToReturn.player?.angle ?? -Math.PI / 2;
 
-    const stationId = currentGameState.lastDockedStationId; // Use last docked
+    const stationId = previousGameState.lastDockedStationId; // Use last docked
     const station = stationId ? worldManager.getStationById(stationId) : null;
 
     if (station) {
       const undockDist =
         station.radius +
-        (currentGameState.player?.radius ?? PLAYER_SIZE / 2) +
-        20; // Distance to place player away
-      const exitAngle = station.angle + Math.PI; // Exit opposite docking bay
+        (previousGameState.player?.radius ?? PLAYER_SIZE / 2) +
+        20;
+      const exitAngle = station.angle + Math.PI;
       playerX = station.x + Math.cos(exitAngle) * undockDist;
       playerY = station.y + Math.sin(exitAngle) * undockDist;
-      playerAngle = exitAngle; // Point player away from station
+      playerAngle = exitAngle;
     }
 
     let updatedPlayer = stateToReturn.player;
     if (!(updatedPlayer instanceof Player) && updatedPlayer) {
-      // Recreate if needed
-      const shieldLevel = currentGameState.shieldCapacitorLevel;
+      const shieldLevel = previousGameState.shieldCapacitorLevel;
       updatedPlayer = createPlayer(playerX, playerY, shieldLevel);
     } else if (!updatedPlayer) {
-      // Create if missing entirely
-      const shieldLevel = currentGameState.shieldCapacitorLevel;
+      const shieldLevel = previousGameState.shieldCapacitorLevel;
       updatedPlayer = createPlayer(playerX, playerY, shieldLevel);
     }
 
-    // Ensure position, velocity, and angle are set correctly after undocking
+    // Ensure position, velocity, and angle are set correctly
     updatedPlayer.x = playerX;
     updatedPlayer.y = playerY;
     updatedPlayer.vx = 0;
     updatedPlayer.vy = 0;
     updatedPlayer.angle = playerAngle;
-    updatedPlayer.shieldLevel = updatedPlayer.maxShield; // Top up shield on undock
+    updatedPlayer.shieldLevel = updatedPlayer.maxShield; // Top up shield
 
-    return {
+    stateToReturn = {
       ...stateToReturn,
       player: updatedPlayer,
-      gameView: "playing", // Back to playing
-      dockingStationId: null, // Clear docking ID
-      market: null, // Clear market
+      gameView: "playing",
+      dockingStationId: null,
+      market: null,
       animationState: {
-        // Ensure animation state is fully reset
         ...stateToReturn.animationState,
         type: null,
         progress: 0,
       },
     };
   }
-  // Player Destruction
+  // Player Destruction (Transition initiated by logic)
   else if (currentView === "playing" && nextView === "destroyed") {
     console.log(
-      "[calculateNextGameState] Detected destruction transition from logic."
+      "[handleGameViewTransitions] Detected destruction transition from logic."
     );
+    transitionOccurred = true;
     // Logic already set gameView to 'destroyed' and respawn timer.
-    // We might clear projectiles/enemies here for immediate effect.
-    return { ...stateToReturn, projectiles: [], enemies: [] };
+    // Clear projectiles/enemies for immediate effect.
+    stateToReturn = { ...stateToReturn, projectiles: [], enemies: [] };
   }
-  // Player Respawn
+  // Player Respawn (Transition initiated by logic)
   else if (currentView === "destroyed" && nextView === "playing") {
     console.log(
-      "[calculateNextGameState] Detected respawn completion from logic."
+      "[handleGameViewTransitions] Detected respawn completion from logic."
     );
+    transitionOccurred = true;
     // Logic handled placing the player and setting the view back to 'playing'.
-    // stateToReturn should already have the correct state from updateGameStateLogic.
-    return stateToReturn;
+    // stateToReturn already has the correct state from updateGameStateLogic.
+    // No further changes needed here for this transition.
   }
 
-  // --- Final State Check (Win Condition) ---
-  // Check win condition based on the *potentially modified* quest state
+  return { updatedState: stateToReturn, transitionOccurred };
+}
+
+/**
+ * Checks the win condition and updates the game state if met.
+ */
+function checkAndApplyWinCondition(currentState: IGameState): {
+  updatedState: IGameState;
+  winConditionMet: boolean;
+} {
+  // Check win condition based on the current quest state
   const finalScore = questEngine.calculateQuestCompletion(
     "freedom_v01",
-    stateToReturn.questState // Use the state we are about to return
+    currentState.questState
   );
-  if (finalScore >= 100 && stateToReturn.gameView !== "won") {
+
+  if (finalScore >= 100 && currentState.gameView !== "won") {
     console.log(
-      "[calculateNextGameState] WIN CONDITION MET (End of Frame)! Emancipation Score >= 100%"
+      "[checkAndApplyWinCondition] WIN CONDITION MET! Emancipation Score >= 100%"
     );
-    // Ensure player velocity is zeroed on win? Optional.
-    let finalPlayer = stateToReturn.player;
+    let finalPlayer = currentState.player;
     if (finalPlayer instanceof Player) {
       finalPlayer.vx = 0;
       finalPlayer.vy = 0;
     } else if (finalPlayer) {
       finalPlayer = { ...finalPlayer, vx: 0, vy: 0 };
     }
-    return { ...stateToReturn, player: finalPlayer, gameView: "won" };
+    return {
+      updatedState: { ...currentState, player: finalPlayer, gameView: "won" },
+      winConditionMet: true,
+    };
   }
 
-  // If no major transition occurred, return the final updated state from logic/beacon checks
-  return stateToReturn;
+  return { updatedState: currentState, winConditionMet: false };
+}
+
+/**
+ * Calculates the next game state based on the current state, time delta,
+ * input, world state, and events.
+ * This function encapsulates the core game update logic previously inside
+ * the setGameStateInternal callback within updateGame.
+ */
+export const calculateNextGameState = (
+  currentGameState: IGameState,
+  deltaTime: number,
+  now: number,
+  currentTouchState: ITouchState | undefined,
+  worldManager: InfiniteWorldManager,
+  emitQuestEvent: (event: GameEvent) => void // Pass emitQuestEvent as a dependency
+): IGameState => {
+  if (!currentGameState.isInitialized || currentGameState.gameView === "won") {
+    return currentGameState;
+  }
+
+  // --- 1. Calculate Nav Target Info ---
+  const {
+    navTargetDirection,
+    navTargetCoordinates,
+    navTargetDistance,
+    needsNavClear,
+  } = calculateNavigationInfo(currentGameState, worldManager);
+
+  // Handle case where nav target station disappeared
+  if (needsNavClear) {
+    console.warn(
+      `[calculateNextGameState] Clearing navigation target due to missing station.`
+    );
+    return {
+      ...currentGameState,
+      navTargetStationId: null,
+      navTargetDirection: null,
+      navTargetCoordinates: null,
+      navTargetDistance: null,
+    };
+  }
+
+  // Prepare state for core logic update
+  const stateForLogic = {
+    ...currentGameState,
+    navTargetDirection,
+    navTargetCoordinates,
+    navTargetDistance,
+  };
+
+  // --- 2. Run Core Game Logic (Physics, Collisions, Basic Updates) ---
+  const {
+    newState: stateAfterLogic, // State after physics, collisions, etc.
+    activatedBeaconId, // Beacon ID detected by logic (if any)
+  } = updateGameStateLogic(
+    stateForLogic,
+    currentTouchState,
+    worldManager,
+    deltaTime,
+    now
+  );
+
+  // --- 3. Handle Beacon Activation Side Effects & Quest Updates ---
+  const { updatedState: stateAfterBeaconHandling } =
+    handleBeaconActivationAndUpdateQuest(
+      stateAfterLogic,
+      activatedBeaconId,
+      worldManager
+    );
+
+  // --- 4. Handle Game View State Transitions ---
+  // Pass the state *before* logic (currentGameState) and the state *after* beacon handling
+  const { updatedState: stateAfterTransitions, transitionOccurred } =
+    handleGameViewTransitions(
+      currentGameState, // State *before* this frame's logic
+      stateAfterBeaconHandling, // State *after* logic and beacon handling
+      worldManager,
+      emitQuestEvent
+    );
+
+  // If a major transition occurred (docking, undocking, destruction, respawn),
+  // skip the win condition check for this frame to avoid potential conflicts.
+  if (transitionOccurred) {
+    return stateAfterTransitions;
+  }
+
+  // --- 5. Check Win Condition ---
+  // Check based on the state after transitions (which might be the same as after beacon handling if no transition occurred)
+  const { updatedState: finalState, winConditionMet } =
+    checkAndApplyWinCondition(stateAfterTransitions);
+
+  // If the win condition was met, return the "won" state immediately.
+  if (winConditionMet) {
+    return finalState;
+  }
+
+  // --- 6. Return Final State ---
+  // If no major transition or win occurred, return the state after all updates.
+  return finalState;
 };
