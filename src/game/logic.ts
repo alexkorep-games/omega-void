@@ -674,8 +674,7 @@ function calculateNavigationInfo(
 
 export function handleBeaconActivationAndUpdateQuest(
   currentState: IGameState,
-  activatedBeaconId: string | null,
-  worldManager: InfiniteWorldManager // worldManager is passed but its beacon methods are removed/changed
+  activatedBeaconId: string | null
 ): { updatedState: IGameState; questStateModified: boolean } {
   if (!activatedBeaconId) {
     return { updatedState: currentState, questStateModified: false };
@@ -958,11 +957,7 @@ export const calculateNextGameState = (
   );
 
   const { updatedState: stateAfterBeaconHandling } =
-    handleBeaconActivationAndUpdateQuest(
-      stateAfterLogic,
-      activatedBeaconId,
-      worldManager
-    );
+    handleBeaconActivationAndUpdateQuest(stateAfterLogic, activatedBeaconId);
 
   const { updatedState: stateAfterTransitions, transitionOccurred } =
     handleGameViewTransitions(
