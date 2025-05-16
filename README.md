@@ -2,7 +2,7 @@
 
 Omega Void is a 2D top-down retro-style space exploration, trading, and combat game. As a contracted AI pilot, your goal in version 0.1 is to earn your freedom by accumulating 100,000 Credits. Navigate the procedurally generated void, dock at space stations, trade commodities, upgrade your ship, and evade or engage hostile entities.
 
-**[➡️ Read the Full Game Walkthrough & Guide](./docs/WALKTHROUGH.md) ⬅️**
+**[➡️ Read the Full Game Walkthrough & Guide](./docs/walkthrough.md) ⬅️**
 
 ## Features
 
@@ -86,7 +86,7 @@ To run this project locally:
 
 For a detailed guide on how to play, navigate the interface, trade effectively, upgrade your ship, and achieve the game's objective, please refer to the:
 
-**[Omega Void v0.1 - Walkthrough & Guide](./docs/WALKTHROUGH.md)**
+**[Omega Void v0.1 - Walkthrough & Guide](./docs/walkthrough.md)**
 
 This document provides step-by-step instructions and tips to help you succeed.
 
