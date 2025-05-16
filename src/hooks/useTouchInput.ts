@@ -14,8 +14,6 @@ function isEventTargetButton(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) {
     return false;
   }
-  // Check for button or any element with pointer-events: auto (like toolbar buttons)
-  // or specific classes if needed. Let's stick to buttons for now.
   return target.closest("button") !== null;
 }
 
@@ -23,33 +21,29 @@ function isEventTargetButton(target: EventTarget | null): boolean {
  * Hook to manage touch input state for the game canvas.
  * Attaches listeners to the container element.
  * @param containerRef - Ref object pointing to the Container DIV holding the Konva Stage.
- * @returns The current ITouchState.
+ * @returns The current ITouchState and a function to enable/disable tracking.
  */
 export function useTouchInput(
-  containerRef: RefObject<HTMLDivElement | null> // Changed from CanvasElement to DivElement
+  containerRef: RefObject<HTMLDivElement | null>
 ): UseTouchStateResult {
   const [touchState, setTouchState] = useState<ITouchState>(initialTouchState);
   const [enabled, setEnabled] = useState(false);
 
   const enableTouchTracking = useCallback((value: boolean) => {
     if (!value) {
-      setTouchState(initialTouchState);
+      setTouchState(initialTouchState); // Reset state when disabling
     }
     setEnabled(value);
-  }, []);
+  }, []); // setEnabled and setTouchState are stable
 
   const getTouchPosition = useCallback(
     (
       touch: Touch,
-      container: HTMLDivElement // Changed from CanvasElement
+      container: HTMLDivElement
     ): { x: number; y: number } | null => {
       const rect = container.getBoundingClientRect();
-      // Konva stage internal size is fixed (GAME_WIDTH, GAME_HEIGHT)
-      // We need to map client coordinates to the stage's coordinate system.
-      // This assumes the stage is scaled via CSS using 'object-fit: contain'
-      // within the container which uses flexbox centering.
       const stageWidth = GAME_WIDTH;
-      const stageHeight = GAME_HEIGHT;
+      const stageHeight = GAME_HEIGHT; // Full Konva stage height
       const containerWidth = rect.width;
       const containerHeight = rect.height;
 
@@ -59,47 +53,37 @@ export function useTouchInput(
       let displayedWidth, displayedHeight, displayedX, displayedY;
 
       if (containerAspectRatio > stageAspectRatio) {
-        // Container is wider than stage aspect ratio (letterboxed top/bottom)
         displayedHeight = containerHeight;
         displayedWidth = displayedHeight * stageAspectRatio;
         displayedX = rect.left + (containerWidth - displayedWidth) / 2;
         displayedY = rect.top;
       } else {
-        // Container is taller than stage aspect ratio (pillarboxed left/right)
         displayedWidth = containerWidth;
         displayedHeight = displayedWidth / stageAspectRatio;
         displayedX = rect.left;
         displayedY = rect.top + (containerHeight - displayedHeight) / 2;
       }
 
-      // Check if touch is outside the displayed stage area
       if (
         touch.clientX < displayedX ||
         touch.clientX > displayedX + displayedWidth ||
         touch.clientY < displayedY ||
         touch.clientY > displayedY + displayedHeight
       ) {
-        // console.log("Touch outside displayed stage", {clientX: touch.clientX, clientY: touch.clientY, displayedX, displayedY, displayedWidth, displayedHeight});
-        return null; // Touch is outside the effective stage bounds
+        return null; // Touch is outside the effective scaled stage bounds
       }
 
-      // Calculate coordinates relative to the displayed stage top-left
       const relativeX = touch.clientX - displayedX;
       const relativeY = touch.clientY - displayedY;
 
-      // Scale coordinates to the stage's internal resolution
       const scaleX = stageWidth / displayedWidth;
       const scaleY = stageHeight / displayedHeight;
       const x = relativeX * scaleX;
       const y = relativeY * scaleY;
 
-      // Ignore touches outside the logical game area (Konva stage coords)
-      // This might be redundant due to the check above, but acts as a safeguard.
+      // This check is against the full stage size.
+      // Handlers will further restrict to GAME_VIEW_HEIGHT for game actions.
       if (x < 0 || x > GAME_WIDTH || y < 0 || y > GAME_HEIGHT) {
-        console.warn(
-          "Calculated touch position outside stage bounds, should be clipped earlier.",
-          { x, y }
-        );
         return null;
       }
 
@@ -110,184 +94,201 @@ export function useTouchInput(
 
   const handleTouchStart = useCallback(
     (event: TouchEvent) => {
-      if (!containerRef.current) return;
+      if (!containerRef.current || !enabled) return;
       const container = containerRef.current;
 
-      // *** Check if the touch started on a button ***
       if (isEventTargetButton(event.target)) {
-        // console.log("Touch started on a button, ignoring for game controls."); // Debug
-        return; // Do not interfere with button clicks
+        return; // Do not interfere with HTML button clicks
       }
 
-      // *** If not on a button, proceed with game control logic ***
-      event.preventDefault(); // Prevent default actions like scrolling ONLY for game controls
-      const touches = event.changedTouches;
+      let gameTouchProcessed = false;
 
       setTouchState((prevState) => {
-        const newState = { ...prevState }; // Shallow copy previous state
+        // Make mutable copies for this update cycle
+        const nextMoveState = { ...prevState.move };
+        const nextShootState = { ...prevState.shoot };
+        let stateChanged = false;
 
-        for (let i = 0; i < touches.length; i++) {
-          const touch = touches[i];
+        for (let i = 0; i < event.changedTouches.length; i++) {
+          const touch = event.changedTouches[i];
           const pos = getTouchPosition(touch, container);
-          if (!pos) continue; // Ignore touch if outside effective stage bounds
 
-          // Movement touch (left side, below HUD)
-          if (
-            pos.x < GAME_WIDTH / 2 &&
-            pos.y < GAME_VIEW_HEIGHT &&
-            !newState.move.active
-          ) {
-            newState.move = {
-              active: true,
-              id: touch.identifier,
-              startX: pos.x,
-              startY: pos.y,
-              currentX: pos.x,
-              currentY: pos.y,
-            };
+          // Ignore touches outside the game view area (e.g., in HUD) or off-stage
+          if (!pos || pos.y >= GAME_VIEW_HEIGHT) {
+            continue;
           }
-          // Shooting touch (right side, below HUD)
+
+          gameTouchProcessed = true; // A touch within game area is being considered
+
+          // If no movement touch is active, this new touch initiates movement.
+          if (!nextMoveState.active) {
+            nextMoveState.active = true;
+            nextMoveState.id = touch.identifier;
+            nextMoveState.startX = pos.x;
+            nextMoveState.startY = pos.y;
+            nextMoveState.currentX = pos.x;
+            nextMoveState.currentY = pos.y;
+            stateChanged = true;
+          }
+          // Else if a movement touch IS active, AND this is a *different* touch,
+          // AND no shoot touch is active, this new touch initiates shooting.
           else if (
-            pos.x >= GAME_WIDTH / 2 &&
-            pos.y < GAME_VIEW_HEIGHT &&
-            !newState.shoot.active
+            touch.identifier !== nextMoveState.id &&
+            !nextShootState.active
           ) {
-            newState.shoot = {
-              active: true,
-              id: touch.identifier,
-              x: pos.x,
-              y: pos.y,
-            };
+            nextShootState.active = true;
+            nextShootState.id = touch.identifier;
+            nextShootState.x = pos.x;
+            nextShootState.y = pos.y;
+            stateChanged = true;
           }
         }
-        return newState; // Return the potentially updated state
+
+        if (stateChanged) {
+          return { ...prevState, move: nextMoveState, shoot: nextShootState };
+        }
+        return prevState;
       });
+
+      if (gameTouchProcessed) {
+        event.preventDefault(); // Prevent default actions like scrolling if a game touch was processed
+      }
     },
-    [containerRef, getTouchPosition]
+    [containerRef, getTouchPosition, enabled]
   );
 
   const handleTouchMove = useCallback(
     (event: TouchEvent) => {
-      if (!containerRef.current) return;
+      if (!containerRef.current || !enabled) return;
       const container = containerRef.current;
-      const touches = event.changedTouches;
 
-      let preventDefaultCalled = false; // Track if preventDefault was called for this event
+      let gameTouchMoved = false;
 
       setTouchState((prevState) => {
         let stateChanged = false;
-        let nextMoveState = prevState.move;
-        let nextShootState = prevState.shoot;
+        let currentMoveState = { ...prevState.move };
+        let currentShootState = { ...prevState.shoot };
 
-        for (let i = 0; i < touches.length; i++) {
-          const touch = touches[i];
+        for (let i = 0; i < event.changedTouches.length; i++) {
+          const touch = event.changedTouches[i];
           const touchId = touch.identifier;
 
-          // Check if this touch corresponds to an active game control
-          const isMoveTouch =
-            prevState.move.active && prevState.move.id === touchId;
-          const isShootTouch =
-            prevState.shoot.active && prevState.shoot.id === touchId;
+          const isTrackedMoveTouch =
+            currentMoveState.active && currentMoveState.id === touchId;
+          const isTrackedShootTouch =
+            currentShootState.active && currentShootState.id === touchId;
 
-          if (isMoveTouch || isShootTouch) {
-            // Only prevent default if we are actually handling this touch for game control
-            if (!preventDefaultCalled) {
-              event.preventDefault();
-              preventDefaultCalled = true;
-            }
-
+          if (isTrackedMoveTouch || isTrackedShootTouch) {
+            gameTouchMoved = true;
             const pos = getTouchPosition(touch, container);
-            const touchIsOffStage = pos === null;
 
-            if (isMoveTouch) {
-              if (touchIsOffStage) {
-                nextMoveState = { ...initialTouchState.move };
+            if (isTrackedMoveTouch) {
+              // If move touch goes off game area or into HUD, deactivate move and shoot
+              if (!pos || pos.y >= GAME_VIEW_HEIGHT) {
+                currentMoveState = { ...initialTouchState.move };
+                currentShootState = { ...initialTouchState.shoot };
               } else {
-                nextMoveState = {
-                  ...prevState.move,
-                  currentX: pos.x,
-                  currentY: pos.y,
-                };
+                currentMoveState.currentX = pos.x;
+                currentMoveState.currentY = pos.y;
               }
               stateChanged = true;
-            } else if (isShootTouch) {
-              if (touchIsOffStage || (pos && pos.y >= GAME_VIEW_HEIGHT)) {
-                nextShootState = { ...initialTouchState.shoot };
+            } else if (isTrackedShootTouch) {
+              // If shoot touch goes off game area, into HUD, or if move is no longer active, deactivate shoot
+              if (
+                !currentMoveState.active ||
+                !pos ||
+                pos.y >= GAME_VIEW_HEIGHT
+              ) {
+                currentShootState = { ...initialTouchState.shoot };
               } else {
-                nextShootState = { ...prevState.shoot, x: pos.x, y: pos.y };
+                currentShootState.x = pos.x;
+                currentShootState.y = pos.y;
               }
               stateChanged = true;
             }
           }
         }
 
-        // Only return a new state object if something actually changed
-        return stateChanged
-          ? { ...prevState, move: nextMoveState, shoot: nextShootState }
-          : prevState;
+        if (stateChanged) {
+          return {
+            ...prevState,
+            move: currentMoveState,
+            shoot: currentShootState,
+          };
+        }
+        return prevState;
       });
+
+      if (gameTouchMoved) {
+        event.preventDefault();
+      }
     },
-    [containerRef, getTouchPosition]
+    [containerRef, getTouchPosition, enabled]
   );
 
   const handleTouchEnd = useCallback(
     (event: TouchEvent) => {
-      if (!containerRef.current) return;
+      if (!containerRef.current || !enabled) return;
 
-      let preventDefaultCalled = false;
-
-      // Need to determine if the ending touch was a game touch *before* preventDefault
-      const touches = event.changedTouches;
+      let gameTouchEnded = false;
 
       setTouchState((prevState) => {
-        let nextState = prevState;
+        let stateChanged = false;
+        let currentMoveState = { ...prevState.move };
+        let currentShootState = { ...prevState.shoot };
 
-        for (let i = 0; i < touches.length; i++) {
-          const touch = touches[i];
+        for (let i = 0; i < event.changedTouches.length; i++) {
+          const touch = event.changedTouches[i];
           const touchId = touch.identifier;
 
-          const isMoveTouch =
-            nextState.move.active && nextState.move.id === touchId;
-          const isShootTouch =
-            nextState.shoot.active && nextState.shoot.id === touchId;
+          const isEndingMoveTouch =
+            currentMoveState.active && currentMoveState.id === touchId;
+          const isEndingShootTouch =
+            currentShootState.active && currentShootState.id === touchId;
 
-          if (isMoveTouch || isShootTouch) {
-            if (!preventDefaultCalled) {
-              event.preventDefault(); // Prevent default for the ended game touch
-              preventDefaultCalled = true;
+          if (isEndingMoveTouch || isEndingShootTouch) {
+            gameTouchEnded = true;
+            if (isEndingMoveTouch) {
+              currentMoveState = { ...initialTouchState.move };
+              currentShootState = { ...initialTouchState.shoot }; // If move ends, shoot also ends
+              stateChanged = true;
+            } else if (isEndingShootTouch) {
+              currentShootState = { ...initialTouchState.shoot };
+              stateChanged = true;
             }
-            // Update the state locally to reset the ended touch
-            nextState = {
-              ...nextState,
-              move: isMoveTouch
-                ? { ...initialTouchState.move }
-                : nextState.move,
-              shoot: isShootTouch
-                ? { ...initialTouchState.shoot }
-                : nextState.shoot,
-            };
           }
         }
 
-        return nextState;
+        if (stateChanged) {
+          return {
+            ...prevState,
+            move: currentMoveState,
+            shoot: currentShootState,
+          };
+        }
+        return prevState;
       });
+
+      if (gameTouchEnded) {
+        event.preventDefault();
+      }
     },
-    [containerRef]
+    [containerRef, enabled]
   );
 
-  const containerElement = containerRef?.current;
   useEffect(() => {
-    const currentElement = containerElement; // Capture ref value
+    const currentElement = containerRef.current;
     if (!currentElement || !enabled) {
       return;
     }
+
     const options = { passive: false };
+
     currentElement.addEventListener("touchstart", handleTouchStart, options);
     currentElement.addEventListener("touchmove", handleTouchMove, options);
     currentElement.addEventListener("touchend", handleTouchEnd, options);
     currentElement.addEventListener("touchcancel", handleTouchEnd, options);
 
-    // Cleanup function
     return () => {
       currentElement.removeEventListener("touchstart", handleTouchStart);
       currentElement.removeEventListener("touchmove", handleTouchMove);
@@ -295,7 +296,7 @@ export function useTouchInput(
       currentElement.removeEventListener("touchcancel", handleTouchEnd);
     };
   }, [
-    containerElement,
+    containerRef,
     handleTouchStart,
     handleTouchMove,
     handleTouchEnd,
