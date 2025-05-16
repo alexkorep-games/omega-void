@@ -1,6 +1,11 @@
 // src/utils/storage.ts
 import { DEFAULT_STARTING_CASH } from "../game/config";
-import { IPosition, CargoHold, QuestInventory } from "../game/types"; // Import Record types
+import {
+  IPosition,
+  CargoHold,
+  QuestInventory,
+  ChatMessage,
+} from "../game/types"; // Import Record types & ChatMessage
 import { QuestState, initialQuestState } from "../quests/QuestState";
 
 const SAVE_KEY = "omegaVoidSaveData_v0.1"; // Update version if save format changes significantly
@@ -23,6 +28,9 @@ export interface SaveData {
   // Quest data
   questState: QuestState;
   questInventory: QuestInventory; // Use Record type alias: Record<string, number>
+  // --- Chat Data ---
+  chatLog: ChatMessage[];
+  lastProcessedDialogId: number;
 }
 
 // --- Save Game State ---
@@ -110,6 +118,15 @@ export function loadGameState(): SaveData {
           ? loadedData.questInventory
           : {};
 
+      // Validate chat data
+      const chatLog = Array.isArray(loadedData.chatLog)
+        ? loadedData.chatLog
+        : [];
+      const lastProcessedDialogId =
+        typeof loadedData.lastProcessedDialogId === "number"
+          ? loadedData.lastProcessedDialogId
+          : -1;
+
       console.log("Game state loaded and validated.");
       return {
         coordinates,
@@ -125,6 +142,8 @@ export function loadGameState(): SaveData {
         hasNavComputer,
         questState,
         questInventory,
+        chatLog,
+        lastProcessedDialogId,
       };
     }
   } catch (error) {
@@ -147,6 +166,8 @@ export function loadGameState(): SaveData {
     hasNavComputer: false,
     questState: initialQuestState,
     questInventory: {},
+    chatLog: [],
+    lastProcessedDialogId: -1,
   };
 }
 

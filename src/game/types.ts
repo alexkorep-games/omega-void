@@ -206,6 +206,14 @@ export type CargoHold = Record<string, number>;
 // Represents quest items held by player - Use Record
 export type QuestInventory = Record<string, number>;
 
+// --- Chat ---
+export interface ChatMessage {
+  id: string | number; // Can be the numeric ID from DialogEntry
+  sender: "user" | "ai" | "system"; // User (Commander), AI (Bot), System
+  text: string;
+  timestamp?: number;
+}
+
 // Game State
 export interface IGameState {
   player: IPlayer;
@@ -247,6 +255,9 @@ export interface IGameState {
   // --- Quest System ---
   questState: QuestState;
   questInventory: QuestInventory; // Use the Record type alias
+  // --- Chat System ---
+  chatLog: ChatMessage[]; // Log of messages to display
+  lastProcessedDialogId: number; // Tracks the last dialog entry processed
 }
 
 // World Manager Config
@@ -271,11 +282,3 @@ export interface IWorldManagerConfig {
 
 // Update function signature used in useGameLoop
 export type UpdateCallback = (deltaTime: number, now: number) => void;
-
-// --- Chat ---
-export interface ChatMessage {
-  id: string | number;
-  sender: "user" | "ai" | "system"; // Added system sender
-  text: string;
-  timestamp?: number;
-}

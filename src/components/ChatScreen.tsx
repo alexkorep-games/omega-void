@@ -1,22 +1,29 @@
 // src/components/ChatScreen.tsx
 import React, { useEffect, useRef } from "react";
-import { ChatMessage } from "../game/types"; // Assuming type is here
+import { ChatMessage } from "../game/types"; // Type is already correct
 import "./ChatScreen.css";
 
 interface ChatScreenProps {
-  messages: ChatMessage[];
+  messages: ChatMessage[]; // Expecting the processed ChatMessage[]
   title?: string;
 }
 
 const ChatScreen: React.FC<ChatScreenProps> = ({
-  messages = [],
+  messages = [], // Default to empty array
   title = "COMMUNICATIONS LOG",
 }) => {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
   }, [messages]);
+
+  const getSenderLabel = (sender: ChatMessage["sender"]): string => {
+    if (sender === "user") return "CMDR Bob";
+    if (sender === "ai") return "Bot";
+    if (sender === "system") return "System";
+    return "Unknown";
+  };
 
   return (
     <div className="market-container chat-screen">
@@ -30,26 +37,36 @@ const ChatScreen: React.FC<ChatScreenProps> = ({
         ) : (
           messages.map((message) => (
             <div
-              key={message.id}
+              key={message.id} // Use message.id (which comes from DialogEntry.id)
               className={`chat-message-container ${
-                // Add a container for flex layout
-                message.sender === "user" ? "user-container" : "ai-container"
+                message.sender === "user"
+                  ? "user-container"
+                  : message.sender === "ai"
+                  ? "ai-container"
+                  : "system-container"
               }`}
             >
-              {/* Conditionally render the userpic for AI messages */}
+              {/* Userpic for Commander Bob */}
               {message.sender === "user" && (
                 <div className="user-userpic">
-                  <span>HM</span> {/* Wrap text in span for centering */}
+                  <span>CB</span>
                 </div>
               )}
+              {/* No userpic for AI or System for now */}
+
               <div
-                // Move classes to the inner message bubble
                 className={`chat-message ${
-                  message.sender === "user" ? "user-message" : "ai-message"
+                  message.sender === "user"
+                    ? "user-message"
+                    : message.sender === "ai"
+                    ? "ai-message"
+                    : "system-message" // Class for system messages
                 }`}
               >
                 <div className="message-text">{message.text}</div>
-                <span className="message-sender-label">{message.sender}</span>
+                <span className="message-sender-label">
+                  {getSenderLabel(message.sender)}
+                </span>
               </div>
             </div>
           ))

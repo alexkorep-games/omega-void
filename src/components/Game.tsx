@@ -127,14 +127,7 @@ const Game: React.FC = () => {
       case "chat_log":
         return (
           <ChatScreen
-            messages={[
-              { id: 1, sender: "user", text: "Hello, this is a test message." },
-              {
-                id: 2,
-                sender: "ai",
-                text: "Hello, how can I assist you today?",
-              },
-            ]}
+            messages={gameState.chatLog} // Pass the chatLog from gameState
           />
         );
       default:

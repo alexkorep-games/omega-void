@@ -42,24 +42,40 @@
   max-width: 90%; /* Limit container width */
 }
 
+/* Commander Bob's messages (user) */
 .user-container {
-  align-self: flex-start; /* Align AI messages (including icon) left */
-  margin-right: auto;
-}
-
-.ai-container {
   align-self: flex-end; /* Align User messages right */
   margin-left: auto;
+  flex-direction: row-reverse; /* Puts pic after bubble for right-aligned messages */
+}
+.user-container .user-userpic {
+  margin-left: 8px; /* Space between bubble and pic when reversed */
+  margin-right: 0; /* No margin on the outer side */
+}
+
+/* Bot messages (ai) */
+.ai-container {
+  align-self: flex-start; /* Align AI messages (including icon) left */
+  margin-right: auto;
   /* User messages don't have an icon, so no need for specific flex rules here unless adding user icons later */
 }
 
+/* NEW: System messages container */
+.system-container {
+  align-self: center; /* Center system messages */
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 80%; /* System messages can be wider */
+}
+
 .user-userpic {
+  /* For Commander Bob */
   width: 30px;
   height: 30px;
-  border-radius: 50%; /* Make it a circle */
-  background-color: #00aaaa; /* Dim cyan background */
-  border: 1px solid #00ffff; /* Bright cyan border */
-  color: #002233; /* Dark text for contrast */
+  border-radius: 50%;
+  background-color: #ff7f50; /* Coral for Bob */
+  border: 1px solid #ff4500; /* OrangeRed border */
+  color: #000000; /* Black text */
   font-size: 12px;
   font-weight: bold;
   display: flex;
@@ -85,19 +101,36 @@
   /* Width will be determined by flex container */
 }
 
+/* User (Commander Bob) message bubble */
 .user-message {
-  background-color: rgba(0, 80, 80, 0.7);
-  color: #e0ffff;
-  border: 1px solid rgba(0, 120, 120, 0.8);
-  border-top-left-radius: 0;
-  /* Align self and margin removed - handled by container */
+  background-color: rgba(80, 0, 80, 0.7); /* Darker purple/magenta for Bob */
+  color: #ffd0ff; /* Light pink text */
+  border: 1px solid rgba(120, 0, 120, 0.8);
+  border-top-left-radius: 0; /* Point towards icon on the right (due to row-reverse) */
 }
 
+/* AI (Bot) message bubble */
 .ai-message {
-  background-color: rgba(0, 50, 100, 0.8);
+  background-color: rgba(0, 50, 100, 0.8); /* Existing AI blue */
   color: #cceeff;
   border: 1px solid rgba(0, 100, 150, 0.9);
-  border-top-right-radius: 0;
+  border-top-left-radius: 0; /* Point towards left where AI messages are (assuming icon would be left) */
+}
+
+/* NEW: System message bubble */
+.system-message {
+  background-color: rgba(50, 50, 50, 0.7); /* Neutral grey */
+  color: #cccccc; /* Light grey text */
+  border: 1px solid rgba(100, 100, 100, 0.8);
+  border-radius: 4px; /* Less pronounced rounding */
+  text-align: center;
+  font-style: italic;
+  font-size: 0.9em;
+  padding: 6px 10px;
+}
+.system-message .message-sender-label {
+  color: #aaaaaa;
+  font-size: 0.7em;
 }
 
 /* --- Existing Empty Message Style --- */
@@ -111,11 +144,29 @@
 .message-sender-label {
   display: block;
   font-size: 0.75em;
-  color: #88aaaa;
+  color: #88aaaa; /* Default sender label color */
   margin-top: 4px;
-  text-align: right;
 }
+
+/* User (Commander Bob) sender label - align right */
+.user-message .message-sender-label {
+  text-align: right;
+  color: #ff88ff; /* Lighter pink/magenta */
+}
+
+/* AI (Bot) sender label - align left */
 .ai-message .message-sender-label {
+  text-align: left;
+  color: #88ccff; /* Lighter blue */
+}
+
+/* System sender label - align center or as per .system-message */
+.system-message .message-sender-label {
+  text-align: center;
+  color: #aaaaaa;
+}
+
+.message-text {
   text-align: left;
 }
 

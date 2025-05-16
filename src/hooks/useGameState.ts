@@ -11,6 +11,7 @@ import {
   CommodityTable,
   CargoHold,
   QuestInventory,
+  ChatMessage,
 } from "../game/types";
 import { initialGameState } from "../game/state";
 import {
@@ -28,6 +29,7 @@ import {
 } from "../game/config";
 import { MarketSnapshot } from "../game/Market";
 import { GameEvent, initialQuestState } from "../quests";
+import { FULL_DIALOG_DATA } from "../game/dialog"; // Import dialog data
 
 export type UpgradeKey =
   | "cargoPod"
@@ -78,6 +80,74 @@ export const UPGRADE_CONFIG: Record<
 };
 
 const gameStateAtom = atom<IGameState>(initialGameState);
+
+// Helper function to update chat log based on cash and progress
+const updateChatLogInternal = (currentState: IGameState): IGameState => {
+  const newChatLog = [...currentState.chatLog];
+  let newLastProcessedDialogId = currentState.lastProcessedDialogId;
+  let changesMade = false;
+
+  for (let i = 0; i < FULL_DIALOG_DATA.length; i++) {
+    const dialogEntry = FULL_DIALOG_DATA[i];
+    // Check if this message ID has already been processed and added
+    const alreadyAdded = newChatLog.some((msg) => msg.id === dialogEntry.id);
+
+    if (
+      dialogEntry.id > newLastProcessedDialogId &&
+      currentState.cash >= dialogEntry.moneyThreshold
+    ) {
+      if (dialogEntry.sender !== "thinking" && !alreadyAdded) {
+        const senderType: ChatMessage["sender"] =
+          dialogEntry.sender === "commander"
+            ? "user"
+            : dialogEntry.sender === "bot"
+            ? "ai"
+            : "system";
+
+        const chatMessage: ChatMessage = {
+          id: dialogEntry.id,
+          sender: senderType,
+          text: dialogEntry.text,
+          timestamp: Date.now(),
+        };
+        newChatLog.push(chatMessage);
+        changesMade = true; // Mark that a new message was added
+      }
+      // Always update lastProcessedDialogId if threshold met, even for 'thinking'
+      // to ensure we don't get stuck on a thinking block.
+      newLastProcessedDialogId = Math.max(
+        newLastProcessedDialogId,
+        dialogEntry.id
+      );
+      // If we added a non-thinking message, changesMade is true.
+      // If we only updated lastProcessedDialogId for a thinking block, ensure changesMade reflects that.
+      if (dialogEntry.id > currentState.lastProcessedDialogId) {
+        changesMade = true;
+      }
+    } else if (
+      dialogEntry.id > newLastProcessedDialogId &&
+      currentState.cash < dialogEntry.moneyThreshold
+    ) {
+      // Stop processing further dialog entries if cash isn't enough for the current one
+      // AND this entry hasn't been processed yet.
+      break;
+    }
+  }
+
+  // Sort chatLog by ID to ensure order if messages were added out of sequence (e.g. due to load)
+  if (changesMade) {
+    newChatLog.sort((a, b) => (a.id as number) - (b.id as number));
+  }
+
+  if (changesMade) {
+    return {
+      ...currentState,
+      chatLog: newChatLog,
+      lastProcessedDialogId: newLastProcessedDialogId,
+    };
+  }
+  return currentState;
+};
 
 export function useGameState() {
   const [gameState, setGameStateInternal] = useAtom(gameStateAtom);
@@ -214,9 +284,8 @@ export function useGameState() {
     (updater: (prevState: IGameState) => Partial<IGameState>) => {
       setGameStateInternal((prev) => {
         const changes = updater(prev);
-        const nextState = { ...prev, ...changes };
+        let nextState = { ...prev, ...changes };
 
-        // Ensure player state is merged correctly if player object is partially updated
         if (
           changes.player &&
           typeof changes.player === "object" &&
@@ -228,8 +297,9 @@ export function useGameState() {
           };
         }
 
-        // Check for cash changes and emit event
+        // let cashChanged = false; // Not needed if chat update happens generally
         if (changes.cash !== undefined && changes.cash !== prev.cash) {
+          // cashChanged = true;
           const delta = changes.cash - prev.cash;
           // Use emitQuestEvent directly (it handles async state update)
           emitQuestEvent({
@@ -270,7 +340,10 @@ export function useGameState() {
             }
           });
         }
-        // Return the merged state
+        // If cash changed, or for other general updates, refresh chat log
+        // It's safer to run this generally after state updates that could influence chat triggers
+        nextState = updateChatLogInternal(nextState);
+
         return nextState;
       });
     },
@@ -331,7 +404,7 @@ export function useGameState() {
 
         // --- Purchase successful ---
         purchased = true; // Set flag
-        const updatedState = { ...prev }; // Copy state for modification
+        let updatedState = { ...prev }; // Copy state for modification
         updatedState.cash -= cost; // Deduct cash
 
         const nextLevel = currentLevel + 1;
@@ -384,6 +457,8 @@ export function useGameState() {
         console.log(
           `Purchased ${upgradeKey} Level ${nextLevel} for ${cost} CR.`
         );
+        // After purchase, update chat log as cash has changed
+        updatedState = updateChatLogInternal(updatedState);
         return updatedState; // Return the modified state
       });
       return purchased; // Return the success flag
@@ -432,17 +507,10 @@ export function useGameState() {
   );
 
   const completeDocking = useCallback(() => {
-    // This function is now primarily handled within the state transition logic
-    // inside calculateNextGameState when the docking animation finishes.
-    // It remains here mostly for potential external triggers or legacy compatibility,
-    // but the main logic (market generation, state change) happens there.
     console.warn(
       "Action: completeDocking called directly. Docking completion is usually handled by animation state transition in update loop."
     );
-    // It might be safer to trigger the state change here if needed externally,
-    // but currently, the logic relies on the animation finishing.
-    // Example: setGameView('trade_select'); // But this wouldn't generate the market etc.
-  }, []); // No dependencies needed if it does nothing or just logs
+  }, []);
 
   const initiateUndocking = useCallback(() => {
     console.log("Action: Initiate Undocking");
@@ -464,127 +532,90 @@ export function useGameState() {
   const findStationById = useCallback(
     (stationId: string | null): IStation | null => {
       if (!stationId) return null;
-      // Use the memoized worldManager instance
       return worldManager.getStationById(stationId);
     },
-    [worldManager] // Dependency on worldManager
+    [worldManager]
   );
 
-  // --- Initialization ---
   const initializeGameState = useCallback(() => {
-    // Prevent re-initialization
     if (gameState.isInitialized) {
-      console.log("Initialization skipped: Game state already initialized.");
-      return () => {}; // Return empty cleanup function
+      return () => {};
     }
 
     console.log("Initializing game state...");
-    const loadedData = loadGameState(); // Returns SaveData type
+    const loadedData = loadGameState();
 
-    // --- Prepare state based on loaded data or defaults ---
-
-    // Validate loaded quest state and inventory
     const validQuestState =
       loadedData.questState &&
       typeof loadedData.questState === "object" &&
       loadedData.questState.quests
         ? loadedData.questState
-        : initialQuestState; // Use initial if invalid/missing
+        : initialQuestState;
     const validQuestInventory: QuestInventory =
       loadedData.questInventory && typeof loadedData.questInventory === "object"
         ? loadedData.questInventory
-        : {}; // Default to empty Record if invalid/missing
+        : {};
 
-    // Calculate initial derived values based on loaded upgrade levels
+    const loadedChatLog = loadedData.chatLog || [];
+    const loadedLastProcessedDialogId =
+      loadedData.lastProcessedDialogId !== undefined
+        ? loadedData.lastProcessedDialogId
+        : -1;
+
     const initialShootCooldownFactor = loadedData.hasAutoloader ? 0.5 : 1.0;
-
-    // Create the player based on loaded data
     const loadedPlayer = createPlayer(
       loadedData.coordinates.x,
       loadedData.coordinates.y,
-      loadedData.shieldCapacitorLevel // Pass shield level for correct maxShield calculation
+      loadedData.shieldCapacitorLevel
     );
-    // Ensure player starts with full shields based on loaded capacity
     loadedPlayer.shieldLevel = loadedPlayer.maxShield;
-
-    // Calculate initial camera position based on loaded player position
     const initialCameraX = loadedData.coordinates.x - GAME_WIDTH / 2;
     const initialCameraY = loadedData.coordinates.y - GAME_VIEW_HEIGHT / 2;
 
-    // --- Set the initial state using setGameStateInternal ---
-    setGameStateInternal({
-      ...initialGameState, // Start with base defaults to ensure all keys exist
+    setGameStateInternal((prevState) => {
+      const intermediateState: IGameState = {
+        ...initialGameState,
+        player: loadedPlayer,
+        cash: loadedData.cash,
+        cargoHold: loadedData.cargoHold ?? {},
+        lastDockedStationId: loadedData.lastDockedStationId,
+        discoveredStations: loadedData.discoveredStations ?? [],
+        knownStationPrices: loadedData.knownStationPrices ?? {},
+        cargoPodLevel: loadedData.cargoPodLevel,
+        shieldCapacitorLevel: loadedData.shieldCapacitorLevel,
+        engineBoosterLevel: loadedData.engineBoosterLevel,
+        hasAutoloader: loadedData.hasAutoloader,
+        hasNavComputer: loadedData.hasNavComputer,
+        shootCooldownFactor: initialShootCooldownFactor,
+        questState: validQuestState,
+        questInventory: validQuestInventory,
+        chatLog: loadedChatLog,
+        lastProcessedDialogId: loadedLastProcessedDialogId,
 
-      // Overwrite with loaded data
-      player: loadedPlayer,
-      cash: loadedData.cash,
-      cargoHold: loadedData.cargoHold ?? {}, // Ensure cargoHold is an object
-      lastDockedStationId: loadedData.lastDockedStationId,
-      discoveredStations: loadedData.discoveredStations ?? [],
-      knownStationPrices: loadedData.knownStationPrices ?? {},
-
-      // Load upgrades
-      cargoPodLevel: loadedData.cargoPodLevel,
-      shieldCapacitorLevel: loadedData.shieldCapacitorLevel,
-      engineBoosterLevel: loadedData.engineBoosterLevel,
-      hasAutoloader: loadedData.hasAutoloader,
-      hasNavComputer: loadedData.hasNavComputer,
-
-      // Set derived/calculated values based on upgrades
-      shootCooldownFactor: initialShootCooldownFactor,
-      // Note: totalCargoCapacity is derived via useMemo, not stored directly
-
-      // Load quest state
-      questState: validQuestState,
-      questInventory: validQuestInventory,
-
-      // --- Set runtime/transient state ---
-      isInitialized: true, // Mark as initialized
-      gameView: "playing", // Start in playing view after load
-      enemies: [], // Start with no enemies
-      projectiles: [], // Start with no projectiles
-      visibleBackgroundObjects: [], // Start with no visible objects (will be populated)
-      camera: { x: initialCameraX, y: initialCameraY },
-      dockingStationId: null, // Not docking on load
-      animationState: {
-        ...initialGameState.animationState,
-        type: null,
-        progress: 0,
-      }, // Reset animation
-      respawnTimer: 0, // No respawn active
-      market: null, // No market loaded initially
-      navTargetStationId: null, // No nav target initially
-      navTargetDirection: null,
-      navTargetCoordinates: null,
-      navTargetDistance: null,
-      viewTargetStationId: null, // No station view target initially
-      lastEnemySpawnTime: 0, // Reset timers
-      lastShotTime: 0,
-      enemyIdCounter: 0, // Reset counter
-
-      // Ensure base capacity is explicitly set from initial state if needed
-      baseCargoCapacity: initialGameState.baseCargoCapacity,
-      // extraCargoCapacity is derived and shouldn't be set here
+        isInitialized: true,
+        gameView: "playing",
+        camera: { x: initialCameraX, y: initialCameraY },
+        animationState: {
+          ...prevState.animationState,
+          type: null,
+          progress: 0,
+        },
+      };
+      return updateChatLogInternal(intermediateState);
     });
 
-    console.log("Game state initialized from saved data (or defaults).");
+    console.log("Game state initialized.");
 
-    // --- Start Auto-Save Interval ---
     if (saveIntervalId.current) {
-      clearInterval(saveIntervalId.current); // Clear any existing interval
-      console.log("Cleared previous save interval.");
+      clearInterval(saveIntervalId.current);
     }
     saveIntervalId.current = setInterval(() => {
-      // Use setGameStateInternal to access the *latest* state for saving
-      // This avoids stale closure issues with gameState variable
       setGameStateInternal((currentSyncState) => {
-        // Ensure player coords are valid before saving
         if (
           currentSyncState.player &&
           typeof currentSyncState.player.x === "number" &&
           typeof currentSyncState.player.y === "number"
         ) {
-          // Construct the SaveData object correctly from the latest state
           const dataToSave: SaveData = {
             coordinates: {
               x: currentSyncState.player.x,
@@ -595,168 +626,126 @@ export function useGameState() {
             lastDockedStationId: currentSyncState.lastDockedStationId,
             discoveredStations: currentSyncState.discoveredStations,
             knownStationPrices: currentSyncState.knownStationPrices,
-            // Save upgrades
             cargoPodLevel: currentSyncState.cargoPodLevel,
             shieldCapacitorLevel: currentSyncState.shieldCapacitorLevel,
             engineBoosterLevel: currentSyncState.engineBoosterLevel,
             hasAutoloader: currentSyncState.hasAutoloader,
             hasNavComputer: currentSyncState.hasNavComputer,
-            // Save quest progress
             questState: currentSyncState.questState,
             questInventory: currentSyncState.questInventory,
+            chatLog: currentSyncState.chatLog,
+            lastProcessedDialogId: currentSyncState.lastProcessedDialogId,
           };
           saveGameState(dataToSave);
-          // console.log("Game state auto-saved."); // Optional: for debugging
-        } else {
-          console.warn(
-            "Attempted to auto-save state but player data was invalid or missing."
-          );
         }
-        // IMPORTANT: Return the state unmodified because this is just for reading
         return currentSyncState;
       });
     }, SAVE_STATE_INTERVAL);
 
-    console.log(`Auto-save interval started (${SAVE_STATE_INTERVAL}ms).`);
-
-    // Return cleanup function for the interval when the component unmounts or hook re-runs
     return () => {
       if (saveIntervalId.current) {
         clearInterval(saveIntervalId.current);
-        console.log("Cleaned up auto-save interval.");
         saveIntervalId.current = null;
       }
     };
-  }, [setGameStateInternal, gameState.isInitialized]); // Dependencies: setGameStateInternal and isInitialized flag
+  }, [setGameStateInternal, gameState.isInitialized]);
 
-  // --- Define updateGame AFTER its dependencies ---
   const updateGame = useCallback(
     (
       deltaTime: number,
       now: number,
       currentTouchState: ITouchState | undefined
     ) => {
-      // Use the extracted function within setGameStateInternal's callback
-      setGameStateInternal((currentGameState) =>
-        calculateNextGameState(
+      setGameStateInternal((currentGameState) => {
+        let nextState = calculateNextGameState(
           currentGameState,
           deltaTime,
           now,
           currentTouchState,
-          worldManager, // Pass worldManager from hook's scope
-          emitQuestEvent // Pass emitQuestEvent from hook's scope
-        )
-      );
+          worldManager,
+          emitQuestEvent
+        );
+        nextState = updateChatLogInternal(nextState);
+        return nextState;
+      });
     },
-    // Dependencies: setGameStateInternal (for state updates),
-    // worldManager (passed to logic), emitQuestEvent (passed to logic)
     [setGameStateInternal, worldManager, emitQuestEvent]
   );
 
-  // --- Restart Game ---
   const startNewGame = useCallback(() => {
     console.log("Action: Starting New Game...");
-
-    // Stop existing save interval immediately
     if (saveIntervalId.current) {
       clearInterval(saveIntervalId.current);
       saveIntervalId.current = null;
-      console.log("Stopped existing auto-save interval for new game.");
     }
 
-    // Define default starting values clearly
     const defaultPosition: IPosition = { x: 0, y: 0 };
-    const defaultCash = initialGameState.cash; // Use value from initialGameState
-    const defaultCargo: CargoHold = {}; // Empty Record
-    const defaultLastDocked: string | null = null;
-    const defaultDiscoveredStations: string[] = [];
-    const defaultQuestState = initialQuestState; // Use initialQuestState definition
-    const defaultQuestInventory: QuestInventory = {}; // Empty Record
-    const defaultKnownPrices: Record<string, Record<string, number>> = {};
+    const defaultCash = initialGameState.cash;
+    const newPlayer = createPlayer(defaultPosition.x, defaultPosition.y, 0);
 
-    // Create a new player instance for the new game
-    const newPlayer = createPlayer(defaultPosition.x, defaultPosition.y, 0); // 0 initial shield level
+    setGameStateInternal((prev) => {
+      const intermediateState: IGameState = {
+        ...initialGameState,
+        player: newPlayer,
+        cash: defaultCash,
+        cargoHold: {},
+        lastDockedStationId: null,
+        discoveredStations: [],
+        knownStationPrices: {},
+        cargoPodLevel: 0,
+        shieldCapacitorLevel: 0,
+        engineBoosterLevel: 0,
+        hasAutoloader: false,
+        hasNavComputer: false,
+        shootCooldownFactor: 1.0,
+        questState: initialQuestState,
+        questInventory: {},
+        chatLog: [],
+        lastProcessedDialogId: -1,
+        gameView: "playing",
+        isInitialized: true,
+        camera: {
+          x: defaultPosition.x - GAME_WIDTH / 2,
+          y: defaultPosition.y - GAME_VIEW_HEIGHT / 2,
+        },
+        animationState: {
+          type: null,
+          progress: 0,
+          duration: prev.animationState.duration,
+        },
+      };
+      return updateChatLogInternal(intermediateState);
+    });
 
-    // --- Reset state to initial values using setGameStateInternal ---
-    setGameStateInternal((prev) => ({
-      // Access previous state only for non-reset values like duration
-      ...initialGameState, // Start with base initial state
+    console.log("Game state reset for new game.");
 
-      // Explicitly set core game progress fields to defaults
-      player: newPlayer,
-      cash: defaultCash,
-      cargoHold: defaultCargo,
-      lastDockedStationId: defaultLastDocked,
-      discoveredStations: defaultDiscoveredStations,
-      knownStationPrices: defaultKnownPrices,
+    setGameStateInternal((currentFreshState) => {
+      const dataToSave: SaveData = {
+        coordinates: {
+          x: currentFreshState.player.x,
+          y: currentFreshState.player.y,
+        },
+        cash: currentFreshState.cash,
+        cargoHold: currentFreshState.cargoHold,
+        lastDockedStationId: currentFreshState.lastDockedStationId,
+        discoveredStations: currentFreshState.discoveredStations,
+        knownStationPrices: currentFreshState.knownStationPrices,
+        cargoPodLevel: currentFreshState.cargoPodLevel,
+        shieldCapacitorLevel: currentFreshState.shieldCapacitorLevel,
+        engineBoosterLevel: currentFreshState.engineBoosterLevel,
+        hasAutoloader: currentFreshState.hasAutoloader,
+        hasNavComputer: currentFreshState.hasNavComputer,
+        questState: currentFreshState.questState,
+        questInventory: currentFreshState.questInventory,
+        chatLog: currentFreshState.chatLog,
+        lastProcessedDialogId: currentFreshState.lastProcessedDialogId,
+      };
+      saveGameState(dataToSave);
+      console.log("Initial state for new game saved.");
+      return currentFreshState;
+    });
 
-      // Reset upgrades to level 0 / false
-      cargoPodLevel: 0,
-      shieldCapacitorLevel: 0,
-      engineBoosterLevel: 0,
-      hasAutoloader: false,
-      hasNavComputer: false,
-      // Reset derived upgrade effects
-      shootCooldownFactor: 1.0,
-
-      // Reset quest progress
-      questState: defaultQuestState,
-      questInventory: defaultQuestInventory,
-
-      // --- Reset runtime/transient state ---
-      gameView: "playing", // Start playing immediately
-      isInitialized: true, // Mark as initialized
-      enemies: [],
-      projectiles: [],
-      visibleBackgroundObjects: [],
-      camera: {
-        x: defaultPosition.x - GAME_WIDTH / 2,
-        y: defaultPosition.y - GAME_VIEW_HEIGHT / 2,
-      }, // Center camera
-      dockingStationId: null,
-      animationState: {
-        type: null, // Reset animation
-        progress: 0,
-        duration: prev.animationState.duration, // Keep existing duration setting
-      },
-      respawnTimer: 0,
-      market: null,
-      navTargetStationId: null,
-      navTargetDirection: null,
-      navTargetCoordinates: null,
-      navTargetDistance: null,
-      viewTargetStationId: null,
-      lastEnemySpawnTime: 0,
-      lastShotTime: 0,
-      enemyIdCounter: 0,
-    }));
-
-    console.log("Game state reset to defaults for new game.");
-
-    // --- Immediately save the new default state ---
-    const newGameSaveData: SaveData = {
-      coordinates: defaultPosition,
-      cash: defaultCash,
-      cargoHold: defaultCargo,
-      lastDockedStationId: defaultLastDocked,
-      discoveredStations: defaultDiscoveredStations,
-      knownStationPrices: defaultKnownPrices,
-      // Save default upgrades
-      cargoPodLevel: 0,
-      shieldCapacitorLevel: 0,
-      engineBoosterLevel: 0,
-      hasAutoloader: false,
-      hasNavComputer: false,
-      // Save default quest state
-      questState: defaultQuestState,
-      questInventory: defaultQuestInventory,
-    };
-    saveGameState(newGameSaveData);
-    console.log("Initial state for new game saved.");
-
-    // --- Restart the save interval ---
     saveIntervalId.current = setInterval(() => {
-      // Use setGameStateInternal again to access latest state for saving
       setGameStateInternal((currentSyncState) => {
         if (
           currentSyncState.player &&
@@ -772,49 +761,41 @@ export function useGameState() {
             lastDockedStationId: currentSyncState.lastDockedStationId,
             discoveredStations: currentSyncState.discoveredStations,
             knownStationPrices: currentSyncState.knownStationPrices,
-            // upgrades
             cargoPodLevel: currentSyncState.cargoPodLevel,
             shieldCapacitorLevel: currentSyncState.shieldCapacitorLevel,
             engineBoosterLevel: currentSyncState.engineBoosterLevel,
             hasAutoloader: currentSyncState.hasAutoloader,
             hasNavComputer: currentSyncState.hasNavComputer,
-            // quests
             questState: currentSyncState.questState,
             questInventory: currentSyncState.questInventory,
+            chatLog: currentSyncState.chatLog,
+            lastProcessedDialogId: currentSyncState.lastProcessedDialogId,
           };
           saveGameState(dataToSave);
-          // console.log("New game state auto-saved.");
         }
-        return currentSyncState; // Return unmodified state
+        return currentSyncState;
       });
     }, SAVE_STATE_INTERVAL);
-    console.log(
-      `Auto-save interval restarted for new game (${SAVE_STATE_INTERVAL}ms).`
-    );
-  }, [setGameStateInternal]); // Dependency on setGameStateInternal
+  }, [setGameStateInternal]);
 
-  // --- Return Hook API ---
   return {
     initializeGameState,
-    gameState, // The current state snapshot
-    updateGame, // The function to advance the game state
-    isInitialized: gameState.isInitialized, // Convenience flag
-    // Actions / State Changers
-    completeDocking, // (Note: might be deprecated by internal logic)
+    gameState,
+    updateGame,
+    isInitialized: gameState.isInitialized,
+    completeDocking,
     initiateUndocking,
     setGameView,
     setViewTargetStationId,
     setNavTarget,
-    updatePlayerState, // For general player/cash/cargo updates
-    updateMarketQuantity, // For market interaction
+    updatePlayerState,
+    updateMarketQuantity,
     startNewGame,
     purchaseUpgrade,
-    // Selectors / Data Accessors
     findStationById,
-    totalCargoCapacity, // Derived value
-    // Quest related exports
+    totalCargoCapacity,
     emitQuestEvent,
-    questEngine: questEngine, // Expose the engine instance (e.g., for UI display)
-    emancipationScore, // Derived quest score
+    questEngine: questEngine,
+    emancipationScore,
   };
 }

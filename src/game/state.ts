@@ -92,6 +92,9 @@ export const initialGameState: IGameState = {
   // --- Quest System ---
   questState: initialQuestState, // Initialize quest state
   questInventory: {}, // Initialize empty quest inventory
+  // --- Chat System ---
+  chatLog: [], // Start with an empty chat log
+  lastProcessedDialogId: -1, // No dialog entries processed yet
 };
 
 // updateCamera function remains the same
