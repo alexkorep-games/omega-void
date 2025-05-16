@@ -267,7 +267,6 @@ export interface IWorldManagerConfig {
   viewBufferFactor?: number;
   economyTypes?: EconomyType[];
   techLevels?: TechLevel[];
-  fixedStations?: IStation[]; // Added for fixed stations
 }
 
 // Update function signature used in useGameLoop

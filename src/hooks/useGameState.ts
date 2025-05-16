@@ -27,8 +27,7 @@ import {
   GAME_VIEW_HEIGHT,
 } from "../game/config";
 import { MarketSnapshot } from "../game/Market";
-import { GameEvent, QuestItemId, initialQuestState } from "../quests";
-import { FIXED_STATIONS } from "../game/world/FixedStations";
+import { GameEvent, initialQuestState } from "../quests";
 
 export type UpgradeKey =
   | "cargoPod"
@@ -82,10 +81,7 @@ const gameStateAtom = atom<IGameState>(initialGameState);
 
 export function useGameState() {
   const [gameState, setGameStateInternal] = useAtom(gameStateAtom);
-  const worldManager = useMemo(
-    () => new InfiniteWorldManager({ fixedStations: FIXED_STATIONS }),
-    []
-  );
+  const worldManager = useMemo(() => new InfiniteWorldManager(), []);
   const saveIntervalId = useRef<number | null>(null);
 
   const totalCargoCapacity = useMemo(() => {
@@ -277,91 +273,6 @@ export function useGameState() {
         // Return the merged state
         return nextState;
       });
-    },
-    [setGameStateInternal, emitQuestEvent] // Include emitQuestEvent dependency
-  );
-
-  const addQuestItem = useCallback(
-    (itemId: QuestItemId, quantity: number = 1) => {
-      setGameStateInternal((prev) => {
-        // Ensure questInventory exists
-        if (!prev.questInventory) {
-          console.warn(
-            "Attempted to add quest item, but inventory doesn't exist."
-          );
-          return prev;
-        }
-        const currentCount = prev.questInventory[itemId] || 0;
-        // Create a new inventory object for immutability
-        const newInventory: QuestInventory = {
-          ...prev.questInventory,
-          [itemId]: currentCount + quantity,
-        };
-        // Emit event *after* calculating new state
-        emitQuestEvent({
-          type: "ITEM_ACQUIRED",
-          itemId,
-          quantity,
-          method: "reward", // Or other appropriate method
-        });
-        console.log(
-          `Added quest item: ${itemId} (x${quantity}). New total: ${newInventory[itemId]}`
-        );
-        // Return state with the new inventory
-        return { ...prev, questInventory: newInventory };
-      });
-    },
-    [setGameStateInternal, emitQuestEvent] // Include emitQuestEvent dependency
-  );
-
-  const removeQuestItem = useCallback(
-    (itemId: QuestItemId, quantity: number = 1): boolean => {
-      let success = false; // Flag to return success/failure
-      setGameStateInternal((prev) => {
-        // Ensure questInventory exists
-        if (!prev.questInventory) {
-          console.warn(
-            "Attempted to remove quest item, but inventory doesn't exist."
-          );
-          success = false;
-          return prev;
-        }
-        const currentCount = prev.questInventory[itemId] || 0;
-        if (currentCount < quantity) {
-          console.warn(
-            `Cannot remove quest item ${itemId}: Have ${currentCount}, need ${quantity}`
-          );
-          success = false;
-          return prev; // Return previous state if not enough items
-        }
-
-        // Create a new inventory object for immutability
-        const newInventory: QuestInventory = { ...prev.questInventory };
-        const newCount = currentCount - quantity;
-
-        if (newCount <= 0) {
-          delete newInventory[itemId]; // Remove key if count is zero or less
-        } else {
-          newInventory[itemId] = newCount; // Update count
-        }
-
-        success = true; // Mark as successful
-        // Emit event *after* calculating new state
-        emitQuestEvent({
-          type: "ITEM_REMOVED",
-          itemId,
-          quantity,
-          method: "consumed", // Or other appropriate method
-        });
-        console.log(
-          `Removed quest item: ${itemId} (x${quantity}). New total: ${
-            newInventory[itemId] ?? 0 // Use ?? 0 for display if key was deleted
-          }`
-        );
-        // Return state with the new inventory
-        return { ...prev, questInventory: newInventory };
-      });
-      return success; // Return the success flag determined within the state update
     },
     [setGameStateInternal, emitQuestEvent] // Include emitQuestEvent dependency
   );
@@ -902,9 +813,7 @@ export function useGameState() {
     findStationById,
     totalCargoCapacity, // Derived value
     // Quest related exports
-    emitQuestEvent, // For triggering quest events
-    addQuestItem,
-    removeQuestItem,
+    emitQuestEvent,
     questEngine: questEngine, // Expose the engine instance (e.g., for UI display)
     emancipationScore, // Derived quest score
   };
