@@ -2,7 +2,7 @@
 import { useState, useCallback, useEffect, RefObject } from "react";
 import { ITouchState } from "../game/types";
 import { initialTouchState } from "../game/state";
-import { GAME_WIDTH, GAME_VIEW_HEIGHT, GAME_HEIGHT } from "../game/config";
+import { GAME_WIDTH, GAME_HEIGHT } from "../game/config";
 
 type UseTouchStateResult = {
   touchState: ITouchState;
@@ -82,7 +82,6 @@ export function useTouchInput(
       const y = relativeY * scaleY;
 
       // This check is against the full stage size.
-      // Handlers will further restrict to GAME_VIEW_HEIGHT for game actions.
       if (x < 0 || x > GAME_WIDTH || y < 0 || y > GAME_HEIGHT) {
         return null;
       }
@@ -113,12 +112,11 @@ export function useTouchInput(
           const touch = event.changedTouches[i];
           const pos = getTouchPosition(touch, container);
 
-          // Ignore touches outside the game view area (e.g., in HUD) or off-stage
-          if (!pos || pos.y >= GAME_VIEW_HEIGHT) {
+          if (!pos) {
             continue;
           }
 
-          gameTouchProcessed = true; // A touch within game area is being considered
+          gameTouchProcessed = true;
 
           // If no movement touch is active, this new touch initiates movement.
           if (!nextMoveState.active) {
@@ -183,8 +181,7 @@ export function useTouchInput(
             const pos = getTouchPosition(touch, container);
 
             if (isTrackedMoveTouch) {
-              // If move touch goes off game area or into HUD, deactivate move and shoot
-              if (!pos || pos.y >= GAME_VIEW_HEIGHT) {
+              if (!pos) {
                 currentMoveState = { ...initialTouchState.move };
                 currentShootState = { ...initialTouchState.shoot };
               } else {
@@ -193,12 +190,7 @@ export function useTouchInput(
               }
               stateChanged = true;
             } else if (isTrackedShootTouch) {
-              // If shoot touch goes off game area, into HUD, or if move is no longer active, deactivate shoot
-              if (
-                !currentMoveState.active ||
-                !pos ||
-                pos.y >= GAME_VIEW_HEIGHT
-              ) {
+              if (!currentMoveState.active || !pos) {
                 currentShootState = { ...initialTouchState.shoot };
               } else {
                 currentShootState.x = pos.x;
@@ -268,7 +260,7 @@ export function useTouchInput(
         }
         return prevState;
       });
-
+      
       if (gameTouchEnded) {
         event.preventDefault();
       }
@@ -291,6 +283,7 @@ export function useTouchInput(
 
     return () => {
       currentElement.removeEventListener("touchstart", handleTouchStart);
+      // TODO If we clean up handleTouchMove, would it interrupt the movement of the ship?
       currentElement.removeEventListener("touchmove", handleTouchMove);
       currentElement.removeEventListener("touchend", handleTouchEnd);
       currentElement.removeEventListener("touchcancel", handleTouchEnd);
