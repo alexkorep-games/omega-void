@@ -6,7 +6,7 @@ import "./QuestPanel.css"; // Create specific styles
 
 const QuestPanel: React.FC = () => {
   const { gameState, questEngine } = useGameState();
-  const { questState, cash } = gameState;
+  const { questState, cash } = gameState.cold;
 
   // For v0.1, we only have one quest definition
   const questDef: QuestDefinition | undefined = V01_QUEST_DEFINITIONS[0];

@@ -1,7 +1,7 @@
 import React, { memo, useMemo } from "react";
 import { Stage, Layer, Text, Group, StageProps } from "react-konva";
 import {
-  IGameColdState,
+  IGameState,
   ITouchState,
   IStar,
   IStation,
@@ -24,7 +24,7 @@ import KonvaBeacon from "./canvas/KonvaBeacon"; // Import Beacon renderer
 
 // --- Interfaces ---
 interface GameCanvasProps {
-  gameState: IGameColdState;
+  gameState: IGameState;
   touchState: ITouchState;
 }
 
@@ -50,7 +50,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
   const stageStyle: React.CSSProperties = {
     ...canvasStyleBase,
     visibility:
-      gameState.gameView === "playing" || gameState.gameView === "destroyed"
+      gameState.cold.gameView === "playing" || gameState.cold.gameView === "destroyed"
         ? "visible"
         : "hidden",
   };
@@ -67,32 +67,32 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
     direction: number;
   } | null = useMemo(() => {
     if (
-      gameState.navTargetStationId &&
-      gameState.navTargetDirection !== null &&
-      gameState.navTargetCoordinates
+      gameState.cold.navTargetStationId &&
+      gameState.cold.navTargetDirection !== null &&
+      gameState.cold.navTargetCoordinates
     ) {
       // We need the name for the HUD, but `findStationById` is in the hook.
       // For now, we'll pass null and maybe enhance later if needed.
       return {
-        id: gameState.navTargetStationId,
+        id: gameState.cold.navTargetStationId,
         name: null, // We don't have easy access to the full station object here
-        coords: gameState.navTargetCoordinates,
-        direction: gameState.navTargetDirection,
+        coords: gameState.cold.navTargetCoordinates,
+        direction: gameState.cold.navTargetDirection,
       };
     }
     return null;
   }, [
-    gameState.navTargetStationId,
-    gameState.navTargetDirection,
-    gameState.navTargetCoordinates,
+    gameState.cold.navTargetStationId,
+    gameState.cold.navTargetDirection,
+    gameState.cold.navTargetCoordinates,
   ]);
 
-  if (!gameState.isInitialized || stageStyle.visibility === "hidden") {
+  if (!gameState.cold.isInitialized || stageStyle.visibility === "hidden") {
     return <div style={stageStyle} />;
   }
 
-  const offsetX = gameState.camera.x;
-  const offsetY = gameState.camera.y;
+  const offsetX = gameState.hot.camera.x;
+  const offsetY = gameState.hot.camera.y;
 
   return (
     <Stage
@@ -112,7 +112,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
         perfectDrawEnabled={false} // Optimize layer
       >
         {/* Stars */}
-        {gameState.visibleBackgroundObjects
+        {gameState.hot.visibleBackgroundObjects
           .filter((obj) => obj.type === "star")
           .map((star) => (
             <KonvaStar
@@ -123,7 +123,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
             />
           ))}
         {/* Stations */}
-        {gameState.visibleBackgroundObjects
+        {gameState.hot.visibleBackgroundObjects
           .filter((obj) => obj.type === "station")
           .map((station) => (
             <KonvaStation
@@ -131,11 +131,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
               station={station as IStation}
               offsetX={offsetX}
               offsetY={offsetY}
-              isNavTarget={station.id === gameState.navTargetStationId}
+              isNavTarget={station.id === gameState.cold.navTargetStationId}
             />
           ))}
         {/* Asteroids */}
-        {gameState.visibleBackgroundObjects
+        {gameState.hot.visibleBackgroundObjects
           .filter((obj) => obj.type === "asteroid")
           .map((asteroid) => (
             <KonvaAsteroid
@@ -146,7 +146,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
             />
           ))}
         {/* Beacons */}
-        {gameState.visibleBackgroundObjects
+        {gameState.hot.visibleBackgroundObjects
           .filter((obj) => obj.type === "beacon")
           .map((beacon) => (
             <KonvaBeacon
@@ -157,7 +157,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
             />
           ))}
         {/* Station Names (Rendered separately for no rotation) */}
-        {gameState.visibleBackgroundObjects
+        {gameState.hot.visibleBackgroundObjects
           .filter(
             (obj): obj is IStation =>
               obj.type === "station" && !!obj.name && obj.radius > 5
@@ -171,7 +171,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
               fontSize={10}
               fontFamily="monospace"
               fill={
-                station.id === gameState.navTargetStationId
+                station.id === gameState.cold.navTargetStationId
                   ? C.NAV_TARGET_COLOR
                   : station.color
               }
@@ -184,7 +184,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
 
       {/* Game Entities Layer (Player, Enemies, Projectiles) */}
       {/* Render only if not destroyed */}
-      {gameState.gameView !== "destroyed" ? (
+      {gameState.cold.gameView !== "destroyed" ? (
         <Layer
           clipX={0}
           clipY={0}
@@ -194,7 +194,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
           perfectDrawEnabled={false}
         >
           {/* Enemies */}
-          {gameState.enemies.map((enemy) => (
+          {gameState.hot.enemies.map((enemy) => (
             <KonvaEnemy
               key={enemy.id}
               enemy={enemy}
@@ -203,7 +203,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
             />
           ))}
           {/* Projectiles */}
-          {gameState.projectiles.map((proj) => (
+          {gameState.hot.projectiles.map((proj) => (
             <KonvaProjectile
               key={proj.id}
               proj={proj}
@@ -212,10 +212,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
             />
           ))}
           {/* Player */}
-          {gameState.player && (
+          {gameState.hot.player && (
             <KonvaPlayer
-              key={gameState.player.id}
-              player={gameState.player}
+              key={gameState.hot.player.id}
+              player={gameState.hot.player}
               offsetX={offsetX}
               offsetY={offsetY}
             />
@@ -232,7 +232,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
         listening={false}
         perfectDrawEnabled={false}
       >
-        {gameState.activeDestructionAnimations.map((anim) => (
+        {gameState.cold.activeDestructionAnimations.map((anim) => (
           // Render particles for each active animation
           <Group key={anim.id}>
             {anim.particles.map((p) => (
@@ -251,15 +251,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
 
       {/* HUD Layer */}
       {/* Render only if not destroyed */}
-      {gameState.gameView !== "destroyed" ? (
+      {gameState.cold.gameView !== "destroyed" ? (
         <Layer
           // No clipping needed for HUD, drawn below game view height
           perfectDrawEnabled={false}
           listening={false}
         >
           <KonvaHUD
-            player={gameState.player}
-            cash={gameState.cash}
+            player={gameState.hot.player}
+            cash={gameState.cold.cash}
             gameState={gameState}
             navTargetInfo={navTargetInfo} // Pass navigation info
           />
@@ -268,7 +268,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
 
       {/* Touch Controls Layer */}
       {/* Render only if playing */}
-      {gameState.gameView === "playing" ? (
+      {gameState.cold.gameView === "playing" ? (
         <Layer perfectDrawEnabled={false} listening={false}>
           <KonvaTouchControls touchState={touchState} />
         </Layer>

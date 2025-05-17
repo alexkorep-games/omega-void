@@ -1,6 +1,6 @@
 // src/game/logic.ts
 import {
-  IGameColdState,
+  IGameState,
   ITouchState,
   IPosition,
   IPlayer,
@@ -64,34 +64,40 @@ export function createPlayer(
   return player;
 }
 
-function spawnEnemyNearPlayer(state: IGameColdState): IGameColdState {
+function spawnEnemyNearPlayer(state: IGameState): IGameState {
   const spawnDist = C.GAME_WIDTH * 0.8;
   const angle = Math.random() * Math.PI * 2;
-  const spawnX = state.player.x + Math.cos(angle) * spawnDist;
-  const spawnY = state.player.y + Math.sin(angle) * spawnDist;
-  const newEnemy = new Enemy(spawnX, spawnY, state.enemyIdCounter);
+  const spawnX = state.hot.player.x + Math.cos(angle) * spawnDist;
+  const spawnY = state.hot.player.y + Math.sin(angle) * spawnDist;
+  const newEnemy = new Enemy(spawnX, spawnY, state.hot.enemyIdCounter);
 
   return {
     ...state,
-    enemies: [...state.enemies, newEnemy],
-    enemyIdCounter: state.enemyIdCounter + 1,
-    lastEnemySpawnTime: performance.now(),
+    hot: {
+      ...state.hot,
+      enemies: [...state.hot.enemies, newEnemy],
+      enemyIdCounter: state.hot.enemyIdCounter + 1,
+      lastEnemySpawnTime: performance.now(),
+    },
   };
 }
 
-function shootProjectile(state: IGameColdState): IGameColdState {
+function shootProjectile(state: IGameState): IGameState {
   const now = performance.now();
-  const effectiveCooldown = C.SHOOT_COOLDOWN * state.shootCooldownFactor;
-  if (now - state.lastShotTime > effectiveCooldown) {
+  const effectiveCooldown = C.SHOOT_COOLDOWN * state.cold.shootCooldownFactor;
+  if (now - state.hot.lastShotTime > effectiveCooldown) {
     const newProjectile = new Projectile(
-      state.player.x,
-      state.player.y,
-      state.player.angle
+      state.hot.player.x,
+      state.hot.player.y,
+      state.hot.player.angle
     );
     return {
       ...state,
-      projectiles: [...state.projectiles, newProjectile],
-      lastShotTime: now,
+      hot: {
+        ...state.hot,
+        projectiles: [...state.hot.projectiles, newProjectile],
+        lastShotTime: now,
+      },
     };
   }
   return state;
@@ -145,19 +151,19 @@ function generateParticleStates(size: "small" | "large"): {
 }
 
 function handleCollisions(
-  state: IGameColdState,
+  state: IGameState,
   now: number
 ): {
-  newState: IGameColdState;
+  newState: IGameState;
   dockingTriggerStationId: string | null;
   activatedBeaconId: string | null;
   playerDestroyed: boolean;
   newAnimations: DestructionAnimationData[];
 } {
-  const newProjectiles = [...state.projectiles];
-  const newEnemies = [...state.enemies];
+  const newProjectiles = [...state.hot.projectiles];
+  const newEnemies = [...state.hot.enemies];
   const playerInstance: Player =
-    state.player instanceof Player ? state.player : new Player(0, 0);
+    state.hot.player instanceof Player ? state.hot.player : new Player(0, 0);
   let dockingTriggerStationId: string | null = null;
   let activatedBeaconId: string | null = null;
   const newAnimations: DestructionAnimationData[] = [];
@@ -191,7 +197,7 @@ function handleCollisions(
     }
     if (projHit) continue;
 
-    for (const bgObj of state.visibleBackgroundObjects) {
+    for (const bgObj of state.hot.visibleBackgroundObjects) {
       if (
         bgObj.type === "station" ||
         bgObj.type === "asteroid" ||
@@ -212,7 +218,7 @@ function handleCollisions(
   for (let i = newEnemies.length - 1; i >= 0; i--) {
     const enemy = newEnemies[i];
     let enemyDestroyedByEnvironment = false;
-    for (const bgObj of state.visibleBackgroundObjects) {
+    for (const bgObj of state.hot.visibleBackgroundObjects) {
       if (bgObj.type === "asteroid" || bgObj.type === "station") {
         const obstacle = bgObj as IAsteroid | IStation; // Both have x, y, radius
         if (
@@ -268,7 +274,7 @@ function handleCollisions(
     }
 
     if (!playerDestroyed) {
-      for (const bgObj of state.visibleBackgroundObjects) {
+      for (const bgObj of state.hot.visibleBackgroundObjects) {
         if (bgObj.type === "asteroid") {
           const asteroid = bgObj as IAsteroid;
           if (
@@ -316,7 +322,7 @@ function handleCollisions(
       };
     }
 
-    for (const bgObj of state.visibleBackgroundObjects) {
+    for (const bgObj of state.hot.visibleBackgroundObjects) {
       if (bgObj.type === "station") {
         const station = bgObj as IStation;
         const player = playerInstance;
@@ -405,9 +411,12 @@ function handleCollisions(
   return {
     newState: {
       ...state,
-      player: playerInstance,
-      enemies: newEnemies,
-      projectiles: newProjectiles,
+      hot: {
+        ...state.hot,
+        player: playerInstance,
+        enemies: newEnemies,
+        projectiles: newProjectiles,
+      },
     },
     dockingTriggerStationId,
     activatedBeaconId,
@@ -418,25 +427,25 @@ function handleCollisions(
 
 // This function should also recieve the hot state and return updated cold and hot state
 export function updateGameStateLogic(
-  currentState: IGameColdState,
+  currentState: IGameState,
   touchState: ITouchState | undefined,
   worldManager: InfiniteWorldManager,
   deltaTime: number,
   now: number
-): { newState: IGameColdState; activatedBeaconId: string | null } {
+): { newState: IGameState; activatedBeaconId: string | null } {
   let newState = { ...currentState };
   let activatedBeaconId: string | null = null;
 
-  newState.activeDestructionAnimations =
-    newState.activeDestructionAnimations.filter(
+  newState.cold.activeDestructionAnimations =
+    newState.cold.activeDestructionAnimations.filter(
       (anim) => now - anim.startTime < anim.duration + 100
     );
 
-  if (newState.gameView === "destroyed") {
-    newState.respawnTimer -= deltaTime;
-    if (newState.respawnTimer <= 0) {
+  if (newState.cold.gameView === "destroyed") {
+    newState.cold.respawnTimer -= deltaTime;
+    if (newState.cold.respawnTimer <= 0) {
       const respawnStationId =
-        newState.lastDockedStationId ?? C.WORLD_ORIGIN_STATION_ID; // Use config for origin
+        newState.cold.lastDockedStationId ?? C.WORLD_ORIGIN_STATION_ID; // Use config for origin
       const respawnStation = worldManager.getStationById(respawnStationId);
       let respawnX = 50;
       let respawnY = 50;
@@ -453,22 +462,28 @@ export function updateGameStateLogic(
       const respawnedPlayer = createPlayer(
         respawnX,
         respawnY,
-        newState.shieldCapacitorLevel
+        newState.cold.shieldCapacitorLevel
       );
       newState = {
         ...newState,
-        player: respawnedPlayer,
-        cargoHold: {}, // When ship is destroyed, cargo is lost
-        gameView: "playing",
-        respawnTimer: 0,
-        enemies: [],
-        projectiles: [],
-        activeDestructionAnimations: [],
+        hot: {
+          ...newState.hot,
+          player: respawnedPlayer,
+          enemies: [],
+          projectiles: [],
+        },
+        cold: {
+          ...newState.cold,
+          cargoHold: {}, // When ship is destroyed, cargo is lost
+          gameView: "playing",
+          respawnTimer: 0,
+          activeDestructionAnimations: [],
+        },
       };
     } else {
-      const deadPlayer = currentState.player;
+      const deadPlayer = currentState.hot.player;
       if (deadPlayer) {
-        newState.camera = {
+        newState.hot.camera = {
           x: deadPlayer.x - C.GAME_WIDTH / 2,
           y: deadPlayer.y - C.GAME_VIEW_HEIGHT / 2,
         };
@@ -477,17 +492,21 @@ export function updateGameStateLogic(
     return { newState, activatedBeaconId: null };
   }
 
-  if (newState.gameView === "docking" || newState.gameView === "undocking") {
-    if (newState.animationState.type) {
-      newState.animationState = {
-        ...newState.animationState,
-        progress: newState.animationState.progress + deltaTime,
+  if (
+    newState.cold.gameView === "docking" ||
+    newState.cold.gameView === "undocking"
+  ) {
+    if (newState.cold.animationState.type) {
+      newState.cold.animationState = {
+        ...newState.cold.animationState,
+        progress: newState.cold.animationState.progress + deltaTime,
       };
       if (
-        newState.animationState.progress >= newState.animationState.duration
+        newState.cold.animationState.progress >=
+        newState.cold.animationState.duration
       ) {
-        newState.animationState = {
-          ...newState.animationState,
+        newState.cold.animationState = {
+          ...newState.cold.animationState,
           type: null,
           progress: 0,
         };
@@ -496,17 +515,17 @@ export function updateGameStateLogic(
     return { newState, activatedBeaconId: null };
   }
 
-  if (newState.gameView === "playing") {
-    if (!newState.player || !(newState.player instanceof Player)) {
+  if (newState.cold.gameView === "playing") {
+    if (!newState.hot.player || !(newState.hot.player instanceof Player)) {
       console.error(
         "Player state missing/invalid during update!",
-        newState.player
+        newState.hot.player
       );
-      if (currentState.player?.x !== undefined) {
-        newState.player = createPlayer(
-          currentState.player.x,
-          currentState.player.y,
-          currentState.shieldCapacitorLevel
+      if (currentState.hot.player?.x !== undefined) {
+        newState.hot.player = createPlayer(
+          currentState.hot.player.x,
+          currentState.hot.player.y,
+          currentState.cold.shieldCapacitorLevel
         );
       } else {
         console.error("Cannot recover player state!");
@@ -515,23 +534,23 @@ export function updateGameStateLogic(
     }
 
     if (touchState?.shoot.active) newState = shootProjectile(newState);
-    if (touchState && newState.player instanceof Player) {
-      newState.player.update(touchState, newState.engineBoosterLevel);
+    if (touchState && newState.hot.player instanceof Player) {
+      newState.hot.player.update(touchState, newState.cold.engineBoosterLevel);
     }
 
-    newState.camera = {
-      x: newState.player.x - C.GAME_WIDTH / 2,
-      y: newState.player.y - C.GAME_VIEW_HEIGHT / 2,
+    newState.hot.camera = {
+      x: newState.hot.player.x - C.GAME_WIDTH / 2,
+      y: newState.hot.player.y - C.GAME_VIEW_HEIGHT / 2,
     };
 
-    newState.visibleBackgroundObjects = worldManager.getObjectsInView(
-      newState.camera.x,
-      newState.camera.y,
+    newState.hot.visibleBackgroundObjects = worldManager.getObjectsInView(
+      newState.hot.camera.x,
+      newState.hot.camera.y,
       C.GAME_WIDTH,
       C.GAME_VIEW_HEIGHT
     );
 
-    newState.projectiles = newState.projectiles
+    newState.hot.projectiles = newState.hot.projectiles
       .map((p) => {
         if (p instanceof Projectile) p.update();
         return p;
@@ -539,43 +558,43 @@ export function updateGameStateLogic(
       .filter(
         (p) =>
           p instanceof Projectile &&
-          !p.isOutOfBounds(newState.player.x, newState.player.y)
+          !p.isOutOfBounds(newState.hot.player.x, newState.hot.player.y)
       );
 
-    newState.enemies = newState.enemies.map((enemy) => {
-      if (enemy instanceof Enemy && newState.player)
-        enemy.update(newState.player);
+    newState.hot.enemies = newState.hot.enemies.map((enemy) => {
+      if (enemy instanceof Enemy && newState.hot.player)
+        enemy.update(newState.hot.player);
       return enemy;
     });
 
     const enemyIdsToDespawn = worldManager.getEnemiesToDespawn(
-      newState.enemies,
-      newState.player.x,
-      newState.player.y,
+      newState.hot.enemies,
+      newState.hot.player.x,
+      newState.hot.player.y,
       C.ENEMY_DESPAWN_RADIUS
     );
     if (enemyIdsToDespawn.length > 0) {
       const idsSet = new Set(enemyIdsToDespawn);
-      newState.enemies = newState.enemies.filter(
+      newState.hot.enemies = newState.hot.enemies.filter(
         (enemy) => !idsSet.has(enemy.id)
       );
     }
 
     // --- Dynamic Max Enemies Calculation ---
     const dynamicMaxEnemies = getDynamicMaxEnemies(
-      newState.cargoHold,
+      newState.cold.cargoHold,
       COMMODITIES,
-      newState.lastDockedStationId,
+      newState.cold.lastDockedStationId,
       worldManager
     );
     // --- End Dynamic Max Enemies Calculation ---
 
-    const isPlayerNearStation = newState.visibleBackgroundObjects.some(
+    const isPlayerNearStation = newState.hot.visibleBackgroundObjects.some(
       (obj) => {
-        if (obj.type === "station" && newState.player) {
+        if (obj.type === "station" && newState.hot.player) {
           const dist = distance(
-            newState.player.x,
-            newState.player.y,
+            newState.hot.player.x,
+            newState.hot.player.y,
             obj.x,
             obj.y
           );
@@ -587,8 +606,8 @@ export function updateGameStateLogic(
 
     if (
       !isPlayerNearStation &&
-      now - newState.lastEnemySpawnTime > C.ENEMY_SPAWN_INTERVAL &&
-      newState.enemies.length < dynamicMaxEnemies // Use dynamicMaxEnemies here
+      now - newState.hot.lastEnemySpawnTime > C.ENEMY_SPAWN_INTERVAL &&
+      newState.hot.enemies.length < dynamicMaxEnemies // Use dynamicMaxEnemies here
     ) {
       newState = spawnEnemyNearPlayer(newState);
     }
@@ -597,51 +616,61 @@ export function updateGameStateLogic(
     newState = collisionResult.newState;
     activatedBeaconId = collisionResult.activatedBeaconId;
 
-    newState.activeDestructionAnimations.push(...collisionResult.newAnimations);
+    newState.cold.activeDestructionAnimations.push(
+      ...collisionResult.newAnimations
+    );
 
     if (collisionResult.playerDestroyed) {
       console.log("Logic: Player destroyed signal received.");
       return {
         newState: {
           ...collisionResult.newState,
-          gameView: "destroyed",
-          respawnTimer: C.RESPAWN_DELAY_MS,
-          projectiles: [],
-          enemies: [],
-          activeDestructionAnimations: newState.activeDestructionAnimations,
+          cold: {
+            ...collisionResult.newState.cold,
+
+            gameView: "destroyed",
+            respawnTimer: C.RESPAWN_DELAY_MS,
+            activeDestructionAnimations:
+              newState.cold.activeDestructionAnimations,
+          },
+          hot: {
+            ...collisionResult.newState.hot,
+            projectiles: [],
+            enemies: [],
+          },
         },
         activatedBeaconId: null,
       };
     }
 
     if (collisionResult.dockingTriggerStationId) {
-      newState.dockingStationId = collisionResult.dockingTriggerStationId;
+      newState.cold.dockingStationId = collisionResult.dockingTriggerStationId;
     }
 
-    if (newState.player) {
-      newState.camera = {
-        x: newState.player.x - C.GAME_WIDTH / 2,
-        y: newState.player.y - C.GAME_VIEW_HEIGHT / 2,
+    if (newState.hot.player) {
+      newState.hot.camera = {
+        x: newState.hot.player.x - C.GAME_WIDTH / 2,
+        y: newState.hot.player.y - C.GAME_VIEW_HEIGHT / 2,
       };
     }
   }
 
-  if (newState.navTargetCoordinates && newState.player) {
-    newState.navTargetDistance = distance(
-      newState.player.x,
-      newState.player.y,
-      newState.navTargetCoordinates.x,
-      newState.navTargetCoordinates.y
+  if (newState.cold.navTargetCoordinates && newState.hot.player) {
+    newState.cold.navTargetDistance = distance(
+      newState.hot.player.x,
+      newState.hot.player.y,
+      newState.cold.navTargetCoordinates.x,
+      newState.cold.navTargetCoordinates.y
     );
   } else {
-    newState.navTargetDistance = null;
+    newState.cold.navTargetDistance = null;
   }
 
   return { newState, activatedBeaconId };
 }
 
 function calculateNavigationInfo(
-  currentGameState: IGameColdState,
+  currentGameState: IGameState,
   worldManager: InfiniteWorldManager
 ): {
   navTargetDirection: number | null;
@@ -654,24 +683,24 @@ function calculateNavigationInfo(
   let navTargetDistance: number | null = null;
   let needsNavClear = false;
 
-  if (currentGameState.navTargetStationId && currentGameState.player) {
+  if (currentGameState.cold.navTargetStationId && currentGameState.hot.player) {
     const targetStation = worldManager.getStationById(
-      currentGameState.navTargetStationId
+      currentGameState.cold.navTargetStationId
     );
     if (targetStation) {
-      const dx = targetStation.x - currentGameState.player.x;
-      const dy = targetStation.y - currentGameState.player.y;
+      const dx = targetStation.x - currentGameState.hot.player.x;
+      const dy = targetStation.y - currentGameState.hot.player.y;
       navTargetDirection = Math.atan2(dy, dx);
       navTargetCoordinates = { x: targetStation.x, y: targetStation.y };
       navTargetDistance = distance(
-        currentGameState.player.x,
-        currentGameState.player.y,
+        currentGameState.hot.player.x,
+        currentGameState.hot.player.y,
         targetStation.x,
         targetStation.y
       );
     } else {
       console.warn(
-        `[calculateNavigationInfo] Nav target station ${currentGameState.navTargetStationId} not found. Flagging for clear.`
+        `[calculateNavigationInfo] Nav target station ${currentGameState.cold.navTargetStationId} not found. Flagging for clear.`
       );
       needsNavClear = true;
     }
@@ -685,9 +714,9 @@ function calculateNavigationInfo(
 }
 
 export function handleBeaconActivationAndUpdateQuest(
-  currentState: IGameColdState,
+  currentState: IGameState,
   activatedBeaconId: string | null
-): { updatedState: IGameColdState; questStateModified: boolean } {
+): { updatedState: IGameState; questStateModified: boolean } {
   if (!activatedBeaconId) {
     return { updatedState: currentState, questStateModified: false };
   }
@@ -695,78 +724,53 @@ export function handleBeaconActivationAndUpdateQuest(
   console.log(
     `[handleBeaconActivation] Beacon Activation Detected: ${activatedBeaconId}`
   );
-  // Since worldManager.getBeaconById and updateBeaconState are removed,
-  // this function can't interact with beacon world state directly anymore.
-  // const beacon = worldManager.getBeaconById(activatedBeaconId); // This would be null or error
-
-  // For the removed quests, beaconToReachObjectiveMap would be empty or not contain these beacon IDs.
-  // So, the quest update logic below would not trigger for the removed beacon quests.
-  // If other quests were to use beacons, this function would need adjustment.
-  // For now, it will largely be a no-op for the removed beacon-related quests.
 
   const questStateModified = false;
-  const nextQuestState = currentState.questState;
-
-  // Check if beacon exists and is NOT already active in the world state
-  // This check is now problematic as getBeaconById is removed from worldManager.
-  // We'll assume for now that if a beacon ID is passed, it's intended for activation.
-  // However, without specific beacon generation, this path won't be hit for the removed beacons.
-
-  // Original logic for direct quest modification:
-  /*
-  const reachObjectiveId = beaconToReachObjectiveMap[activatedBeaconId]; 
-  if (!reachObjectiveId) {
-    console.warn(
-      `[handleBeaconActivation] No matching reach objective found for beacon ID: ${activatedBeaconId}`
-    );
-  } else {
-    // ... (quest state modification logic) ...
-    // This part will not be reached for the removed beacons if beaconToReachObjectiveMap is cleared.
-  }
-  */
-
-  // If no specific beacon quests are active or the map is empty, this function
-  // might still be called but won't modify quest state for those.
-  // If beacon entities are entirely removed, then `activatedBeaconId` in `handleCollisions`
-  // will never be set, and this function won't be called with those IDs.
+  const nextQuestState = currentState.cold.questState;
 
   return {
-    updatedState: { ...currentState, questState: nextQuestState },
+    updatedState: {
+      ...currentState,
+      cold: {
+        ...currentState.cold,
+        questState: nextQuestState,
+      },
+    },
     questStateModified,
   };
 }
 
 function handleGameViewTransitions(
-  previousGameState: IGameColdState,
-  nextLogicState: IGameColdState,
+  previousGameState: IGameState,
+  nextLogicState: IGameState,
   worldManager: InfiniteWorldManager,
   emitQuestEvent: (event: GameEvent) => void
-): { updatedState: IGameColdState; transitionOccurred: boolean } {
-  const currentView = previousGameState.gameView;
-  const nextView = nextLogicState.gameView;
+): { updatedState: IGameState; transitionOccurred: boolean } {
+  const currentView = previousGameState.cold.gameView;
+  const nextView = nextLogicState.cold.gameView;
   let stateToReturn = { ...nextLogicState };
   let transitionOccurred = false;
 
   if (
     currentView === "playing" &&
-    !previousGameState.dockingStationId &&
-    nextLogicState.dockingStationId &&
+    !previousGameState.cold.dockingStationId &&
+    nextLogicState.cold.dockingStationId &&
     nextView === "playing"
   ) {
     console.log("[handleGameViewTransitions] Detected docking initiation.");
     transitionOccurred = true;
-    let updatedPlayer = stateToReturn.player;
+    let updatedPlayer = stateToReturn.hot.player;
     if (updatedPlayer instanceof Player) {
       updatedPlayer.vx = 0;
       updatedPlayer.vy = 0;
     } else if (updatedPlayer) {
-      const shieldLevel = previousGameState.shieldCapacitorLevel;
+      const shieldLevel = previousGameState.cold.shieldCapacitorLevel;
       updatedPlayer = createPlayer(
         updatedPlayer.x,
         updatedPlayer.y,
         shieldLevel
       );
-      updatedPlayer.angle = previousGameState.player?.angle ?? -Math.PI / 2;
+      updatedPlayer.angle = previousGameState.hot.player?.angle ?? -Math.PI / 2;
       updatedPlayer.vx = 0;
       updatedPlayer.vy = 0;
       console.warn(
@@ -775,32 +779,42 @@ function handleGameViewTransitions(
     }
     stateToReturn = {
       ...stateToReturn,
-      player: updatedPlayer,
-      gameView: "docking",
-      animationState: {
-        type: "docking",
-        progress: 0,
-        duration: previousGameState.animationState.duration,
+      hot: {
+        ...stateToReturn.hot,
+        player: updatedPlayer,
       },
-      market: null,
+      cold: {
+        ...stateToReturn.cold,
+        gameView: "docking",
+        animationState: {
+          type: "docking",
+          progress: 0,
+          duration: previousGameState.cold.animationState.duration,
+        },
+        market: null,
+      },
     };
   } else if (
     currentView === "docking" &&
-    previousGameState.animationState.type === "docking" &&
-    nextLogicState.animationState.type === null
+    previousGameState.cold.animationState.type === "docking" &&
+    nextLogicState.cold.animationState.type === null
   ) {
     console.log("[handleGameViewTransitions] Detected docking completion.");
     transitionOccurred = true;
-    const stationId = previousGameState.dockingStationId;
+    const stationId = previousGameState.cold.dockingStationId;
     const station = stationId ? worldManager.getStationById(stationId) : null;
 
-    const updatedDiscoveredStations = [...previousGameState.discoveredStations];
+    const updatedDiscoveredStations = [
+      ...previousGameState.cold.discoveredStations,
+    ];
     if (stationId && !updatedDiscoveredStations.includes(stationId)) {
       updatedDiscoveredStations.push(stationId);
     }
 
-    const newKnownPrices = { ...previousGameState.knownStationPrices };
-    const newKnownQuantities = { ...previousGameState.knownStationQuantities };
+    const newKnownPrices = { ...previousGameState.cold.knownStationPrices };
+    const newKnownQuantities = {
+      ...previousGameState.cold.knownStationQuantities,
+    };
     let marketForSession: MarketSnapshot | null = null;
 
     if (stationId && station) {
@@ -886,48 +900,51 @@ function handleGameViewTransitions(
 
     stateToReturn = {
       ...stateToReturn,
-      gameView: "trade_select",
-      market: marketForSession,
-      lastDockedStationId: stationId,
-      discoveredStations: updatedDiscoveredStations,
-      knownStationPrices: newKnownPrices,
-      knownStationQuantities: newKnownQuantities,
-      animationState: {
-        ...stateToReturn.animationState,
-        type: null,
-        progress: 0,
+      cold: {
+        ...stateToReturn.cold,
+        gameView: "trade_select",
+        market: marketForSession,
+        lastDockedStationId: stationId,
+        discoveredStations: updatedDiscoveredStations,
+        knownStationPrices: newKnownPrices,
+        knownStationQuantities: newKnownQuantities,
+        animationState: {
+          ...stateToReturn.cold.animationState,
+          type: null,
+          progress: 0,
+        },
       },
     };
   } else if (
     currentView === "undocking" &&
-    previousGameState.animationState.type === "undocking" &&
-    nextLogicState.animationState.type === null
+    previousGameState.cold.animationState.type === "undocking" &&
+    nextLogicState.cold.animationState.type === null
   ) {
     console.log("[handleGameViewTransitions] Detected undocking completion.");
     transitionOccurred = true;
-    let playerX = stateToReturn.player?.x ?? 0;
-    let playerY = stateToReturn.player?.y ?? 0;
-    let playerAngle = stateToReturn.player?.angle ?? -Math.PI / 2;
+    let playerX = stateToReturn.hot.player?.x ?? 0;
+    let playerY = stateToReturn.hot.player?.y ?? 0;
+    let playerAngle = stateToReturn.hot.player?.angle ?? -Math.PI / 2;
 
-    const stationId = previousGameState.lastDockedStationId;
+    const stationId = previousGameState.cold.lastDockedStationId;
     const station = stationId ? worldManager.getStationById(stationId) : null;
 
     if (station) {
       const undockDist =
         station.radius +
-        (previousGameState.player?.radius ?? PLAYER_SIZE / 2) +
+        (previousGameState.hot.player?.radius ?? PLAYER_SIZE / 2) +
         20;
       const exitAngle = station.angle + Math.PI;
       playerX = station.x + Math.cos(exitAngle) * undockDist;
       playerY = station.y + Math.sin(exitAngle) * undockDist;
       playerAngle = exitAngle;
     }
-    let updatedPlayer = stateToReturn.player;
+    let updatedPlayer = stateToReturn.hot.player;
     if (!(updatedPlayer instanceof Player) && updatedPlayer) {
-      const shieldLevel = previousGameState.shieldCapacitorLevel;
+      const shieldLevel = previousGameState.cold.shieldCapacitorLevel;
       updatedPlayer = createPlayer(playerX, playerY, shieldLevel);
     } else if (!updatedPlayer) {
-      const shieldLevel = previousGameState.shieldCapacitorLevel;
+      const shieldLevel = previousGameState.cold.shieldCapacitorLevel;
       updatedPlayer = createPlayer(playerX, playerY, shieldLevel);
     }
     updatedPlayer.x = playerX;
@@ -943,14 +960,20 @@ function handleGameViewTransitions(
 
     stateToReturn = {
       ...stateToReturn,
-      player: updatedPlayer,
-      gameView: "playing",
-      dockingStationId: null,
-      market: null,
-      animationState: {
-        ...stateToReturn.animationState,
-        type: null,
-        progress: 0,
+      hot: {
+        ...stateToReturn.hot,
+        player: updatedPlayer,
+      },
+      cold: {
+        ...stateToReturn.cold,
+        gameView: "playing",
+        dockingStationId: null,
+        market: null,
+        animationState: {
+          ...stateToReturn.cold.animationState,
+          type: null,
+          progress: 0,
+        },
       },
     };
   } else if (currentView === "playing" && nextView === "destroyed") {
@@ -958,7 +981,14 @@ function handleGameViewTransitions(
       "[handleGameViewTransitions] Detected destruction transition from logic."
     );
     transitionOccurred = true;
-    stateToReturn = { ...stateToReturn, projectiles: [], enemies: [] };
+    stateToReturn = {
+      ...stateToReturn,
+      hot: {
+        ...stateToReturn.hot,
+        projectiles: [],
+        enemies: [],
+      },
+    };
   } else if (currentView === "destroyed" && nextView === "playing") {
     console.log(
       "[handleGameViewTransitions] Detected respawn completion from logic."
@@ -968,19 +998,19 @@ function handleGameViewTransitions(
   return { updatedState: stateToReturn, transitionOccurred };
 }
 
-function checkAndApplyWinCondition(currentState: IGameColdState): {
-  updatedState: IGameColdState;
+function checkAndApplyWinCondition(currentState: IGameState): {
+  updatedState: IGameState;
   winConditionMet: boolean;
 } {
   const finalScore = questEngine.calculateQuestCompletion(
     "freedom_v01",
-    currentState.questState
+    currentState.cold.questState
   );
-  if (finalScore >= 100 && currentState.gameView !== "won") {
+  if (finalScore >= 100 && currentState.cold.gameView !== "won") {
     console.log(
       "[checkAndApplyWinCondition] WIN CONDITION MET! Emancipation Score >= 100%"
     );
-    let finalPlayer = currentState.player;
+    let finalPlayer = currentState.hot.player;
     if (finalPlayer instanceof Player) {
       finalPlayer.vx = 0;
       finalPlayer.vy = 0;
@@ -988,7 +1018,11 @@ function checkAndApplyWinCondition(currentState: IGameColdState): {
       finalPlayer = { ...finalPlayer, vx: 0, vy: 0 };
     }
     return {
-      updatedState: { ...currentState, player: finalPlayer, gameView: "won" },
+      updatedState: {
+        ...currentState,
+        hot: { ...currentState.hot, player: finalPlayer },
+        cold: { ...currentState.cold, gameView: "won" },
+      },
       winConditionMet: true,
     };
   }
@@ -996,14 +1030,17 @@ function checkAndApplyWinCondition(currentState: IGameColdState): {
 }
 
 export const calculateNextGameState = (
-  currentGameState: IGameColdState,
+  currentGameState: IGameState,
   deltaTime: number,
   now: number,
   currentTouchState: ITouchState | undefined,
   worldManager: InfiniteWorldManager,
   emitQuestEvent: (event: GameEvent) => void
-): IGameColdState => {
-  if (!currentGameState.isInitialized || currentGameState.gameView === "won") {
+): IGameState => {
+  if (
+    !currentGameState.cold.isInitialized ||
+    currentGameState.cold.gameView === "won"
+  ) {
     return currentGameState;
   }
 
@@ -1016,25 +1053,31 @@ export const calculateNextGameState = (
 
   if (needsNavClear) {
     console.warn(
-      `[calculateNextGameState] Clearing navigation target due to missing station.`
+      `[calculateNavigationInfo] Clearing navigation target due to missing station.`
     );
     return {
       ...currentGameState,
-      navTargetStationId: null,
-      navTargetDirection: null,
-      navTargetCoordinates: null,
-      navTargetDistance: null,
+      cold: {
+        ...currentGameState.cold,
+        navTargetStationId: null,
+        navTargetDirection: null,
+        navTargetCoordinates: null,
+        navTargetDistance: null,
+      },
     };
   }
 
   const stateForLogic = {
     ...currentGameState,
-    navTargetDirection,
-    navTargetCoordinates,
-    navTargetDistance,
+    cold: {
+      ...currentGameState.cold,
+      navTargetDirection,
+      navTargetCoordinates,
+      navTargetDistance,
+    },
   };
 
-  const { newState: stateAfterLogic, activatedBeaconId } = updateGameStateLogic(
+  const { newState: stateAfterLogic } = updateGameStateLogic(
     stateForLogic,
     currentTouchState,
     worldManager,
@@ -1042,13 +1085,10 @@ export const calculateNextGameState = (
     now
   );
 
-  const { updatedState: stateAfterBeaconHandling } =
-    handleBeaconActivationAndUpdateQuest(stateAfterLogic, activatedBeaconId);
-
   const { updatedState: stateAfterTransitions, transitionOccurred } =
     handleGameViewTransitions(
       currentGameState,
-      stateAfterBeaconHandling,
+      stateAfterLogic,
       worldManager,
       emitQuestEvent
     );

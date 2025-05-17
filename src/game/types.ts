@@ -214,8 +214,7 @@ export interface ChatMessage {
   timestamp?: number;
 }
 
-// Game "Cold" State
-export interface IGameColdState {
+export type IGameHotState = {
   player: IPlayer; // Move to hot state, except for the shield level
   enemies: IEnemy[]; // Move to hot state
   projectiles: IProjectile[]; // // Move to hot state
@@ -224,6 +223,9 @@ export interface IGameColdState {
   lastEnemySpawnTime: number; // Move to hot state
   lastShotTime: number; // Move to hot state
   enemyIdCounter: number; // Move to hot state
+};
+
+export type IGameColdState = {
   gameView: GameView;
   dockingStationId: string | null;
   animationState: IAnimationState;
@@ -235,7 +237,7 @@ export interface IGameColdState {
   baseCargoCapacity: number; // Base capacity before upgrades
   extraCargoCapacity: number; // Capacity added by upgrades
   market: MarketSnapshot | null; // Use IMarketSnapshot (which uses CommodityTable Record)
-  activeDestructionAnimations: DestructionAnimationData[];  // Move to hot state
+  activeDestructionAnimations: DestructionAnimationData[]; // Move to hot state
   // --- Station Log & Navigation ---
   discoveredStations: string[]; // Array of discovered station IDs, in order
   navTargetStationId: string | null; // ID of station to navigate to
@@ -259,6 +261,11 @@ export interface IGameColdState {
   // --- Chat System ---
   chatLog: ChatMessage[]; // Log of messages to display
   lastProcessedDialogId: number; // Tracks the last dialog entry processed
+};
+
+export type IGameState = {
+  cold: IGameColdState; // Cold state
+  hot: IGameHotState; // Hot state
 }
 
 // World Manager Config

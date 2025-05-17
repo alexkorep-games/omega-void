@@ -37,22 +37,22 @@ const Game: React.FC = () => {
   }, [isInitialized, initializeGameState]);
 
   useEffect(() => {
-    const isActionScreen = gameState.gameView === "playing";
+    const isActionScreen = gameState.cold.gameView === "playing";
     enableTouchTracking(isActionScreen);
-  }, [gameState.gameView, enableTouchTracking]);
+  }, [gameState.cold.gameView, enableTouchTracking]);
 
   const gameLoopUpdate = useCallback(
     (deltaTime: number, now: number) => {
-      if (gameState.gameView !== "won") {
+      if (gameState.cold.gameView !== "won") {
         const currentTouchState =
-          gameState.gameView === "playing" ? touchState : undefined;
+          gameState.cold.gameView === "playing" ? touchState : undefined;
         updateGame(deltaTime, now, currentTouchState);
       }
     },
-    [updateGame, touchState, gameState.gameView]
+    [updateGame, touchState, gameState.cold.gameView]
   );
 
-  const isLoopRunning = isInitialized && gameState.gameView !== "won";
+  const isLoopRunning = isInitialized && gameState.cold.gameView !== "won";
 
   useGameLoop(gameLoopUpdate, isLoopRunning);
 
@@ -105,7 +105,7 @@ const Game: React.FC = () => {
 
   // Renders the main content panel for different docked views
   const renderDockedUI = () => {
-    switch (gameState.gameView) {
+    switch (gameState.cold.gameView) {
       case "buy_cargo":
         return <BuyCargoScreen />;
       case "sell_cargo":
@@ -116,7 +116,7 @@ const Game: React.FC = () => {
         return <StationLogScreen />;
       case "station_details":
         return (
-          <StationDetailsScreen stationId={gameState.viewTargetStationId} />
+          <StationDetailsScreen stationId={gameState.cold.navTargetStationId} />
         );
       case "trade_select":
         return <TradeScreen />;
@@ -127,7 +127,7 @@ const Game: React.FC = () => {
       case "chat_log":
         return (
           <ChatScreen
-            messages={gameState.chatLog} // Pass the chatLog from gameState
+            messages={gameState.cold.chatLog} // Pass the chatLog from gameState
           />
         );
       default:
@@ -146,7 +146,7 @@ const Game: React.FC = () => {
     "upgrade_ship",
     "chat_log",
     // "contract_log" // <-- REMOVED from main panel list
-  ].includes(gameState.gameView);
+  ].includes(gameState.cold.gameView);
 
   // Determine which views show the Bottom Toolbar
   const showBottomToolbar = [
@@ -159,30 +159,30 @@ const Game: React.FC = () => {
     "upgrade_ship",
     "chat_log",
     "contract_log",
-  ].includes(gameState.gameView);
+  ].includes(gameState.cold.gameView);
 
   return (
     <div className="GameContainer" ref={containerRef}>
       <SettingsMenu />
 
-      {isInitialized && gameState.gameView !== "won" && (
+      {isInitialized && gameState.cold.gameView !== "won" && (
         <GameCanvas gameState={gameState} touchState={touchState} />
       )}
 
-      {gameState.gameView === "playing" &&
+      {gameState.cold.gameView === "playing" &&
         isInitialized &&
-        gameState.player && (
-          <CoordinatesDisplay x={gameState.player.x} y={gameState.player.y} />
+        gameState.hot.player && (
+          <CoordinatesDisplay x={gameState.hot.player.x} y={gameState.hot.player.y} />
         )}
 
-      {(gameState.gameView === "docking" ||
-        gameState.gameView === "undocking") &&
+      {(gameState.cold.gameView === "docking" ||
+        gameState.cold.gameView === "undocking") &&
         isInitialized &&
-        gameState.animationState.duration > 0 && (
+        gameState.cold.animationState.duration > 0 && (
           <DockingAnimation
             progress={
-              gameState.animationState.progress /
-              gameState.animationState.duration
+              gameState.cold.animationState.progress /
+              gameState.cold.animationState.duration
             }
           />
         )}
@@ -191,12 +191,12 @@ const Game: React.FC = () => {
       {showDockedUIPanel && isInitialized && renderDockedUI()}
 
       {/* Render Quest Panel *only* when view is contract_log */}
-      {gameState.gameView === "contract_log" && isInitialized && <QuestPanel />}
+      {gameState.cold.gameView === "contract_log" && isInitialized && <QuestPanel />}
 
       {/* Render Bottom Toolbar only when appropriate */}
       {showBottomToolbar && isInitialized && <BottomToolbar />}
 
-      {isInitialized && gameState.gameView === "won" && renderWinScreen()}
+      {isInitialized && gameState.cold.gameView === "won" && renderWinScreen()}
 
       {!isInitialized && (
         <div

@@ -115,7 +115,7 @@ const BottomToolbar: React.FC = () => {
     "contract_log",
   ];
   // Only render if the current gameView is one where the toolbar should be visible
-  if (!toolbarVisibleViews.includes(gameState.gameView)) {
+  if (!toolbarVisibleViews.includes(gameState.cold.gameView)) {
     return null;
   }
 
@@ -127,7 +127,7 @@ const BottomToolbar: React.FC = () => {
           label={button.label}
           // Pass the targetView or action function to onClick handler
           targetView={button.targetView} // Pass target/action directly
-          currentView={gameState.gameView}
+          currentView={gameState.cold.gameView}
           onClick={handleNavigate} // Use the navigation handler
           title={button.title}
         />

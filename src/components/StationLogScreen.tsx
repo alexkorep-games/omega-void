@@ -9,7 +9,7 @@ import { distance } from "../utils/geometry"; // Import utility for distance cal
 const StationLogScreen: React.FC = () => {
   const { gameState, findStationById, setGameView, setViewTargetStationId } =
     useGameState();
-  const { discoveredStations } = gameState;
+  const { discoveredStations } = gameState.cold;
 
   // Local state to hold station details fetched for the log
   const [logEntries, setLogEntries] = useState<
@@ -23,8 +23,8 @@ const StationLogScreen: React.FC = () => {
       IStation & { discoveredIndex: number; distance: number }
     > = [];
     const playerPosition = {
-      x: gameState.player?.x || 0,
-      y: gameState.player?.y || 0,
+      x: gameState.hot.player?.x || 0,
+      y: gameState.hot.player?.y || 0,
     }; // Default to origin if player position is unavailable
 
     discoveredStations.forEach((id, index) => {
@@ -51,7 +51,7 @@ const StationLogScreen: React.FC = () => {
 
     setLogEntries(entries);
     setIsLoading(false);
-  }, [discoveredStations, findStationById, gameState.player]);
+  }, [discoveredStations, findStationById, gameState.hot.player]);
 
   const handleStationClick = useCallback(
     (stationId: string) => {

@@ -1,5 +1,12 @@
 // src/game/state.ts
-import { IGameColdState, IPlayer, ICamera, ITouchState } from "./types";
+import {
+  IGameState,
+  IPlayer,
+  ICamera,
+  ITouchState,
+  IGameHotState,
+  IGameColdState,
+} from "./types";
 import { Player } from "./entities/Player";
 import {
   GAME_WIDTH,
@@ -17,7 +24,7 @@ export const initialPlayerState: IPlayer = new Player(0, 0);
 initialPlayerState.maxShield = DEFAULT_STARTING_SHIELD; // Initialize maxShield
 
 // TODO refactor this to use the player instance
-const initialPlayer: IPlayer = {
+export const initialPlayer: IPlayer = {
   id: "player",
   x: 0,
   y: 0,
@@ -49,8 +56,7 @@ export const initialTouchState: ITouchState = {
   shoot: { active: false, id: null, x: 0, y: 0 },
 };
 
-// Initial game state
-export const initialGameState: IGameColdState = {
+export const initialGameHotState: IGameHotState = {
   player: initialPlayerState,
   enemies: [],
   projectiles: [],
@@ -59,6 +65,10 @@ export const initialGameState: IGameColdState = {
   lastEnemySpawnTime: 0,
   lastShotTime: 0,
   enemyIdCounter: 0,
+};
+
+// Initial game state
+export const initialGameColdState: IGameColdState = {
   gameView: "playing", // Start in playing mode
   dockingStationId: null,
   animationState: {
@@ -98,23 +108,31 @@ export const initialGameState: IGameColdState = {
   lastProcessedDialogId: -1, // No dialog entries processed yet
 };
 
+export const initialGameState: IGameState = {
+  hot: initialGameHotState,
+  cold: initialGameColdState,
+};
+
 // updateCamera function remains the same
-export function updateCamera(state: IGameColdState): IGameColdState {
+export function updateCamera(state: IGameState): IGameState {
   // Only update camera if playing or animating (avoids jump when undocking finishes)
   if (
-    state.gameView === "playing" ||
-    state.gameView === "docking" ||
-    state.gameView === "undocking" ||
-    state.gameView === "destroyed" // Keep camera potentially updated during destruction/respawn
+    state.cold.gameView === "playing" ||
+    state.cold.gameView === "docking" ||
+    state.cold.gameView === "undocking" ||
+    state.cold.gameView === "destroyed" // Keep camera potentially updated during destruction/respawn
   ) {
     // Ensure player position is considered
-    const playerX = state.player?.x ?? 0;
-    const playerY = state.player?.y ?? 0;
+    const playerX = state.hot.player?.x ?? 0;
+    const playerY = state.hot.player?.y ?? 0;
     return {
       ...state,
-      camera: {
-        x: playerX - GAME_WIDTH / 2,
-        y: playerY - GAME_VIEW_HEIGHT / 2,
+      hot: {
+        ...state.hot,
+        camera: {
+          x: playerX - GAME_WIDTH / 2,
+          y: playerY - GAME_VIEW_HEIGHT / 2,
+        },
       },
     };
   }

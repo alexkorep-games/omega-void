@@ -14,9 +14,7 @@ const StationInfoScreen: React.FC = () => {
     dockingStationId,
     navTargetStationId,
     cash,
-    // cargoHold, // No longer needed for fragment logic
-    // questInventory, // No longer needed for fragment logic
-  } = gameState;
+  } = gameState.cold;
 
   const station = findStationById(dockingStationId);
 

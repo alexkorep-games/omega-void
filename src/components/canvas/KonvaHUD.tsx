@@ -1,7 +1,7 @@
 /* src/components/canvas/KonvaHUD.tsx */
 import React from "react";
 import { Rect, Line, Text, Group, Shape } from "react-konva";
-import { IGameColdState, IPlayer, IPosition } from "../../game/types";
+import { IGameState, IPlayer, IPosition } from "../../game/types";
 import * as C from "../../game/config";
 
 interface NavTargetInfo {
@@ -14,7 +14,7 @@ interface NavTargetInfo {
 interface KonvaHUDProps {
   player: IPlayer | null;
   cash: number;
-  gameState: IGameColdState; // Pass full gameState for scanner access and upgrades
+  gameState: IGameState; // Pass full gameState for scanner access and upgrades
   navTargetInfo: NavTargetInfo | null; // Optional navigation target info
 }
 
@@ -168,7 +168,7 @@ const KonvaHUD: React.FC<KonvaHUDProps> = ({
       />
 
       {/* Display Distance if Nav Computer installed and target exists */}
-      {gameState.hasNavComputer && gameState.navTargetDistance !== null && (
+      {gameState.cold.hasNavComputer && gameState.cold.navTargetDistance !== null && (
         <Text
           text={`DIST:`}
           x={leftX}
@@ -178,9 +178,9 @@ const KonvaHUD: React.FC<KonvaHUDProps> = ({
           fontFamily="monospace"
         />
       )}
-      {gameState.hasNavComputer && gameState.navTargetDistance !== null && (
+      {gameState.cold.hasNavComputer && gameState.cold.navTargetDistance !== null && (
         <Text
-          text={gameState.navTargetDistance.toFixed(0)}
+          text={gameState.cold.navTargetDistance.toFixed(0)}
           x={leftX + 40}
           y={hudY + padding * 4 + 15 + 15} // Below NAV line
           fill={C.NAV_TARGET_COLOR}
@@ -197,7 +197,7 @@ const KonvaHUD: React.FC<KonvaHUDProps> = ({
           const displayY = scannerCenterY + Math.sin(angle) * scannerRadiusY;
 
           // Check if the target station is visible on the scanner
-          const isTargetVisible = gameState.visibleBackgroundObjects.some(
+          const isTargetVisible = gameState.hot.visibleBackgroundObjects.some(
             (bg) => bg.id === navTargetInfo.id
           );
 
@@ -314,13 +314,13 @@ const KonvaHUD: React.FC<KonvaHUDProps> = ({
         fill={C.PLAYER_COLOR}
       />
       {/* Scanner Objects */}
-      {gameState.enemies.map((e) =>
+      {gameState.hot.enemies.map((e) =>
         renderScannerObject(e.id, e.x, e.y, C.ENEMY_COLOR, 3)
       )}
-      {gameState.projectiles.map((p) =>
+      {gameState.hot.projectiles.map((p) =>
         renderScannerObject(p.id, p.x, p.y, C.PROJECTILE_COLOR, 1)
       )}
-      {gameState.visibleBackgroundObjects
+      {gameState.hot.visibleBackgroundObjects
         .filter((bg) => bg.type === "station")
         .map((s) =>
           renderScannerObject(s.id, s.x, s.y, s.color || C.STATION_COLOR, 5)

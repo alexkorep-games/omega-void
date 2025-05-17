@@ -25,7 +25,7 @@ const UpgradeScreen: React.FC = () => {
     engineBoosterLevel,
     hasAutoloader,
     hasNavComputer,
-  } = gameState;
+  } = gameState.cold;
 
   const [statusMessage, setStatusMessage] = useState<StatusMessage | null>(
     null

@@ -6,8 +6,9 @@ import "./TradeScreen.css";
 
 const TradeScreen: React.FC = () => {
   // Get the function to change the game view
-  const { setGameView, gameState, updatePlayerState } = useGameState();
-  const { cash, player } = gameState;
+  const { setGameView, gameState, replenishShield } = useGameState();
+  const { cash } = gameState.cold;
+  const { player } = gameState.hot;
   const shieldLevel = player?.shieldLevel ?? 0; // Default to 0 if player undefined (shouldn't happen)
   const maxShield = player?.maxShield ?? 100; // Get max shield
 
@@ -19,17 +20,11 @@ const TradeScreen: React.FC = () => {
   const handleReplenishShields = useCallback(() => {
     if (!needsReplenish || !canAffordReplenish || replenishCost <= 0) return;
 
-    updatePlayerState((prev) => ({
-      cash: prev.cash - replenishCost,
-      player: {
-        ...prev.player, // Spread previous player state
-        shieldLevel: prev.player.maxShield, // Set shield to full (maxShield)
-      } as any, // Type assertion might be needed depending on updatePlayerState signature
-    }));
+    replenishShield();
     // Consider using the status message system from useTradeCargoLogic here
     // showMessage(`Shields replenished for ${replenishCost} CR.`, 'success');
     console.log(`Shields replenished for ${replenishCost.toFixed(1)} CR.`);
-  }, [needsReplenish, canAffordReplenish, replenishCost, updatePlayerState]);
+  }, [needsReplenish, canAffordReplenish, replenishCost, replenishShield]);
 
   const replenishButtonDisabled =
     !needsReplenish || !canAffordReplenish || replenishCost <= 0;
@@ -49,7 +44,7 @@ const TradeScreen: React.FC = () => {
       <div className="market-header">
         <div className="market-title">TRADE & SERVICES</div>{" "}
         {/* Updated title */}
-        <div className="market-credits">{gameState.cash.toFixed(1)} CR</div>
+        <div className="market-credits">{gameState.cold.cash.toFixed(1)} CR</div>
       </div>
 
       <div className="trade-select-content">

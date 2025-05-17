@@ -2,7 +2,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useGameState } from "./useGameState";
 import { getTonnesPerUnit, getCommodityUnit } from "../game/Market";
-import { CargoHold } from "../game/types"; // Import the Record type alias
 
 // Types
 type TradeMode = "buy" | "sell";
@@ -25,17 +24,20 @@ const MESSAGE_DURATION = 2500;
 export function useTradeCargoLogic(mode: TradeMode) {
   const {
     gameState,
-    updatePlayerState,
+    buyCargo,
+    sellCargo,
     updateMarketQuantity,
     totalCargoCapacity,
   } = useGameState();
+
+  const { cold } = gameState;
 
   const {
     market,
     cash: playerCash,
     cargoHold, // This is Record<string, number>
     gameView,
-  } = gameState;
+  } = cold;
 
   // Internal State
   const [tradeItems, setTradeItems] = useState<TradeItemDisplay[]>([]);
@@ -98,16 +100,7 @@ export function useTradeCargoLogic(mode: TradeMode) {
           return false;
         }
 
-        // Perform Buy Update
-        updatePlayerState((prevState) => {
-          // Create new Record for immutability
-          const updatedCargoHold: CargoHold = { ...prevState.cargoHold };
-          updatedCargoHold[key] = (updatedCargoHold[key] || 0) + quantity;
-          return {
-            cash: prevState.cash - cost,
-            cargoHold: updatedCargoHold, // Assign the new Record
-          };
-        });
+        buyCargo(key, quantity); // Update player state
         updateMarketQuantity(key, -quantity); // Decrease market stock
         showMessage(
           `Bought ${quantity}${getCommodityUnit(key)} ${key}.`,
@@ -134,20 +127,7 @@ export function useTradeCargoLogic(mode: TradeMode) {
         const earnings = quantity * marketInfo.price;
 
         // Perform Sell Update
-        updatePlayerState((prevState) => {
-          const updatedCargoHold: CargoHold = { ...prevState.cargoHold };
-          const currentQty = updatedCargoHold[key] || 0; // Should exist due to validation
-          const newQty = currentQty - quantity;
-          if (newQty <= 0) {
-            delete updatedCargoHold[key]; // Remove key if 0
-          } else {
-            updatedCargoHold[key] = newQty; // Update key
-          }
-          return {
-            cash: prevState.cash + earnings,
-            cargoHold: updatedCargoHold, // Assign the new Record
-          };
-        });
+        sellCargo(key, quantity, earnings); // Update player state
         updateMarketQuantity(key, +quantity); // Increase market stock
         showMessage(
           `Sold ${quantity}${getCommodityUnit(key)} ${key}.`,
@@ -161,12 +141,13 @@ export function useTradeCargoLogic(mode: TradeMode) {
     },
     [
       market,
-      playerCash,
       cargoHold,
-      cargoSpaceLeft,
-      updatePlayerState,
-      updateMarketQuantity,
       showMessage,
+      playerCash,
+      cargoSpaceLeft,
+      buyCargo,
+      updateMarketQuantity,
+      sellCargo,
     ]
   );
 

@@ -1,6 +1,6 @@
 import { describe, test, expect } from "vitest";
-import { createPlayer, updateGameStateLogic } from "./logic"; // Removed handleBeaconActivationAndUpdateQuest from import
-import { IGameColdState } from "./types"; // Removed IBeacon as it's not directly tested here anymore
+import { createPlayer, updateGameStateLogic } from "./logic";
+import { IGameColdState, IGameHotState, IGameState } from "./types";
 import { InfiniteWorldManager } from "./world/InfiniteWorldManager";
 import * as C from "./config";
 import { MarketSnapshot } from "./Market";
@@ -21,10 +21,10 @@ class MockWorldManager implements Partial<InfiniteWorldManager> {
 const worldManager = new MockWorldManager() as unknown as InfiniteWorldManager;
 
 // Helper to build a baseline game state
-function makeBaseState(): IGameColdState {
+function makeBaseState(): IGameState {
   const market: MarketSnapshot = new MarketSnapshot(Date.now(), {});
 
-  return {
+  const hotState: IGameHotState = {
     player: createPlayer(10, 20),
     enemies: [],
     projectiles: [],
@@ -32,19 +32,24 @@ function makeBaseState(): IGameColdState {
     lastEnemySpawnTime: 0,
     lastShotTime: 0,
     visibleBackgroundObjects: [],
-    activeDestructionAnimations: [],
-    cargoHold: {},
-    camera: { x: 0, y: 0 },
+  } as unknown as IGameHotState;
+  const coldState = {
     gameView: "playing" as const,
     respawnTimer: 0,
     dockingStationId: null,
     lastDockedStationId: null,
     animationState: { type: null, progress: 0, duration: 0 },
-    cash: 0,
+    cash: C.DEFAULT_STARTING_CASH,
     isInitialized: true,
-    cargoCapacity: 100,
+    cargoCapacity: C.BASE_CARGO_CAPACITY,
     market,
+    activeDestructionAnimations: [],
   } as unknown as IGameColdState;
+
+  return {
+    hot: hotState,
+    cold: coldState,
+  };
 }
 
 describe("logic.ts", () => {
@@ -66,18 +71,21 @@ describe("logic.ts", () => {
       16,
       now
     );
-    expect(newState.gameView).toBe("playing");
-    expect(newState.enemies).toHaveLength(0);
-    expect(newState.projectiles).toHaveLength(0);
-    expect(newState.camera.x).toBeCloseTo(state.player.x - C.GAME_WIDTH / 2);
+    expect(newState.cold.gameView).toBe("playing");
+    expect(newState.hot.enemies).toHaveLength(0);
+    expect(newState.hot.projectiles).toHaveLength(0);
+    expect(newState.hot.camera.x).toBeCloseTo(state.hot.player.x - C.GAME_WIDTH / 2);
   });
 
   test("respawn after destroyed state resets player & clears enemies/projectiles", () => {
     const base = makeBaseState();
-    const deadState: IGameColdState = {
+    const deadState: IGameState = {
       ...base,
-      gameView: "destroyed",
-      respawnTimer: 50,
+      cold: {
+        ...base.cold,
+        gameView: "destroyed",
+        respawnTimer: 50,
+      },
     };
     const now = performance.now();
     const { newState } = updateGameStateLogic(
@@ -87,11 +95,11 @@ describe("logic.ts", () => {
       100,
       now
     );
-    expect(newState.gameView).toBe("playing");
-    expect(newState.respawnTimer).toBe(0);
-    expect(newState.enemies).toHaveLength(0);
-    expect(newState.projectiles).toHaveLength(0);
-    expect(newState.player.x).not.toBeNaN();
-    expect(newState.player.shieldLevel).toBe(C.DEFAULT_STARTING_SHIELD);
+    expect(newState.cold.gameView).toBe("playing");
+    expect(newState.cold.respawnTimer).toBe(0);
+    expect(newState.hot.enemies).toHaveLength(0);
+    expect(newState.hot.projectiles).toHaveLength(0);
+    expect(newState.hot.player.x).not.toBeNaN();
+    expect(newState.hot.player.shieldLevel).toBe(C.DEFAULT_STARTING_SHIELD);
   });
 });

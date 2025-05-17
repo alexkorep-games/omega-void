@@ -23,7 +23,7 @@ const StationDetailsScreen: React.FC<StationDetailsScreenProps> = ({
     setNavTarget,
     getOrInitializeStationMarketData, // Use the new helper from useGameState
   } = useGameState();
-  const { navTargetStationId, cash, market: currentDockedMarket } = gameState;
+  const { navTargetStationId, cash, market: currentDockedMarket } = gameState.cold;
   const [station, setStation] = useState<IStation | null>(null);
   // State to hold the market snapshot for the VIEWED station (prices and current quantities)
   const [viewedStationMarket, setViewedStationMarket] =
@@ -49,8 +49,8 @@ const StationDetailsScreen: React.FC<StationDetailsScreenProps> = ({
     stationId,
     findStationById,
     getOrInitializeStationMarketData,
-    gameState.knownStationPrices,
-    gameState.knownStationQuantities,
+    gameState.cold.knownStationPrices,
+    gameState.cold.knownStationQuantities,
   ]); // Depend on known data too
 
   const handleLogClick = useCallback(() => {
