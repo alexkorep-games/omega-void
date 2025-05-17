@@ -161,7 +161,7 @@ export class InfiniteWorldManager {
       maxStationSize: config.maxStationSize ?? MAX_STATION_SIZE,
       stationColor: config.stationColor ?? STATION_COLOR,
       stationTypes: config.stationTypes ?? ["coriolis"],
-      viewBufferFactor: config.viewBufferFactor ?? 1.5,
+      viewBufferFactor: config.viewBufferFactor ?? 3,
       economyTypes: config.economyTypes ?? DEFAULT_ECONOMY_TYPES,
       techLevels: config.techLevels ?? DEFAULT_TECH_LEVELS,
     };
