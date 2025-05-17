@@ -63,7 +63,7 @@ export function getDynamicMaxEnemies(
 
   const techReductionFactor = techLevelNumber * 0.1; // 10% reduction per tech level
   const dynamicMaxEnemies = Math.max(
-    1, // At least 1 enemy should spawn
+    cargoValue > 0 ? 1 : 0, // At least 1 enemy should spawn if cargoValue > 0
     Math.round(maxEnemiesFromCargo * (1 - techReductionFactor))
   );
   return dynamicMaxEnemies;
