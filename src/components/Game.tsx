@@ -17,6 +17,7 @@ import { useTouchInput } from "../hooks/useTouchInput";
 import TradeScreen from "./TradeScreen";
 import ChatScreen from "./ChatScreen";
 import QuestPanel from "./QuestPanel"; // Keep import
+import Konva from "konva";
 
 const Game: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -27,6 +28,8 @@ const Game: React.FC = () => {
     initializeGameState,
     emancipationScore,
   } = useGameState();
+
+  const [counter, setCounter] = React.useState(0);
 
   const { touchState, enableTouchTracking } = useTouchInput(containerRef);
 
@@ -47,12 +50,21 @@ const Game: React.FC = () => {
         const currentTouchState =
           gameState.cold.gameView === "playing" ? touchState : undefined;
         updateGame(deltaTime, now, currentTouchState);
+        if (gameState.cold.gameView === "playing") {
+          // const layer = layerRef.current;
+          // if (layer) {
+          //   layer.batchDraw();
+          // }
+          setCounter((prevCounter) => prevCounter + 1);
+        }
       }
     },
     [updateGame, touchState, gameState.cold.gameView]
   );
 
   const isLoopRunning = isInitialized && gameState.cold.gameView !== "won";
+
+  const layerRef = useRef<Konva.Layer>(null);
 
   useGameLoop(gameLoopUpdate, isLoopRunning);
 
@@ -166,13 +178,21 @@ const Game: React.FC = () => {
       <SettingsMenu />
 
       {isInitialized && gameState.cold.gameView !== "won" && (
-        <GameCanvas gameState={gameState} touchState={touchState} />
+        <GameCanvas
+          gameState={gameState}
+          touchState={touchState}
+          layerRef={layerRef}
+          counter={counter}
+        />
       )}
 
       {gameState.cold.gameView === "playing" &&
         isInitialized &&
         gameState.hot.player && (
-          <CoordinatesDisplay x={gameState.hot.player.x} y={gameState.hot.player.y} />
+          <CoordinatesDisplay
+            x={gameState.hot.player.x}
+            y={gameState.hot.player.y}
+          />
         )}
 
       {(gameState.cold.gameView === "docking" ||
@@ -191,7 +211,9 @@ const Game: React.FC = () => {
       {showDockedUIPanel && isInitialized && renderDockedUI()}
 
       {/* Render Quest Panel *only* when view is contract_log */}
-      {gameState.cold.gameView === "contract_log" && isInitialized && <QuestPanel />}
+      {gameState.cold.gameView === "contract_log" && isInitialized && (
+        <QuestPanel />
+      )}
 
       {/* Render Bottom Toolbar only when appropriate */}
       {showBottomToolbar && isInitialized && <BottomToolbar />}

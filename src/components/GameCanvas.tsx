@@ -21,11 +21,14 @@ import KonvaTouchControls from "./canvas/KonvaTouchControls";
 import KonvaDestructionParticle from "./canvas/KonvaDestructionParticle";
 import KonvaAsteroid from "./canvas/KonvaAsteroid"; // Import Asteroid renderer
 import KonvaBeacon from "./canvas/KonvaBeacon"; // Import Beacon renderer
+import Konva from "konva";
 
 // --- Interfaces ---
 interface GameCanvasProps {
   gameState: IGameState;
   touchState: ITouchState;
+  layerRef: React.RefObject<Konva.Layer | null>;
+  counter: number;
 }
 
 // --- Canvas Styling ---
@@ -46,7 +49,7 @@ const canvasStyleBase: React.CSSProperties = {
 };
 
 // --- Main GameCanvas Component ---
-const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
+const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState, layerRef, counter }) => {
   const stageStyle: React.CSSProperties = {
     ...canvasStyleBase,
     visibility:
@@ -110,6 +113,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
         clipHeight={C.GAME_VIEW_HEIGHT} // Clip to game view area
         listening={false} // Optimization: Layer itself doesn't need events
         perfectDrawEnabled={false} // Optimize layer
+        ref={layerRef}
       >
         {/* Stars */}
         {gameState.hot.visibleBackgroundObjects

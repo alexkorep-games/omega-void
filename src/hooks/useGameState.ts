@@ -653,6 +653,9 @@ export function useGameState() {
         );
         gameHotStateRef.current = nextState.hot;
         const nextColdState = updateChatLogInternal(nextState.cold);
+        if (JSON.stringify(nextColdState) === JSON.stringify(currentColdGameState)) {
+          return currentColdGameState;
+        }
         return nextColdState;
       });
     },
