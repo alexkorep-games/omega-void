@@ -214,16 +214,16 @@ export interface ChatMessage {
   timestamp?: number;
 }
 
-// Game State
-export interface IGameState {
-  player: IPlayer;
-  enemies: IEnemy[];
-  projectiles: IProjectile[];
-  visibleBackgroundObjects: BackgroundObject[];
-  camera: ICamera;
-  lastEnemySpawnTime: number;
-  lastShotTime: number;
-  enemyIdCounter: number;
+// Game "Cold" State
+export interface IGameColdState {
+  player: IPlayer; // Move to hot state, except for the shield level
+  enemies: IEnemy[]; // Move to hot state
+  projectiles: IProjectile[]; // // Move to hot state
+  visibleBackgroundObjects: BackgroundObject[]; // Move to hot state
+  camera: ICamera; // Move to hot state
+  lastEnemySpawnTime: number; // Move to hot state
+  lastShotTime: number; // Move to hot state
+  enemyIdCounter: number; // Move to hot state
   gameView: GameView;
   dockingStationId: string | null;
   animationState: IAnimationState;
@@ -235,7 +235,7 @@ export interface IGameState {
   baseCargoCapacity: number; // Base capacity before upgrades
   extraCargoCapacity: number; // Capacity added by upgrades
   market: MarketSnapshot | null; // Use IMarketSnapshot (which uses CommodityTable Record)
-  activeDestructionAnimations: DestructionAnimationData[];
+  activeDestructionAnimations: DestructionAnimationData[];  // Move to hot state
   // --- Station Log & Navigation ---
   discoveredStations: string[]; // Array of discovered station IDs, in order
   navTargetStationId: string | null; // ID of station to navigate to
@@ -244,7 +244,8 @@ export interface IGameState {
   navTargetDistance: number | null; // Added: Distance to nav target
   viewTargetStationId: string | null; // ID of station to view in details screen
   // Store *just* the price for known stations, consistent with storage/saving logic
-  knownStationPrices: Record<string, Record<string, number>>;
+  knownStationPrices: Record<string, Record<string, number>>; // CommodityKey -> Price
+  knownStationQuantities: Record<string, Record<string, number>>; // CommodityKey -> Quantity
   // --- Upgrades ---
   cargoPodLevel: number; // 0-4
   shieldCapacitorLevel: number; // 0-3

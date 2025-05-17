@@ -1,7 +1,7 @@
 import React, { memo, useMemo } from "react";
 import { Stage, Layer, Text, Group, StageProps } from "react-konva";
 import {
-  IGameState,
+  IGameColdState,
   ITouchState,
   IStar,
   IStation,
@@ -24,7 +24,7 @@ import KonvaBeacon from "./canvas/KonvaBeacon"; // Import Beacon renderer
 
 // --- Interfaces ---
 interface GameCanvasProps {
-  gameState: IGameState;
+  gameState: IGameColdState;
   touchState: ITouchState;
 }
 
