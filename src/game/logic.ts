@@ -10,7 +10,6 @@ import {
   IAsteroid,
   IBeacon,
   IGameObject,
-  CargoHold,
 } from "./types";
 import { Player } from "./entities/Player";
 import { Enemy } from "./entities/Enemy";
@@ -19,12 +18,7 @@ import { InfiniteWorldManager } from "./world/InfiniteWorldManager";
 import { distance } from "../utils/geometry";
 import * as C from "./config";
 import { PLAYER_SIZE } from "./config";
-import {
-  MarketGenerator,
-  MarketSnapshot,
-  COMMODITIES,
-  CommodityDefinition,
-} from "./Market";
+import { MarketGenerator, MarketSnapshot, COMMODITIES } from "./Market";
 import { QuestEngine, GameEvent, V01_QUEST_DEFINITIONS } from "../quests";
 import { getDynamicMaxEnemies } from "../utils/enemies";
 
@@ -419,22 +413,6 @@ function handleCollisions(
     playerDestroyed: false,
     newAnimations: newAnimations,
   };
-}
-
-// Helper function to calculate cargo value
-function calculateCargoValue(
-  cargoHold: CargoHold,
-  commodityDefinitions: CommodityDefinition[]
-): number {
-  let totalValue = 0;
-  for (const itemKey in cargoHold) {
-    const quantity = cargoHold[itemKey];
-    const commodityDef = commodityDefinitions.find((c) => c.key === itemKey);
-    if (commodityDef && quantity) {
-      totalValue += quantity * commodityDef.basePrice;
-    }
-  }
-  return totalValue;
 }
 
 export function updateGameStateLogic(
