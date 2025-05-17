@@ -82,6 +82,7 @@ export const initialGameState: IGameState = {
   navTargetDistance: null,
   viewTargetStationId: null,
   knownStationPrices: {},
+  knownStationQuantities: {},
   // Upgrade levels
   cargoPodLevel: 0,
   shieldCapacitorLevel: 0,

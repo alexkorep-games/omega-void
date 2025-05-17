@@ -244,7 +244,8 @@ export interface IGameState {
   navTargetDistance: number | null; // Added: Distance to nav target
   viewTargetStationId: string | null; // ID of station to view in details screen
   // Store *just* the price for known stations, consistent with storage/saving logic
-  knownStationPrices: Record<string, Record<string, number>>;
+  knownStationPrices: Record<string, Record<string, number>>; // CommodityKey -> Price
+  knownStationQuantities: Record<string, Record<string, number>>; // CommodityKey -> Quantity
   // --- Upgrades ---
   cargoPodLevel: number; // 0-4
   shieldCapacitorLevel: number; // 0-3

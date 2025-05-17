@@ -1,5 +1,4 @@
-// src/game/Market.ts — Commodity & Market logic for Elite‑style trading
-// Adapted for Game 2
+// src/game/Market.ts
 
 // Import types from the single source of truth
 import {
@@ -364,18 +363,27 @@ export class MarketSnapshot {
   }
 }
 
-// Market Generator remains mostly the same, but creates a Record
+// Market Generator
 export class MarketGenerator {
+  /**
+   * Generates the definitive (fixed prices, initial quantities) market data for a station.
+   * Prices are generated once. Initial quantities are also fixed based on this generation.
+   * The actual current quantity will be stored and managed elsewhere (e.g., in IGameState.knownStationQuantities).
+   * @param station The station for which to generate market data.
+   * @param worldSeed The global world seed.
+   * @param fixedSeedSuffix A constant suffix for the seed specific to this station (e.g., 0) to ensure deterministic output.
+   * @returns A MarketSnapshot containing the fixed prices and *initial* quantities.
+   */
   static generate(
     station: IStation,
     worldSeed: number,
-    visitSerial = 0
+    fixedSeedSuffix: number = 0
   ): MarketSnapshot {
     const seed = MarketGenerator.combineSeed(
       worldSeed,
       station.coordinates.x,
       station.coordinates.y,
-      visitSerial
+      fixedSeedSuffix
     );
     const rng = new SeedablePRNG(seed);
 
@@ -396,73 +404,57 @@ export class MarketGenerator {
       const dPrice = econAdj?.dp ?? 0; // Price delta based on economy
       const qMult = econAdj?.qMult ?? 1; // Quantity multiplier based on economy
 
-      // Tech level adjustment (higher tech slightly reduces prices baseline)
+      // Tech level adjustment
       const techLevelNum = getTechLevelNumber(station.techLevel);
-      // Make tech adjustment less impactful on price, maybe more on quantity?
-      // Let's keep the original price adjustment for now.
-      const techAdj = (techLevelNum - 3) * (c.basePrice * 0.02); // Affects price less proportionally
+      const techAdj = (techLevelNum - 3) * (c.basePrice * 0.02);
 
       // Calculate base price and quantity for this station
       let price = Math.max(1, c.basePrice + dPrice - techAdj);
       let quantity = c.baseQuantity * qMult;
 
       // Apply random jitter based on PRNG
-      // Price jitter: +/- 10%
-      const priceJitter = (rng.random() - 0.5) * 0.2 * price; // Scale jitter with price
-      // Quantity jitter: +/- 20%
-      const qtyJitter = (rng.random() - 0.5) * 0.4 * quantity; // Scale jitter with quantity
+      const priceJitter = (rng.random() - 0.5) * 0.2 * price;
+      const qtyJitter = (rng.random() - 0.5) * 0.4 * quantity;
 
       price = Math.max(1, Math.round(price + priceJitter));
       quantity = Math.max(0, Math.round(quantity + qtyJitter));
 
-      // --- Filtering Logic ---
-      // Ensure 0 base quantity items only appear if econ effect *increases* quantity
+      // Filtering Logic
       if (c.baseQuantity === 0 && qMult <= 1 && quantity > 0) {
         quantity = 0;
       }
-      // Don't add items with 0 quantity unless they specifically should exist with 0 quantity
-      // (This might happen if baseQuantity=0 and qMult > 1 but jitter makes it 0)
-      // Let's refine: only skip if the *intended* quantity before jitter was 0 or less.
       const intendedQuantity = c.baseQuantity * qMult;
       if (intendedQuantity <= 0 && quantity <= 0) {
         continue;
       }
-      // Always add if price > 0, even if quantity is 0 (indicates demand or potential future stock)
-      // Original logic: if (quantity === 0 && qMult > 0) continue;
-      // New logic: Allow 0 quantity entries if price > 0
 
-      // Add to the market table if it makes sense to list it
-      // We list items even if quantity is 0, as long as price is > 0,
-      // indicating potential demand or that it *could* be stocked.
       if (price > 0) {
+        // This generated 'quantity' is the *initial maximum quantity*.
         table[c.key] = { price, quantity };
       }
     }
-
-    return new MarketSnapshot(visitSerial, table); // Pass the Record
+    // The timestamp here reflects when this *definitive initial data* was generated (or could be 0).
+    // The actual MarketSnapshot used in UI will have a current timestamp.
+    return new MarketSnapshot(0, table);
   }
 
-  // Helper combineSeed remains the same
   private static combineSeed(
     worldSeed: number,
     x: number,
     y: number,
-    visitSerial: number
+    suffix: number
   ): number {
     const ix = Math.floor(x);
     const iy = Math.floor(y);
-    // Simple hashing combination
     let h = worldSeed;
     h = h * 31 + ix;
     h = h * 31 + iy;
-    h = h * 31 + visitSerial;
-    // Basic pseudo-random mixing (using parts of MurmurHash3 finalizer)
+    h = h * 31 + suffix;
     h ^= h >>> 16;
     h *= 0x85ebca6b;
     h ^= h >>> 13;
     h *= 0xc2b2ae35;
     h ^= h >>> 16;
-    // Ensure positive non-zero integer for PRNG seed
     return ((h >>> 0) % 2147483647) + 1;
   }
 }
