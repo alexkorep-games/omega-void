@@ -1,4 +1,5 @@
 // src/game/config.ts
+// src/game/config.ts
 export const GAME_WIDTH = 360;
 export const GAME_HEIGHT = 640;
 export const HUD_HEIGHT = 120;
@@ -10,7 +11,6 @@ export const INITIAL_SPAWN_AREA_HEIGHT = 1000;
 export const WORLD_ORIGIN_STATION_ID = "station_0_0";
 export const ENEMY_DESPAWN_RADIUS = GAME_WIDTH * 2.5;
 export const PROJECTILE_DESPAWN_RADIUS_FACTOR = 1.5;
-export const MAX_ENEMIES = 8;
 export const ENEMY_SPAWN_INTERVAL = 2000; // ms
 export const SHOOT_COOLDOWN = 200; // ms
 

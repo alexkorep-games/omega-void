@@ -10,6 +10,7 @@ import {
   IAsteroid,
   IBeacon,
   IGameObject,
+  CargoHold,
 } from "./types";
 import { Player } from "./entities/Player";
 import { Enemy } from "./entities/Enemy";
@@ -18,8 +19,14 @@ import { InfiniteWorldManager } from "./world/InfiniteWorldManager";
 import { distance } from "../utils/geometry";
 import * as C from "./config";
 import { PLAYER_SIZE } from "./config";
-import { MarketGenerator, MarketSnapshot } from "./Market";
+import {
+  MarketGenerator,
+  MarketSnapshot,
+  COMMODITIES,
+  CommodityDefinition,
+} from "./Market";
 import { QuestEngine, GameEvent, V01_QUEST_DEFINITIONS } from "../quests";
+import { getDynamicMaxEnemies } from "../utils/enemies";
 
 const WORLD_SEED = 12345;
 
@@ -209,17 +216,17 @@ function handleCollisions(
 
   for (let i = newEnemies.length - 1; i >= 0; i--) {
     const enemy = newEnemies[i];
-    let enemyHitAsteroid = false;
+    let enemyDestroyedByEnvironment = false;
     for (const bgObj of state.visibleBackgroundObjects) {
-      if (bgObj.type === "asteroid") {
-        const asteroid = bgObj as IAsteroid;
+      if (bgObj.type === "asteroid" || bgObj.type === "station") {
+        const obstacle = bgObj as IAsteroid | IStation; // Both have x, y, radius
         if (
-          distance(enemy.x, enemy.y, asteroid.x, asteroid.y) <
-          enemy.radius + asteroid.radius
+          distance(enemy.x, enemy.y, obstacle.x, obstacle.y) <
+          enemy.radius + obstacle.radius
         ) {
           const { particles, duration } = generateParticleStates("small");
           newAnimations.push({
-            id: `destroy-enemy-asteroid-${enemy.id}-${now}`,
+            id: `destroy-enemy-${obstacle.type}-${enemy.id}-${now}`,
             x: enemy.x,
             y: enemy.y,
             color: enemy.color,
@@ -229,12 +236,12 @@ function handleCollisions(
             duration,
           });
           newEnemies.splice(i, 1);
-          enemyHitAsteroid = true;
-          break;
+          enemyDestroyedByEnvironment = true;
+          break; // Enemy destroyed, move to next enemy
         }
       }
     }
-    if (enemyHitAsteroid) continue;
+    if (enemyDestroyedByEnvironment) continue; // Continue to the next enemy
   }
 
   let playerDestroyed = false;
@@ -414,6 +421,22 @@ function handleCollisions(
   };
 }
 
+// Helper function to calculate cargo value
+function calculateCargoValue(
+  cargoHold: CargoHold,
+  commodityDefinitions: CommodityDefinition[]
+): number {
+  let totalValue = 0;
+  for (const itemKey in cargoHold) {
+    const quantity = cargoHold[itemKey];
+    const commodityDef = commodityDefinitions.find((c) => c.key === itemKey);
+    if (commodityDef && quantity) {
+      totalValue += quantity * commodityDef.basePrice;
+    }
+  }
+  return totalValue;
+}
+
 export function updateGameStateLogic(
   currentState: IGameState,
   touchState: ITouchState | undefined,
@@ -455,7 +478,7 @@ export function updateGameStateLogic(
       newState = {
         ...newState,
         player: respawnedPlayer,
-        cargoHold: {},
+        cargoHold: {}, // When ship is destroyed, cargo is lost
         gameView: "playing",
         respawnTimer: 0,
         enemies: [],
@@ -558,6 +581,15 @@ export function updateGameStateLogic(
       );
     }
 
+    // --- Dynamic Max Enemies Calculation ---
+    const dynamicMaxEnemies = getDynamicMaxEnemies(
+      newState.cargoHold,
+      COMMODITIES,
+      newState.lastDockedStationId,
+      worldManager
+    );
+    // --- End Dynamic Max Enemies Calculation ---
+
     const isPlayerNearStation = newState.visibleBackgroundObjects.some(
       (obj) => {
         if (obj.type === "station" && newState.player) {
@@ -576,7 +608,7 @@ export function updateGameStateLogic(
     if (
       !isPlayerNearStation &&
       now - newState.lastEnemySpawnTime > C.ENEMY_SPAWN_INTERVAL &&
-      newState.enemies.length < C.MAX_ENEMIES
+      newState.enemies.length < dynamicMaxEnemies // Use dynamicMaxEnemies here
     ) {
       newState = spawnEnemyNearPlayer(newState);
     }
