@@ -10,6 +10,7 @@ import {
   IAsteroid,
   IBeacon,
   IGameObject,
+  CommodityTable,
 } from "./types";
 import { Player } from "./entities/Player";
 import { Enemy } from "./entities/Enemy";
@@ -791,35 +792,105 @@ function handleGameViewTransitions(
     transitionOccurred = true;
     const stationId = previousGameState.dockingStationId;
     const station = stationId ? worldManager.getStationById(stationId) : null;
-    let newMarket: MarketSnapshot | null = null;
-    const updatedDiscoveredStations = [...previousGameState.discoveredStations];
 
+    const updatedDiscoveredStations = [...previousGameState.discoveredStations];
     if (stationId && !updatedDiscoveredStations.includes(stationId)) {
       updatedDiscoveredStations.push(stationId);
     }
-    if (station) {
-      newMarket = MarketGenerator.generate(station, WORLD_SEED, Date.now());
-    }
+
     const newKnownPrices = { ...previousGameState.knownStationPrices };
-    if (stationId && newMarket) {
-      const currentKnown = newKnownPrices[stationId] ?? {};
-      Object.entries(newMarket.table).forEach(([key, state]) => {
-        if (currentKnown[key] === undefined) {
-          currentKnown[key] = state.price;
+    const newKnownQuantities = { ...previousGameState.knownStationQuantities };
+    let marketForSession: MarketSnapshot | null = null;
+
+    if (stationId && station) {
+      // Generate market data (prices are fixed, initial quantities are fixed)
+      const generatedMarket = MarketGenerator.generate(station, WORLD_SEED, 0); // Use fixed seed suffix 0
+
+      const currentStationPrices = newKnownPrices[stationId] ?? {};
+      const currentStationQuantities = newKnownQuantities[stationId] ?? {};
+
+      let pricesWereUpdated = false;
+      let quantitiesWereUpdated = false;
+
+      // Ensure prices and initial quantities are known for all items this station generates
+      // Iterate over items defined in the deterministic market generation for this station
+      for (const commKey in generatedMarket.table) {
+        if (
+          Object.prototype.hasOwnProperty.call(generatedMarket.table, commKey)
+        ) {
+          const generatedItemData = generatedMarket.table[commKey];
+          // Prices are fixed, so they are set once if not known.
+          if (currentStationPrices[commKey] === undefined) {
+            currentStationPrices[commKey] = generatedItemData.price;
+            pricesWereUpdated = true;
+          }
+          // Initial quantities are also fixed. If we don't have a quantity stored for this item yet,
+          // it means this is likely the first time or data was reset, so use the generated initial quantity.
+          // This ensures `knownStationQuantities` is populated for all items the station trades.
+          if (currentStationQuantities[commKey] === undefined) {
+            currentStationQuantities[commKey] = generatedItemData.quantity;
+            quantitiesWereUpdated = true;
+          }
         }
-      });
-      newKnownPrices[stationId] = currentKnown;
-    }
-    if (stationId) {
+      }
+
+      if (pricesWereUpdated) {
+        newKnownPrices[stationId] = currentStationPrices;
+      }
+      if (quantitiesWereUpdated) {
+        newKnownQuantities[stationId] = currentStationQuantities;
+      }
+
+      // Construct the market snapshot for *this specific docking session*.
+      // It uses the fixed prices and the *current, persistent* quantities from newKnownQuantities.
+      const tableForSessionSnapshot: CommodityTable = {};
+      const pricesToUseForSession = newKnownPrices[stationId]!;
+      const quantitiesToUseForSession = newKnownQuantities[stationId]!;
+
+      // Iterate over all commodities for which prices are known at this station.
+      // These are all the commodities this station is designed to trade.
+      for (const commKey in pricesToUseForSession) {
+        if (
+          Object.prototype.hasOwnProperty.call(pricesToUseForSession, commKey)
+        ) {
+          const quantity = quantitiesToUseForSession[commKey];
+          // A commodity with a price must also have a quantity entry in knownStationQuantities
+          // (it would have been initialized above if it was missing).
+          if (quantity !== undefined) {
+            tableForSessionSnapshot[commKey] = {
+              price: pricesToUseForSession[commKey],
+              quantity: quantity,
+            };
+          } else {
+            // This state (price known, quantity undefined in knownStationQuantities)
+            // should ideally not be reached due to the initialization loop above.
+            // If it does, it indicates an inconsistency.
+            console.warn(
+              `[Docking] Station ${stationId} has price for ${commKey} but its quantity is undefined in knownStationQuantities. Listing with Qty 0.`
+            );
+            tableForSessionSnapshot[commKey] = {
+              price: pricesToUseForSession[commKey],
+              quantity: 0, // Fallback for safety, though should be avoided
+            };
+          }
+        }
+      }
+      marketForSession = new MarketSnapshot(
+        Date.now(),
+        tableForSessionSnapshot
+      );
+
       setTimeout(() => emitQuestEvent({ type: "DOCK_FINISH", stationId }), 0);
     }
+
     stateToReturn = {
       ...stateToReturn,
       gameView: "trade_select",
-      market: newMarket,
+      market: marketForSession,
       lastDockedStationId: stationId,
       discoveredStations: updatedDiscoveredStations,
       knownStationPrices: newKnownPrices,
+      knownStationQuantities: newKnownQuantities,
       animationState: {
         ...stateToReturn.animationState,
         type: null,
@@ -863,7 +934,11 @@ function handleGameViewTransitions(
     updatedPlayer.vx = 0;
     updatedPlayer.vy = 0;
     updatedPlayer.angle = playerAngle;
-    updatedPlayer.shieldLevel = updatedPlayer.maxShield;
+    // Restore shields on undock - consider if this is desired behavior or should be part of a service
+    // if (updatedPlayer.maxShield > 0) {
+    //   // only if maxShield is positive
+    //   updatedPlayer.shieldLevel = updatedPlayer.maxShield;
+    // }
 
     stateToReturn = {
       ...stateToReturn,
