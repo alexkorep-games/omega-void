@@ -342,6 +342,15 @@ export const getTonnesPerUnit = (key: string): number => {
   return 1;
 };
 
+// Apply normal distribution jitter for price (Box-Muller transform)
+function normalRandom(rng: SeedablePRNG): number {
+  let u = 0,
+    v = 0;
+  while (u === 0) u = rng.random();
+  while (v === 0) v = rng.random();
+  return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+}
+
 // Market snapshot class using CommodityTable (Record)
 export class MarketSnapshot {
   readonly timestamp: number;
@@ -412,8 +421,7 @@ export class MarketGenerator {
       let price = Math.max(1, c.basePrice + dPrice - techAdj);
       let quantity = c.baseQuantity * qMult;
 
-      // Apply random jitter based on PRNG
-      const priceJitter = (rng.random() - 0.5) * 0.2 * price;
+      const priceJitter = normalRandom(rng) * 0.20 * price; // stddev = 20% of price
       const qtyJitter = (rng.random() - 0.5) * 0.4 * quantity;
 
       price = Math.max(1, Math.round(price + priceJitter));
