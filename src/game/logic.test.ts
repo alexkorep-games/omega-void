@@ -1,6 +1,6 @@
 import { describe, test, expect } from "vitest";
 import { createPlayer, updateGameStateLogic } from "./logic"; // Removed handleBeaconActivationAndUpdateQuest from import
-import { IGameState } from "./types"; // Removed IBeacon as it's not directly tested here anymore
+import { IGameColdState } from "./types"; // Removed IBeacon as it's not directly tested here anymore
 import { InfiniteWorldManager } from "./world/InfiniteWorldManager";
 import * as C from "./config";
 import { MarketSnapshot } from "./Market";
@@ -21,7 +21,7 @@ class MockWorldManager implements Partial<InfiniteWorldManager> {
 const worldManager = new MockWorldManager() as unknown as InfiniteWorldManager;
 
 // Helper to build a baseline game state
-function makeBaseState(): IGameState {
+function makeBaseState(): IGameColdState {
   const market: MarketSnapshot = new MarketSnapshot(Date.now(), {});
 
   return {
@@ -44,7 +44,7 @@ function makeBaseState(): IGameState {
     isInitialized: true,
     cargoCapacity: 100,
     market,
-  } as unknown as IGameState;
+  } as unknown as IGameColdState;
 }
 
 describe("logic.ts", () => {
@@ -74,7 +74,7 @@ describe("logic.ts", () => {
 
   test("respawn after destroyed state resets player & clears enemies/projectiles", () => {
     const base = makeBaseState();
-    const deadState: IGameState = {
+    const deadState: IGameColdState = {
       ...base,
       gameView: "destroyed",
       respawnTimer: 50,

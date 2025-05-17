@@ -2,14 +2,13 @@
 import { useCallback, useMemo, useRef } from "react";
 import { atom, useAtom } from "jotai";
 import {
-  IGameState,
+  IGameColdState,
   ITouchState,
   IStation,
   GameView,
   IPlayer,
   IPosition,
   CommodityTable,
-  CargoHold,
   QuestInventory,
   ChatMessage,
 } from "../game/types";
@@ -28,7 +27,7 @@ import {
   GAME_VIEW_HEIGHT,
 } from "../game/config";
 import { MarketGenerator, MarketSnapshot, COMMODITIES } from "../game/Market";
-import { GameEvent, initialQuestState } from "../quests";
+import { initialQuestState } from "../quests";
 import { FULL_DIALOG_DATA } from "../game/dialog";
 
 export type UpgradeKey =
@@ -79,11 +78,13 @@ export const UPGRADE_CONFIG: Record<
   },
 };
 
-const gameStateAtom = atom<IGameState>(initialGameState);
+const gameStateAtom = atom<IGameColdState>(initialGameState);
 const WORLD_SEED = 12345; // Define WORLD_SEED if not already globally available
 
 // Helper function to update chat log based on cash and progress
-const updateChatLogInternal = (currentState: IGameState): IGameState => {
+const updateChatLogInternal = (
+  currentState: IGameColdState
+): IGameColdState => {
   const newChatLog = [...currentState.chatLog];
   let newLastProcessedDialogId = currentState.lastProcessedDialogId;
   let changesMade = false;
@@ -208,42 +209,38 @@ export function useGameState() {
     [setGameStateInternal]
   );
 
-  const emitQuestEvent = useCallback(
-    (event: GameEvent) => {
-      setGameStateInternal((prevState) => {
-        if (!prevState.player || !prevState.questState) {
-          return prevState;
-        }
-        const currentContextState = { ...prevState };
-        const nextQuestState = questEngine.update(
-          prevState.questState,
-          event,
-          currentContextState
-        );
-
-        if (nextQuestState !== prevState.questState) {
-          const newScore = questEngine.calculateQuestCompletion(
-            "freedom_v01",
-            nextQuestState
-          );
-          const isWon = newScore >= 100;
-          const newGameView =
-            isWon && prevState.gameView !== "won" ? "won" : prevState.gameView;
-
-          return {
-            ...prevState,
-            questState: nextQuestState,
-            gameView: newGameView,
-          };
-        }
+  const emitQuestEvent = useCallback(() => {
+    setGameStateInternal((prevState) => {
+      if (!prevState.player || !prevState.questState) {
         return prevState;
-      });
-    },
-    [setGameStateInternal]
-  );
+      }
+      const currentContextState = { ...prevState };
+      const nextQuestState = questEngine.update(
+        prevState.questState,
+        currentContextState
+      );
+
+      if (nextQuestState !== prevState.questState) {
+        const newScore = questEngine.calculateQuestCompletion(
+          "freedom_v01",
+          nextQuestState
+        );
+        const isWon = newScore >= 100;
+        const newGameView =
+          isWon && prevState.gameView !== "won" ? "won" : prevState.gameView;
+
+        return {
+          ...prevState,
+          questState: nextQuestState,
+          gameView: newGameView,
+        };
+      }
+      return prevState;
+    });
+  }, [setGameStateInternal]);
 
   const updatePlayerState = useCallback(
-    (updater: (prevState: IGameState) => Partial<IGameState>) => {
+    (updater: (prevState: IGameColdState) => Partial<IGameColdState>) => {
       setGameStateInternal((prev) => {
         const changes = updater(prev);
         let nextState = { ...prev, ...changes };
@@ -260,40 +257,9 @@ export function useGameState() {
         }
 
         if (changes.cash !== undefined && changes.cash !== prev.cash) {
-          const delta = changes.cash - prev.cash;
-          emitQuestEvent({
-            type: "CREDITS_CHANGE",
-            delta,
-            total: changes.cash as number,
-          });
+          emitQuestEvent();
         }
 
-        if (changes.cargoHold && changes.cargoHold !== prev.cargoHold) {
-          const prevCargo = prev.cargoHold;
-          const nextCargo = changes.cargoHold as CargoHold;
-          Object.entries(nextCargo).forEach(([key, qty]) => {
-            const prevQty = prevCargo[key] || 0;
-            if (qty > prevQty) {
-              emitQuestEvent({
-                type: "ITEM_ACQUIRED",
-                itemId: key,
-                quantity: qty - prevQty,
-                method: "buy",
-              });
-            }
-          });
-          Object.entries(prevCargo).forEach(([key, qty]) => {
-            const nextQty = nextCargo[key] || 0;
-            if (qty > nextQty) {
-              emitQuestEvent({
-                type: "ITEM_REMOVED",
-                itemId: key,
-                quantity: qty - nextQty,
-                method: "sell",
-              });
-            }
-          });
-        }
         nextState = updateChatLogInternal(nextState);
         return nextState;
       });
@@ -366,17 +332,12 @@ export function useGameState() {
             break;
         }
 
-        emitQuestEvent({
-          type: "SHIP_UPGRADED",
-          upgradeId: upgradeKey,
-          level: nextLevel,
-        });
         updatedState = updateChatLogInternal(updatedState);
         return updatedState;
       });
       return purchased;
     },
-    [setGameStateInternal, emitQuestEvent]
+    [setGameStateInternal]
   );
 
   const updateMarketQuantity = useCallback(
@@ -558,7 +519,7 @@ export function useGameState() {
     const initialCameraY = loadedData.coordinates.y - GAME_VIEW_HEIGHT / 2;
 
     setGameStateInternal((prevState) => {
-      const intermediateState: IGameState = {
+      const intermediateState: IGameColdState = {
         ...initialGameState,
         player: loadedPlayer,
         cash: loadedData.cash,
@@ -659,7 +620,7 @@ export function useGameState() {
     const newPlayer = createPlayer(defaultPosition.x, defaultPosition.y, 0);
 
     setGameStateInternal((prev) => {
-      const intermediateState: IGameState = {
+      const intermediateState: IGameColdState = {
         ...initialGameState,
         player: newPlayer,
         cash: defaultCash,

@@ -1,7 +1,7 @@
 /* src/components/canvas/KonvaHUD.tsx */
 import React from "react";
 import { Rect, Line, Text, Group, Shape } from "react-konva";
-import { IGameState, IPlayer, IPosition } from "../../game/types";
+import { IGameColdState, IPlayer, IPosition } from "../../game/types";
 import * as C from "../../game/config";
 
 interface NavTargetInfo {
@@ -14,7 +14,7 @@ interface NavTargetInfo {
 interface KonvaHUDProps {
   player: IPlayer | null;
   cash: number;
-  gameState: IGameState; // Pass full gameState for scanner access and upgrades
+  gameState: IGameColdState; // Pass full gameState for scanner access and upgrades
   navTargetInfo: NavTargetInfo | null; // Optional navigation target info
 }
 

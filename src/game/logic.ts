@@ -1,6 +1,6 @@
 // src/game/logic.ts
 import {
-  IGameState,
+  IGameColdState,
   ITouchState,
   IPosition,
   IPlayer,
@@ -64,7 +64,7 @@ export function createPlayer(
   return player;
 }
 
-function spawnEnemyNearPlayer(state: IGameState): IGameState {
+function spawnEnemyNearPlayer(state: IGameColdState): IGameColdState {
   const spawnDist = C.GAME_WIDTH * 0.8;
   const angle = Math.random() * Math.PI * 2;
   const spawnX = state.player.x + Math.cos(angle) * spawnDist;
@@ -79,7 +79,7 @@ function spawnEnemyNearPlayer(state: IGameState): IGameState {
   };
 }
 
-function shootProjectile(state: IGameState): IGameState {
+function shootProjectile(state: IGameColdState): IGameColdState {
   const now = performance.now();
   const effectiveCooldown = C.SHOOT_COOLDOWN * state.shootCooldownFactor;
   if (now - state.lastShotTime > effectiveCooldown) {
@@ -145,10 +145,10 @@ function generateParticleStates(size: "small" | "large"): {
 }
 
 function handleCollisions(
-  state: IGameState,
+  state: IGameColdState,
   now: number
 ): {
-  newState: IGameState;
+  newState: IGameColdState;
   dockingTriggerStationId: string | null;
   activatedBeaconId: string | null;
   playerDestroyed: boolean;
@@ -416,13 +416,14 @@ function handleCollisions(
   };
 }
 
+// This function should also recieve the hot state and return updated cold and hot state
 export function updateGameStateLogic(
-  currentState: IGameState,
+  currentState: IGameColdState,
   touchState: ITouchState | undefined,
   worldManager: InfiniteWorldManager,
   deltaTime: number,
   now: number
-): { newState: IGameState; activatedBeaconId: string | null } {
+): { newState: IGameColdState; activatedBeaconId: string | null } {
   let newState = { ...currentState };
   let activatedBeaconId: string | null = null;
 
@@ -640,7 +641,7 @@ export function updateGameStateLogic(
 }
 
 function calculateNavigationInfo(
-  currentGameState: IGameState,
+  currentGameState: IGameColdState,
   worldManager: InfiniteWorldManager
 ): {
   navTargetDirection: number | null;
@@ -684,9 +685,9 @@ function calculateNavigationInfo(
 }
 
 export function handleBeaconActivationAndUpdateQuest(
-  currentState: IGameState,
+  currentState: IGameColdState,
   activatedBeaconId: string | null
-): { updatedState: IGameState; questStateModified: boolean } {
+): { updatedState: IGameColdState; questStateModified: boolean } {
   if (!activatedBeaconId) {
     return { updatedState: currentState, questStateModified: false };
   }
@@ -736,11 +737,11 @@ export function handleBeaconActivationAndUpdateQuest(
 }
 
 function handleGameViewTransitions(
-  previousGameState: IGameState,
-  nextLogicState: IGameState,
+  previousGameState: IGameColdState,
+  nextLogicState: IGameColdState,
   worldManager: InfiniteWorldManager,
   emitQuestEvent: (event: GameEvent) => void
-): { updatedState: IGameState; transitionOccurred: boolean } {
+): { updatedState: IGameColdState; transitionOccurred: boolean } {
   const currentView = previousGameState.gameView;
   const nextView = nextLogicState.gameView;
   let stateToReturn = { ...nextLogicState };
@@ -967,8 +968,8 @@ function handleGameViewTransitions(
   return { updatedState: stateToReturn, transitionOccurred };
 }
 
-function checkAndApplyWinCondition(currentState: IGameState): {
-  updatedState: IGameState;
+function checkAndApplyWinCondition(currentState: IGameColdState): {
+  updatedState: IGameColdState;
   winConditionMet: boolean;
 } {
   const finalScore = questEngine.calculateQuestCompletion(
@@ -995,13 +996,13 @@ function checkAndApplyWinCondition(currentState: IGameState): {
 }
 
 export const calculateNextGameState = (
-  currentGameState: IGameState,
+  currentGameState: IGameColdState,
   deltaTime: number,
   now: number,
   currentTouchState: ITouchState | undefined,
   worldManager: InfiniteWorldManager,
   emitQuestEvent: (event: GameEvent) => void
-): IGameState => {
+): IGameColdState => {
   if (!currentGameState.isInitialized || currentGameState.gameView === "won") {
     return currentGameState;
   }

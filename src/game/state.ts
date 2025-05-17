@@ -1,5 +1,5 @@
 // src/game/state.ts
-import { IGameState, IPlayer, ICamera, ITouchState } from "./types";
+import { IGameColdState, IPlayer, ICamera, ITouchState } from "./types";
 import { Player } from "./entities/Player";
 import {
   GAME_WIDTH,
@@ -50,7 +50,7 @@ export const initialTouchState: ITouchState = {
 };
 
 // Initial game state
-export const initialGameState: IGameState = {
+export const initialGameState: IGameColdState = {
   player: initialPlayerState,
   enemies: [],
   projectiles: [],
@@ -99,7 +99,7 @@ export const initialGameState: IGameState = {
 };
 
 // updateCamera function remains the same
-export function updateCamera(state: IGameState): IGameState {
+export function updateCamera(state: IGameColdState): IGameColdState {
   // Only update camera if playing or animating (avoids jump when undocking finishes)
   if (
     state.gameView === "playing" ||

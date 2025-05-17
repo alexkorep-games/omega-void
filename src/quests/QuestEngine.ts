@@ -1,7 +1,6 @@
-import { GameEvent } from "./QuestEvents";
 import { QuestDefinition, Condition } from "./QuestDefinition";
 import { QuestState, QuestProgress, ObjectiveProgress } from "./QuestState";
-import { IGameState } from "../game/types";
+import { IGameColdState } from "../game/types";
 
 export class QuestEngine {
   private definitions: Record<string, QuestDefinition>;
@@ -20,8 +19,7 @@ export class QuestEngine {
 
   update(
     prevState: QuestState,
-    event: GameEvent,
-    currentGameState: IGameState
+    currentGameState: IGameColdState
   ): QuestState {
     const nextState = structuredClone(prevState);
     let stateChanged = false;
@@ -55,7 +53,6 @@ export class QuestEngine {
         // Check if the condition is met based on the event and current game state
         const completed = this._checkCondition(
           objective.condition,
-          event,
           objectiveProgress, // Pass progress object for potential updates (e.g., counters)
           currentGameState // Pass full game state
         );
@@ -96,91 +93,15 @@ export class QuestEngine {
   // Updated _checkCondition to use gameState and update objectiveProgress.current
   private _checkCondition(
     condition: Condition,
-    event: GameEvent,
     objectiveProgress: ObjectiveProgress,
-    gameState: IGameState
+    gameState: IGameColdState
   ): boolean {
     switch (condition.kind) {
       case "credits":
-        // Always check current state, update progress counter
         objectiveProgress.current = gameState.cash;
         return gameState.cash >= condition.amount;
 
-      case "dockAt":
-        return (
-          event.type === "DOCK_FINISH" &&
-          event.stationId === condition.stationId
-        );
-
-      case "collectItem": {
-        // Always check current state, update progress counter
-        const currentItemCount = gameState.questInventory[condition.item] || 0;
-        objectiveProgress.current = currentItemCount;
-        return currentItemCount >= condition.count;
-      }
-
-      case "reachWaypoint":
-        // Check event for waypoint reached
-        return (
-          event.type === "WAYPOINT_REACHED" &&
-          event.waypointId === condition.waypointId
-        );
-
-      case "haveCargo": {
-        // Always check current state, update progress counter
-        const currentCargoCount = gameState.cargoHold[condition.commodity] || 0;
-        objectiveProgress.current = currentCargoCount;
-        return currentCargoCount >= condition.count;
-      }
-
-      case "killEnemy":
-        // Update counter on event, then check total
-        if (event.type === "ENEMY_KILL") {
-          const roleMatch = !condition.role || event.role === condition.role;
-          // const typeMatch = !condition.type || event.enemyType === condition.type; // If type is added later
-          if (roleMatch /* && typeMatch */) {
-            objectiveProgress.current =
-              ((objectiveProgress.current as number) || 0) + 1;
-          }
-        }
-        // Check if total count is met
-        return ((objectiveProgress.current as number) || 0) >= condition.count;
-
-      case "deliverItem": {
-        // This condition is typically met by a specific player action (button press)
-        // that consumes the item and potentially triggers an ITEM_REMOVED event.
-        // The check here might verify if the player *could* deliver (docked + has item).
-        const isDockedCorrectly =
-          gameState.gameView !== "playing" &&
-          gameState.dockingStationId === condition.stationId;
-        const hasRequiredItem =
-          (gameState.questInventory[condition.item] || 0) >= condition.count;
-        objectiveProgress.data = {
-          ...objectiveProgress.data,
-          readyToDeliver: isDockedCorrectly && hasRequiredItem,
-        };
-
-        // Actual completion might rely on an ITEM_REMOVED event check elsewhere or a custom event.
-        // For simplicity, let's assume completion happens when ITEM_REMOVED matches.
-        if (
-          event.type === "ITEM_REMOVED" &&
-          event.itemId === condition.item &&
-          event.quantity >= condition.count && // Ensure enough were removed
-          gameState.lastDockedStationId === condition.stationId
-        ) {
-          // Check context (last docked station)
-          return true;
-        }
-        return false;
-      }
-
-      case "custom":
-        // Pass full gameState to custom checks
-        return condition.test(objectiveProgress, gameState);
-
       default:
-        // Ensure exhaustive check or handle unknown kinds
-        // const _exhaustiveCheck: never = condition;
         return false;
     }
   }
@@ -232,20 +153,6 @@ export class QuestEngine {
       if (cond.kind === "credits" && typeof currentVal === "number") {
         return `${prefix} [${currentVal.toFixed(0)} / ${cond.amount}] ${desc}`;
       }
-      if (
-        (cond.kind === "collectItem" ||
-          cond.kind === "killEnemy" ||
-          cond.kind === "haveCargo") &&
-        typeof currentVal === "number"
-      ) {
-        // Ensure currentVal is treated as a number, default to 0 if undefined/null
-        const currentNum = Number(currentVal) || 0;
-        return `${prefix} [${currentNum} / ${cond.count}] ${desc}`;
-      }
-      if (cond.kind === "deliverItem" && progress.data?.readyToDeliver) {
-        return `${prefix} [Ready to Deliver] ${desc}`;
-      }
-      // Add more specific progress displays here if needed
     }
 
     // Default display (prefix + description)
