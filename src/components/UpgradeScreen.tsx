@@ -1,12 +1,10 @@
 // src/components/UpgradeScreen.tsx
 import React, { useState, useCallback, useRef } from "react";
-import {
-  useGameState,
-  UPGRADE_CONFIG,
-  UpgradeKey,
-} from "../hooks/useGameState";
+import { useGameState } from "../hooks/useGameState";
 import "./Market.css"; // Reuse market styles
 import "./UpgradeScreen.css"; // Add specific styles
+import { UpgradeKey } from "../game/logic";
+import { UPGRADE_CONFIG } from "../game/upgradesConfig";
 
 interface StatusMessage {
   text: string;
