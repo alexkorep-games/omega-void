@@ -1,4 +1,3 @@
-// src/components/Game.tsx
 import SettingsMenu from "./SettingsMenu";
 import React, { useRef, useCallback, useEffect } from "react";
 import GameCanvas from "./GameCanvas";
@@ -16,7 +15,8 @@ import { useGameLoop } from "../hooks/useGameLoop";
 import { useTouchInput } from "../hooks/useTouchInput";
 import TradeScreen from "./TradeScreen";
 import ChatScreen from "./ChatScreen";
-import QuestPanel from "./QuestPanel"; // Keep import
+import QuestPanel from "./QuestPanel";
+import CommodityStationsScreen from "./CommodityStationsScreen"; // Import new screen
 
 const Game: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -103,7 +103,6 @@ const Game: React.FC = () => {
     </div>
   );
 
-  // Renders the main content panel for different docked views
   const renderDockedUI = () => {
     switch (gameState.gameView) {
       case "buy_cargo":
@@ -123,11 +122,13 @@ const Game: React.FC = () => {
       case "upgrade_ship":
         return <UpgradeScreen />;
       case "contract_log":
-        return <QuestPanel />; // QuestPanel is rendered here
+        return <QuestPanel />;
       case "chat_log":
+        return <ChatScreen messages={gameState.chatLog} />;
+      case "commodity_stations_list": // New case
         return (
-          <ChatScreen
-            messages={gameState.chatLog} // Pass the chatLog from gameState
+          <CommodityStationsScreen
+            commodityKey={gameState.viewTargetCommodityKey}
           />
         );
       default:
@@ -135,7 +136,6 @@ const Game: React.FC = () => {
     }
   };
 
-  // Determine which views show the main docked UI panel (excluding the QuestPanel now)
   const showDockedUIPanel = [
     "buy_cargo",
     "sell_cargo",
@@ -145,10 +145,9 @@ const Game: React.FC = () => {
     "trade_select",
     "upgrade_ship",
     "chat_log",
-    // "contract_log" // <-- REMOVED from main panel list
+    "commodity_stations_list", // Add new view to list
   ].includes(gameState.gameView);
 
-  // Determine which views show the Bottom Toolbar
   const showBottomToolbar = [
     "buy_cargo",
     "sell_cargo",
@@ -159,6 +158,7 @@ const Game: React.FC = () => {
     "upgrade_ship",
     "chat_log",
     "contract_log",
+    "commodity_stations_list", // Add new view to list
   ].includes(gameState.gameView);
 
   return (
@@ -187,13 +187,10 @@ const Game: React.FC = () => {
           />
         )}
 
-      {/* Render Docked UI Panel (Buy/Sell, Info, Log, Details, Trade Select, Upgrade, Chat) */}
       {showDockedUIPanel && isInitialized && renderDockedUI()}
 
-      {/* Render Quest Panel *only* when view is contract_log */}
       {gameState.gameView === "contract_log" && isInitialized && <QuestPanel />}
 
-      {/* Render Bottom Toolbar only when appropriate */}
       {showBottomToolbar && isInitialized && <BottomToolbar />}
 
       {isInitialized && gameState.gameView === "won" && renderWinScreen()}

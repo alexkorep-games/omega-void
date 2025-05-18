@@ -1,4 +1,4 @@
-// src/hooks/useGameState.ts
+// src/hooks/useGameState.ts:
 import { useCallback, useMemo, useRef } from "react";
 import { atom, useAtom } from "jotai";
 import {
@@ -79,9 +79,8 @@ export const UPGRADE_CONFIG: Record<
 };
 
 const gameStateAtom = atom<IGameColdState>(initialGameState);
-const WORLD_SEED = 12345; // Define WORLD_SEED if not already globally available
+const WORLD_SEED = 12345;
 
-// Helper function to update chat log based on cash and progress
 const updateChatLogInternal = (
   currentState: IGameColdState
 ): IGameColdState => {
@@ -104,7 +103,6 @@ const updateChatLogInternal = (
             : dialogEntry.sender === "bot"
             ? "ai"
             : "system";
-
         const chatMessage: ChatMessage = {
           id: dialogEntry.id,
           sender: senderType,
@@ -118,9 +116,8 @@ const updateChatLogInternal = (
         newLastProcessedDialogId,
         dialogEntry.id
       );
-      if (dialogEntry.id > currentState.lastProcessedDialogId) {
+      if (dialogEntry.id > currentState.lastProcessedDialogId)
         changesMade = true;
-      }
     } else if (
       dialogEntry.id > newLastProcessedDialogId &&
       currentState.cash < dialogEntry.moneyThreshold
@@ -129,17 +126,14 @@ const updateChatLogInternal = (
     }
   }
 
-  if (changesMade) {
+  if (changesMade)
     newChatLog.sort((a, b) => (a.id as number) - (b.id as number));
-  }
-
-  if (changesMade) {
+  if (changesMade)
     return {
       ...currentState,
       chatLog: newChatLog,
       lastProcessedDialogId: newLastProcessedDialogId,
     };
-  }
   return currentState;
 };
 
@@ -148,20 +142,15 @@ export function useGameState() {
   const worldManager = useMemo(() => new InfiniteWorldManager(), []);
   const saveIntervalId = useRef<number | null>(null);
 
-  const totalCargoCapacity = useMemo(() => {
-    const cargoPodBonus = gameState.cargoPodLevel * 5;
-    return gameState.baseCargoCapacity + cargoPodBonus;
-  }, [gameState.baseCargoCapacity, gameState.cargoPodLevel]);
-
-  const emancipationScore = useMemo(() => {
-    if (!gameState.questState || !gameState.questState.quests["freedom_v01"]) {
-      return 0;
-    }
-    return questEngine.calculateQuestCompletion(
-      "freedom_v01",
-      gameState.questState
-    );
-  }, [gameState.questState]);
+  const totalCargoCapacity = useMemo(
+    () => gameState.baseCargoCapacity + gameState.cargoPodLevel * 5,
+    [gameState.baseCargoCapacity, gameState.cargoPodLevel]
+  );
+  const emancipationScore = useMemo(
+    () =>
+      questEngine.calculateQuestCompletion("freedom_v01", gameState.questState),
+    [gameState.questState]
+  );
 
   const setGameView = useCallback(
     (newView: GameView) => {
@@ -169,10 +158,15 @@ export function useGameState() {
         if (prev.gameView === newView) return prev;
         const nextViewTargetStationId =
           newView === "station_details" ? prev.viewTargetStationId : null;
+        const nextViewTargetCommodityKey =
+          newView === "commodity_stations_list"
+            ? prev.viewTargetCommodityKey
+            : null;
         return {
           ...prev,
           gameView: newView,
           viewTargetStationId: nextViewTargetStationId,
+          viewTargetCommodityKey: nextViewTargetCommodityKey,
           animationState:
             newView === "playing" || newView === "trade_select"
               ? { ...prev.animationState, type: null, progress: 0 }
@@ -185,41 +179,52 @@ export function useGameState() {
 
   const setViewTargetStationId = useCallback(
     (stationId: string | null) => {
-      setGameStateInternal((prev) => {
-        if (prev.viewTargetStationId === stationId) return prev;
-        return { ...prev, viewTargetStationId: stationId };
-      });
+      setGameStateInternal((prev) =>
+        prev.viewTargetStationId === stationId
+          ? prev
+          : { ...prev, viewTargetStationId: stationId }
+      );
+    },
+    [setGameStateInternal]
+  );
+
+  const setViewTargetCommodityKey = useCallback(
+    (commodityKey: string | null) => {
+      // New setter
+      setGameStateInternal((prev) =>
+        prev.viewTargetCommodityKey === commodityKey
+          ? prev
+          : { ...prev, viewTargetCommodityKey: commodityKey }
+      );
     },
     [setGameStateInternal]
   );
 
   const setNavTarget = useCallback(
     (stationId: string | null) => {
-      setGameStateInternal((prev) => {
-        if (prev.navTargetStationId === stationId) return prev;
-        return {
-          ...prev,
-          navTargetStationId: stationId,
-          navTargetDirection: null,
-          navTargetCoordinates: null,
-          navTargetDistance: null,
-        };
-      });
+      setGameStateInternal((prev) =>
+        prev.navTargetStationId === stationId
+          ? prev
+          : {
+              ...prev,
+              navTargetStationId: stationId,
+              navTargetDirection: null,
+              navTargetCoordinates: null,
+              navTargetDistance: null,
+            }
+      );
     },
     [setGameStateInternal]
   );
 
   const emitQuestEvent = useCallback(() => {
     setGameStateInternal((prevState) => {
-      if (!prevState.player || !prevState.questState) {
-        return prevState;
-      }
+      if (!prevState.player || !prevState.questState) return prevState;
       const currentContextState = { ...prevState };
       const nextQuestState = questEngine.update(
         prevState.questState,
         currentContextState
       );
-
       if (nextQuestState !== prevState.questState) {
         const newScore = questEngine.calculateQuestCompletion(
           "freedom_v01",
@@ -228,7 +233,6 @@ export function useGameState() {
         const isWon = newScore >= 100;
         const newGameView =
           isWon && prevState.gameView !== "won" ? "won" : prevState.gameView;
-
         return {
           ...prevState,
           questState: nextQuestState,
@@ -244,7 +248,6 @@ export function useGameState() {
       setGameStateInternal((prev) => {
         const changes = updater(prev);
         let nextState = { ...prev, ...changes };
-
         if (
           changes.player &&
           typeof changes.player === "object" &&
@@ -255,11 +258,8 @@ export function useGameState() {
             ...(changes.player as Partial<IPlayer>),
           };
         }
-
-        if (changes.cash !== undefined && changes.cash !== prev.cash) {
+        if (changes.cash !== undefined && changes.cash !== prev.cash)
           emitQuestEvent();
-        }
-
         nextState = updateChatLogInternal(nextState);
         return nextState;
       });
@@ -273,7 +273,6 @@ export function useGameState() {
       setGameStateInternal((prev) => {
         const config = UPGRADE_CONFIG[upgradeKey];
         if (!config) return prev;
-
         let currentLevel = 0;
         switch (upgradeKey) {
           case "cargoPod":
@@ -294,16 +293,12 @@ export function useGameState() {
           default:
             return prev;
         }
-
         if (currentLevel >= config.maxLevel) return prev;
         const cost = config.costs[currentLevel];
         if (prev.cash < cost) return prev;
-
         purchased = true;
-        let updatedState = { ...prev };
-        updatedState.cash -= cost;
+        let updatedState = { ...prev, cash: prev.cash - cost };
         const nextLevel = currentLevel + 1;
-
         switch (upgradeKey) {
           case "cargoPod":
             updatedState.cargoPodLevel = nextLevel;
@@ -311,8 +306,8 @@ export function useGameState() {
           case "shieldCapacitor":
             updatedState.shieldCapacitorLevel = nextLevel;
             if (updatedState.player) {
-              const baseShield = DEFAULT_STARTING_SHIELD;
-              const newMaxShield = baseShield * (1 + nextLevel * 0.25);
+              const newMaxShield =
+                DEFAULT_STARTING_SHIELD * (1 + nextLevel * 0.25);
               updatedState.player = {
                 ...updatedState.player,
                 maxShield: newMaxShield,
@@ -331,7 +326,6 @@ export function useGameState() {
             updatedState.hasNavComputer = true;
             break;
         }
-
         updatedState = updateChatLogInternal(updatedState);
         return updatedState;
       });
@@ -344,14 +338,12 @@ export function useGameState() {
     (commodityKey: string, change: number) => {
       setGameStateInternal((prev) => {
         if (!prev.dockingStationId) return prev;
-
         const stationId = prev.dockingStationId;
         const knownStationQuantitiesForStation =
           prev.knownStationQuantities[stationId] ?? {};
         const currentQuantity =
           knownStationQuantitiesForStation[commodityKey] ?? 0;
         const newQuantity = Math.max(0, currentQuantity + change);
-
         const updatedStationQuantities = {
           ...knownStationQuantitiesForStation,
           [commodityKey]: newQuantity,
@@ -360,13 +352,11 @@ export function useGameState() {
           ...prev.knownStationQuantities,
           [stationId]: updatedStationQuantities,
         };
-
-        // Rebuild the market snapshot for the current station
         let newMarketSnapshot: MarketSnapshot | null = null;
         const prices = prev.knownStationPrices[stationId];
         if (prices) {
           const tableForSnapshot: CommodityTable = {};
-          for (const commDef of COMMODITIES) {
+          COMMODITIES.forEach((commDef) => {
             const commKey = commDef.key;
             if (
               prices[commKey] !== undefined &&
@@ -377,10 +367,9 @@ export function useGameState() {
                 quantity: updatedStationQuantities[commKey],
               };
             }
-          }
+          });
           newMarketSnapshot = new MarketSnapshot(Date.now(), tableForSnapshot);
         }
-
         return {
           ...prev,
           knownStationQuantities: newKnownStationQuantities,
@@ -394,17 +383,13 @@ export function useGameState() {
   const getOrInitializeStationMarketData = useCallback(
     (stationId: string | null): MarketSnapshot | null => {
       if (!stationId) return null;
-
       let currentPrices = gameState.knownStationPrices[stationId];
       let currentQuantities = gameState.knownStationQuantities[stationId];
       const station = worldManager.getStationById(stationId);
-
       if (!station) return null;
-
       let needsStateUpdate = false;
       const newKnownPrices = { ...gameState.knownStationPrices };
       const newKnownQuantities = { ...gameState.knownStationQuantities };
-
       if (!currentPrices || !currentQuantities) {
         const initialMarketData = MarketGenerator.generate(
           station,
@@ -413,24 +398,21 @@ export function useGameState() {
         );
         if (!currentPrices) {
           const pricesToStore: Record<string, number> = {};
-          for (const key in initialMarketData.table) {
+          for (const key in initialMarketData.table)
             pricesToStore[key] = initialMarketData.table[key].price;
-          }
           newKnownPrices[station.id] = pricesToStore;
           currentPrices = pricesToStore;
           needsStateUpdate = true;
         }
         if (!currentQuantities) {
           const quantitiesToStore: Record<string, number> = {};
-          for (const key in initialMarketData.table) {
+          for (const key in initialMarketData.table)
             quantitiesToStore[key] = initialMarketData.table[key].quantity;
-          }
           newKnownQuantities[station.id] = quantitiesToStore;
           currentQuantities = quantitiesToStore;
           needsStateUpdate = true;
         }
       }
-
       if (needsStateUpdate) {
         setGameStateInternal((prev) => ({
           ...prev,
@@ -438,10 +420,9 @@ export function useGameState() {
           knownStationQuantities: newKnownQuantities,
         }));
       }
-
       const marketTableForSnapshot: CommodityTable = {};
       if (currentPrices && currentQuantities) {
-        for (const commodityDef of COMMODITIES) {
+        COMMODITIES.forEach((commodityDef) => {
           const key = commodityDef.key;
           if (
             currentPrices[key] !== undefined &&
@@ -452,7 +433,7 @@ export function useGameState() {
               quantity: currentQuantities[key],
             };
           }
-        }
+        });
       }
       return new MarketSnapshot(Date.now(), marketTableForSnapshot);
     },
@@ -465,19 +446,18 @@ export function useGameState() {
   );
 
   const initiateUndocking = useCallback(() => {
-    setGameStateInternal((prev) => {
-      return {
-        ...prev,
-        gameView: "undocking",
-        market: null,
-        viewTargetStationId: null,
-        animationState: {
-          type: "undocking",
-          progress: 0,
-          duration: prev.animationState.duration,
-        },
-      };
-    });
+    setGameStateInternal((prev) => ({
+      ...prev,
+      gameView: "undocking",
+      market: null,
+      viewTargetStationId: null,
+      viewTargetCommodityKey: null, // Clear commodity target on undock
+      animationState: {
+        type: "undocking",
+        progress: 0,
+        duration: prev.animationState.duration,
+      },
+    }));
   }, [setGameStateInternal]);
 
   const findStationById = useCallback(
@@ -489,9 +469,7 @@ export function useGameState() {
   );
 
   const initializeGameState = useCallback(() => {
-    if (gameState.isInitialized) {
-      return () => {};
-    }
+    if (gameState.isInitialized) return () => {};
     const loadedData = loadGameState();
     const validQuestState =
       loadedData.questState &&
@@ -527,7 +505,7 @@ export function useGameState() {
         lastDockedStationId: loadedData.lastDockedStationId,
         discoveredStations: loadedData.discoveredStations ?? [],
         knownStationPrices: loadedData.knownStationPrices ?? {},
-        knownStationQuantities: loadedData.knownStationQuantities ?? {}, // Load known quantities
+        knownStationQuantities: loadedData.knownStationQuantities ?? {},
         cargoPodLevel: loadedData.cargoPodLevel,
         shieldCapacitorLevel: loadedData.shieldCapacitorLevel,
         engineBoosterLevel: loadedData.engineBoosterLevel,
@@ -546,6 +524,7 @@ export function useGameState() {
           type: null,
           progress: 0,
         },
+        viewTargetCommodityKey: null, // Initialize new state
       };
       return updateChatLogInternal(intermediateState);
     });
@@ -567,7 +546,7 @@ export function useGameState() {
             lastDockedStationId: currentSyncState.lastDockedStationId,
             discoveredStations: currentSyncState.discoveredStations,
             knownStationPrices: currentSyncState.knownStationPrices,
-            knownStationQuantities: currentSyncState.knownStationQuantities, // Save known quantities
+            knownStationQuantities: currentSyncState.knownStationQuantities,
             cargoPodLevel: currentSyncState.cargoPodLevel,
             shieldCapacitorLevel: currentSyncState.shieldCapacitorLevel,
             engineBoosterLevel: currentSyncState.engineBoosterLevel,
@@ -583,7 +562,6 @@ export function useGameState() {
         return currentSyncState;
       });
     }, SAVE_STATE_INTERVAL);
-
     return () => {
       if (saveIntervalId.current) {
         clearInterval(saveIntervalId.current);
@@ -616,19 +594,17 @@ export function useGameState() {
       saveIntervalId.current = null;
     }
     const defaultPosition: IPosition = { x: 0, y: 0 };
-    const defaultCash = initialGameState.cash;
     const newPlayer = createPlayer(defaultPosition.x, defaultPosition.y, 0);
-
     setGameStateInternal((prev) => {
       const intermediateState: IGameColdState = {
         ...initialGameState,
         player: newPlayer,
-        cash: defaultCash,
+        cash: initialGameState.cash,
         cargoHold: {},
         lastDockedStationId: null,
         discoveredStations: [],
         knownStationPrices: {},
-        knownStationQuantities: {}, // Reset known quantities
+        knownStationQuantities: {},
         cargoPodLevel: 0,
         shieldCapacitorLevel: 0,
         engineBoosterLevel: 0,
@@ -650,10 +626,10 @@ export function useGameState() {
           progress: 0,
           duration: prev.animationState.duration,
         },
+        viewTargetCommodityKey: null, // Reset new state
       };
       return updateChatLogInternal(intermediateState);
     });
-
     setGameStateInternal((currentFreshState) => {
       const dataToSave: SaveData = {
         coordinates: {
@@ -665,7 +641,7 @@ export function useGameState() {
         lastDockedStationId: currentFreshState.lastDockedStationId,
         discoveredStations: currentFreshState.discoveredStations,
         knownStationPrices: currentFreshState.knownStationPrices,
-        knownStationQuantities: currentFreshState.knownStationQuantities, // Save (empty) known quantities
+        knownStationQuantities: currentFreshState.knownStationQuantities,
         cargoPodLevel: currentFreshState.cargoPodLevel,
         shieldCapacitorLevel: currentFreshState.shieldCapacitorLevel,
         engineBoosterLevel: currentFreshState.engineBoosterLevel,
@@ -679,7 +655,6 @@ export function useGameState() {
       saveGameState(dataToSave);
       return currentFreshState;
     });
-
     saveIntervalId.current = setInterval(() => {
       setGameStateInternal((currentSyncState) => {
         if (
@@ -696,7 +671,7 @@ export function useGameState() {
             lastDockedStationId: currentSyncState.lastDockedStationId,
             discoveredStations: currentSyncState.discoveredStations,
             knownStationPrices: currentSyncState.knownStationPrices,
-            knownStationQuantities: currentSyncState.knownStationQuantities, // Save known quantities
+            knownStationQuantities: currentSyncState.knownStationQuantities,
             cargoPodLevel: currentSyncState.cargoPodLevel,
             shieldCapacitorLevel: currentSyncState.shieldCapacitorLevel,
             engineBoosterLevel: currentSyncState.engineBoosterLevel,
@@ -722,6 +697,7 @@ export function useGameState() {
     initiateUndocking,
     setGameView,
     setViewTargetStationId,
+    setViewTargetCommodityKey,
     setNavTarget,
     updatePlayerState,
     updateMarketQuantity,
@@ -732,6 +708,6 @@ export function useGameState() {
     emitQuestEvent,
     questEngine: questEngine,
     emancipationScore,
-    getOrInitializeStationMarketData, // Expose the new helper
+    getOrInitializeStationMarketData,
   };
 }

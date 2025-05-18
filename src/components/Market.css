@@ -51,6 +51,17 @@
   background-color: rgba(40, 20, 0, 0.9); /* Dark orange background */
 }
 
+/* New screen for commodity stations list */
+.commodity-stations-screen {
+  border: 2px solid #ffffff; /* White border */
+  background-color: rgba(
+    20,
+    20,
+    35,
+    0.9
+  ); /* Dark neutral blue/purple background */
+}
+
 .market-header {
   display: flex;
   justify-content: space-between;
@@ -122,48 +133,121 @@
   border-bottom: 2px solid #00ffff; /* Stronger cyan border for header */
   position: sticky; /* Make header sticky */
   top: 0; /* Stick to the top of the container */
-  /* Adjust background based on buy/sell screen */
   background-color: rgba(0, 0, 0, 0.8); /* Fallback background for header */
   z-index: 1; /* Ensure header is above table content */
 }
 .buy-screen .market-table th {
-  background-color: rgba(40, 0, 40, 0.9); /* Match buy screen bg */
+  background-color: rgba(40, 0, 40, 0.95); /* Match buy screen bg */
 }
 .sell-screen .market-table th {
-  background-color: rgba(0, 40, 0, 0.9); /* Match sell screen bg */
+  background-color: rgba(0, 40, 0, 0.95); /* Match sell screen bg */
 }
 .info-screen .market-table th {
-  background-color: rgba(40, 40, 0, 0.9); /* Match info screen bg */
+  background-color: rgba(40, 40, 0, 0.95); /* Match info screen bg */
 }
-/* New Screen BG for Table Header */
 .station-log-screen .market-table th {
-  background-color: rgba(0, 20, 40, 0.9); /* Match log screen bg */
+  background-color: rgba(0, 20, 40, 0.95); /* Match log screen bg */
 }
 .upgrade-screen .market-table th {
-  /* Add background for upgrade screen if using table */
-  background-color: rgba(40, 20, 0, 0.9); /* Match upgrade screen bg */
+  background-color: rgba(40, 20, 0, 0.95); /* Match upgrade screen bg */
+}
+.commodity-stations-screen .market-table th {
+  background-color: rgba(
+    20,
+    20,
+    35,
+    0.95
+  ); /* Match commodity stations screen bg */
 }
 
-/* Align columns */
-.market-table th:nth-child(1),
-td:nth-child(1) {
-  width: 35%;
-} /* Product / Station Name */
-.market-table th:nth-child(2),
-td:nth-child(2) {
-  width: 15%;
+/* Align columns for Buy/Sell screens */
+.buy-screen .market-table th:nth-child(1),
+.buy-screen .market-table td:nth-child(1),
+.sell-screen .market-table th:nth-child(1),
+.sell-screen .market-table td:nth-child(1) {
+  width: 25%;
+} /* PRODUCT */
+.buy-screen .market-table th:nth-child(2),
+.buy-screen .market-table td:nth-child(2),
+.sell-screen .market-table th:nth-child(2),
+.sell-screen .market-table td:nth-child(2) {
+  width: 10%;
   text-align: center;
-} /* Unit / Coords Label? */
-.market-table th:nth-child(3),
-td:nth-child(3) {
-  width: 25%;
+} /* UNIT */
+.buy-screen .market-table th:nth-child(3),
+.buy-screen .market-table td:nth-child(3),
+.sell-screen .market-table th:nth-child(3),
+.sell-screen .market-table td:nth-child(3) {
+  width: 15%;
   text-align: right;
-} /* Price / Coords Value? */
-.market-table th:nth-child(4),
-td:nth-child(4) {
-  width: 25%;
+} /* PRICE / SELL PRICE */
+.buy-screen .market-table th:nth-child(4),
+.buy-screen .market-table td:nth-child(4),
+.sell-screen .market-table th:nth-child(4),
+.sell-screen .market-table td:nth-child(4) {
+  width: 15%;
   text-align: right;
-} /* Qty / Discovered Time? */
+} /* AVAIL / IN HOLD */
+.buy-screen .market-table th:nth-child(5),
+.buy-screen .market-table td:nth-child(5) {
+  width: 15%;
+  text-align: right;
+} /* HELD (Buy Screen only) */
+.buy-screen .market-table th:nth-child(6),
+.buy-screen .market-table td:nth-child(6),
+.sell-screen .market-table th:nth-child(5),
+.sell-screen .market-table td:nth-child(5) {
+  width: 20%;
+  text-align: center;
+} /* ACTIONS */
+
+/* Styling for action cells and buttons */
+.market-actions-header-cell {
+  text-align: center !important;
+}
+.market-actions-cell {
+  text-align: center;
+  padding: 2px 4px; /* Reduce padding for buttons */
+}
+.market-action-button {
+  font-family: monospace;
+  font-size: 10px;
+  padding: 3px 6px;
+  margin: 0 2px;
+  border: 1px solid;
+  border-radius: 2px;
+  cursor: pointer;
+  text-transform: uppercase;
+  min-width: 50px;
+  transition: background-color 0.1s, color 0.1s, border-color 0.1s;
+}
+.market-action-button.buy {
+  color: #ff55ff; /* Light magenta */
+  border-color: #cc00cc;
+  background-color: rgba(40, 0, 40, 0.7);
+}
+.market-action-button.buy:hover:not(:disabled) {
+  background-color: rgba(60, 0, 60, 0.9);
+  border-color: #ff55ff;
+  color: #ffffff;
+}
+.market-action-button.sell {
+  color: #55ff55; /* Light green */
+  border-color: #00cc00;
+  background-color: rgba(0, 40, 0, 0.7);
+}
+.market-action-button.sell:hover:not(:disabled) {
+  background-color: rgba(0, 60, 0, 0.9);
+  border-color: #55ff55;
+  color: #ffffff;
+}
+.market-action-button:disabled {
+  color: #666666;
+  border-color: #444444;
+  background-color: rgba(20, 20, 20, 0.5);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
 
 .market-table tbody tr {
   transition: background-color 0.15s ease-in-out;
@@ -174,13 +258,20 @@ td:nth-child(4) {
   cursor: pointer;
 }
 
-/* Styling for empty cargo state in sell screen / empty log */
-.market-table tbody tr td[colspan="4"] {
+.market-table tbody tr td[colspan="4"],
+.market-table tbody tr td[colspan="5"],
+.market-table tbody tr td[colspan="6"] {
   text-align: center;
   font-style: italic;
   color: #aaaaaa;
-  padding: 20px 0; /* Add some padding */
-  border-bottom: none; /* No separator for this row */
+  padding: 20px 0;
+  border-bottom: none;
+  cursor: default;
+}
+.market-table tbody tr td[colspan="4"]:hover,
+.market-table tbody tr td[colspan="5"]:hover,
+.market-table tbody tr td[colspan="6"]:hover {
+  background-color: transparent; /* No hover for empty message */
 }
 
 .market-footer {
@@ -228,66 +319,63 @@ td:nth-child(4) {
   color: #aaaaaa;
 }
 
-/* Blinking animation for quantity input */
 @keyframes market-blink-animation {
   50% {
     border-bottom-color: transparent;
   }
 }
 
-/* Styles for Station Info / Details Screen */
 .station-info-content {
   padding: 20px;
   flex-grow: 1;
   overflow-y: auto;
   line-height: 1.8;
-  font-size: 1.1em; /* Slightly larger font */
+  font-size: 1.1em;
 }
 
 .info-item {
   display: flex;
   justify-content: space-between;
   margin-bottom: 10px;
-  border-bottom: 1px dashed rgba(255, 255, 0, 0.3); /* Dashed yellow line */
+  border-bottom: 1px dashed rgba(255, 255, 0, 0.3);
   padding-bottom: 8px;
 }
 
 .info-label {
-  color: #aaaaaa; /* Dimmer text for label */
-  min-width: 120px; /* Align values */
+  color: #aaaaaa;
+  min-width: 120px;
   text-align: left;
 }
 
 .info-value {
-  color: #ffff00; /* Bright yellow for value */
+  color: #ffff00;
 }
 
-/* Styles for commodity price list in details */
 .station-price-list {
   margin-top: 20px;
-  border-top: 1px dashed rgba(255, 255, 0, 0.5); /* Separator */
+  border-top: 1px dashed rgba(255, 255, 0, 0.5);
   padding-top: 15px;
 }
 
-/* Styles for buttons within info/details screens */
 .station-info-actions {
   display: flex;
   justify-content: center;
   gap: 15px;
   margin-top: 20px;
-  margin-bottom: 10px; /* Add some space before footer */
+  margin-bottom: 10px;
   padding: 10px 0;
   border-top: 1px solid rgba(255, 255, 0, 0.2);
 }
 
 .station-info-button,
-.station-info-toggle-button {
-  /* Reuse toolbar button styles */
+.station-info-toggle-button,
+.global-market-action-button {
+  /* Added for Sell All Cargo button */
   font-family: inherit;
   font-size: 12px;
-  color: #ffff00; /* Yellow to match info screen */
+  color: #ffff00;
   background-color: transparent;
-  border: 1px solid #aaaa00; /* Dimmer yellow border */
+  border: 1px solid #aaaa00;
   padding: 8px 15px;
   cursor: pointer;
   transition: background-color 0.2s, color 0.2s, border-color 0.2s;
@@ -299,149 +387,127 @@ td:nth-child(4) {
   user-select: none;
   -webkit-user-select: none;
 }
+.global-market-action-button.sell-all {
+  color: #00ff00; /* Green for sell */
+  border-color: #00aa00;
+}
 
 .station-info-button:hover:not(.disabled),
-.station-info-toggle-button:hover:not(.disabled) {
-  background-color: rgba(255, 255, 0, 0.15); /* Slight yellow glow */
-  border-color: #ffff00; /* Brighten border */
-  color: #ffffff; /* White text */
+.station-info-toggle-button:hover:not(.disabled),
+.global-market-action-button:hover:not(:disabled) {
+  background-color: rgba(255, 255, 0, 0.15);
+  border-color: #ffff00;
+  color: #ffffff;
+}
+.global-market-action-button.sell-all:hover:not(:disabled) {
+  background-color: rgba(0, 255, 0, 0.15);
+  border-color: #00ff00;
 }
 
 .station-info-toggle-button.active {
-  background-color: #ffff00; /* Solid yellow background */
-  color: #333300; /* Dark text */
-  border-color: #ffffff; /* White border */
+  background-color: #ffff00;
+  color: #333300;
+  border-color: #ffffff;
 }
 
 .station-info-button.disabled,
-.station-info-toggle-button.disabled {
+.station-info-toggle-button.disabled,
+.global-market-action-button:disabled {
   border-color: #555500;
   color: #888800;
   cursor: not-allowed;
   background-color: transparent;
   opacity: 0.6;
 }
+.global-market-action-button.sell-all:disabled {
+  border-color: #005500;
+  color: #008800;
+}
+
 .station-info-button.disabled:hover,
-.station-info-toggle-button.disabled:hover {
+.station-info-toggle-button.disabled:hover,
+.global-market-action-button:disabled:hover {
   background-color: transparent;
   color: #888800;
   border-color: #555500;
 }
+.global-market-action-button.sell-all:disabled:hover {
+  color: #008800;
+  border-color: #005500;
+}
 
-/* --- Styles for Station Log Screen --- */
-/* Use .market-table-container for scrolling */
-/* Customize table columns if needed */
 .station-log-screen .market-table th:nth-child(1),
 .station-log-screen .market-table td:nth-child(1) {
-  width: 50%;
+  width: 45%;
 } /* Station Name */
 .station-log-screen .market-table th:nth-child(2),
 .station-log-screen .market-table td:nth-child(2) {
-  width: 50%;
+  width: 30%;
   text-align: right;
-} /* Coordinates */
-/* Remove 3rd and 4th columns for log */
+} /* Distance */
 .station-log-screen .market-table th:nth-child(3),
-.station-log-screen .market-table td:nth-child(3),
+.station-log-screen .market-table td:nth-child(3) {
+  width: 25%;
+  text-align: right;
+} /* Coords */
 .station-log-screen .market-table th:nth-child(4),
 .station-log-screen .market-table td:nth-child(4) {
   display: none;
 }
 
-.station-log-screen .market-table td:nth-child(2) {
-  color: #ffff00; /* Yellow coordinates */
-}
-
-/* Specific columns for price list in details */
-.station-price-list .market-table th:nth-child(1),
-.station-price-list .market-table td:nth-child(1) {
-  width: 40%;
-  text-align: left;
-}
-.station-price-list .market-table th:nth-child(2),
-.station-price-list .market-table td:nth-child(2) {
-  width: 15%;
-  text-align: center;
-}
-.station-price-list .market-table th:nth-child(3),
-.station-price-list .market-table td:nth-child(3) {
+.commodity-stations-screen .market-table th:nth-child(1),
+.commodity-stations-screen .market-table td:nth-child(1) {
+  width: 45%;
+} /* Station Name */
+.commodity-stations-screen .market-table th:nth-child(2), /* Price */
+.commodity-stations-screen .market-table td:nth-child(2) {
   width: 20%;
   text-align: right;
+  color: #ffff00;
 }
+.commodity-stations-screen .market-table th:nth-child(3), /* Distance */
+.commodity-stations-screen .market-table td:nth-child(3) {
+  width: 35%;
+  text-align: right;
+  color: #00aaff;
+}
+.commodity-stations-screen .market-table th:nth-child(4),
+.commodity-stations-screen .market-table td:nth-child(4) {
+  display: none;
+}
+
+.station-price-list .market-table th:nth-child(1),
+.station-price-list .market-table td:nth-child(1) {
+  width: 35%;
+  text-align: left;
+} /* Commodity */
+.station-price-list .market-table th:nth-child(2),
+.station-price-list .market-table td:nth-child(2) {
+  width: 10%;
+  text-align: center;
+} /* Unit */
+.station-price-list .market-table th:nth-child(3),
+.station-price-list .market-table td:nth-child(3) {
+  width: 15%;
+  text-align: right;
+  color: #ffff00;
+} /* Price */
 .station-price-list .market-table th:nth-child(4),
 .station-price-list .market-table td:nth-child(4) {
-  width: 25%; /* Diff */
+  width: 20%;
   text-align: right;
-}
-
-/* Price color */
-.station-price-list .market-table td:nth-child(3) {
-  color: #ffff00;
-}
+} /* Qty */
+.station-price-list .market-table th:nth-child(5),
+.station-price-list .market-table td:nth-child(5) {
+  width: 20%;
+  text-align: right;
+} /* Diff */
 
 .station-price-list .market-table tbody tr:hover {
   background-color: transparent;
   cursor: default;
 }
 
-/* Price color */
-.station-price-list .market-table td:nth-child(3) {
-  color: #ffff00;
-}
-
-/* No hover effect for price list rows */
-.station-price-list .market-table tbody tr:hover {
-  background-color: transparent;
-  cursor: default;
-}
-
-/* --- Styles for Upgrade Screen List --- */
-/* Added to UpgradeScreen.css */
-
-/* Styles for Station Info Screen Actions */
-.station-info-actions {
-  margin-top: 20px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 0;
-  border-top: 1px solid #555; /* Separator */
-}
-
-.station-info-button,
-.station-info-toggle-button {
-  padding: 8px 15px;
-  background-color: rgba(70, 70, 70, 0.5);
-  border: 1px solid #aaa;
-  color: #ccc;
-  font-family: monospace;
-  font-size: 0.9em;
-  cursor: pointer;
-  transition: background-color 0.2s, border-color 0.2s, color 0.2s;
-  width: 80%;
-  text-align: center;
-}
-
-.station-info-button:hover,
-.station-info-toggle-button:hover {
-  background-color: rgba(90, 90, 90, 0.7);
-  border-color: #fff;
-  color: #fff;
-}
-
-.station-info-toggle-button.active {
-  background-color: rgba(0, 100, 0, 0.6); /* Greenish when active */
-  border-color: #0f0;
-  color: #5f5;
-}
-.station-info-toggle-button.active:hover {
-  background-color: rgba(0, 150, 0, 0.7);
-  border-color: #5f5;
-  color: #fff;
-}
-
-/* Styles for Quest Action Section and Buttons */
 .station-quest-actions {
   margin-top: 20px;
   padding-top: 15px;
@@ -452,7 +518,6 @@ td:nth-child(4) {
   align-items: center; /* Center buttons horizontally */
 }
 
-/* Use existing button styles but add quest-specific overrides */
 .station-info-button.quest-action {
   background-color: rgba(0, 100, 0, 0.2); /* Slight green hint for action */
   border-color: #00cc00;
@@ -465,19 +530,17 @@ td:nth-child(4) {
   color: #ffffff;
 }
 
-/* Style for disabled quest buttons */
 .station-info-button.quest-action:disabled {
-  background-color: transparent; /* Less prominent background */
-  border-color: #555500; /* Dim yellow border */
-  color: #888800; /* Dim yellow text */
+  background-color: transparent;
+  border-color: #555500;
+  color: #888800;
   opacity: 0.7;
-  cursor: not-allowed; /* Indicate non-interactive */
+  cursor: not-allowed;
 }
 
-/* Visual cue for disabled state requirements using ::after pseudo-element */
 .station-info-button.quest-action:disabled::after {
-  content: " [!]"; /* Add indicator */
-  color: #ff5555; /* Red color for warning */
+  content: " [!]";
+  color: #ff5555;
   font-weight: bold;
-  margin-left: 5px; /* Space from button text */
+  margin-left: 5px;
 }

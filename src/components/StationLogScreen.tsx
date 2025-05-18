@@ -1,62 +1,66 @@
-/* src/components/StationLogScreen.tsx */
-// src/components/StationLogScreen.tsx
+// src/components/StationLogScreen.tsx:
 import React, { useCallback, useState, useEffect } from "react";
 import { useGameState } from "../hooks/useGameState";
 import { IStation } from "../game/types";
 import "./Market.css"; // Reuse styles
-import { distance } from "../utils/geometry"; // Import utility for distance calculation
+import { distance } from "../utils/geometry";
 
 const StationLogScreen: React.FC = () => {
   const { gameState, findStationById, setGameView, setViewTargetStationId } =
     useGameState();
-  const { discoveredStations } = gameState;
+  const { discoveredStations, dockingStationId } = gameState;
 
-  // Local state to hold station details fetched for the log
   const [logEntries, setLogEntries] = useState<
-    Array<IStation & { discoveredIndex: number; distance: number }>
+    Array<IStation & { distance: number }>
   >([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  const currentStation = findStationById(dockingStationId);
+
   useEffect(() => {
     setIsLoading(true);
-    const entries: Array<
-      IStation & { discoveredIndex: number; distance: number }
-    > = [];
-    const playerPosition = {
-      x: gameState.player?.x || 0,
-      y: gameState.player?.y || 0,
-    }; // Default to origin if player position is unavailable
+    const entries: Array<IStation & { distance: number }> = [];
 
-    discoveredStations.forEach((id, index) => {
+    const sourcePosition = currentStation
+      ? currentStation.coordinates
+      : gameState.player
+      ? { x: gameState.player.x, y: gameState.player.y }
+      : { x: 0, y: 0 };
+
+    discoveredStations.forEach((id) => {
       const station = findStationById(id);
       if (station) {
         const dist = distance(
-          playerPosition.x,
-          playerPosition.y,
+          sourcePosition.x,
+          sourcePosition.y,
           station.coordinates.x,
           station.coordinates.y
         );
+        // If current station is this station, distance is 0
         entries.push({
           ...station,
-          discoveredIndex: index,
-          distance: dist < 50 ? 0 : dist,
-        }); // Set distance to 0 if within 50 units
+          distance: station.id === dockingStationId ? 0 : dist,
+        });
       } else {
         console.warn(`Could not find station data for logged ID: ${id}`);
       }
     });
 
-    // Sort entries by distance
     entries.sort((a, b) => a.distance - b.distance);
-
     setLogEntries(entries);
     setIsLoading(false);
-  }, [discoveredStations, findStationById, gameState.player]);
+  }, [
+    discoveredStations,
+    findStationById,
+    gameState.player,
+    dockingStationId,
+    currentStation,
+  ]);
 
   const handleStationClick = useCallback(
     (stationId: string) => {
-      setViewTargetStationId(stationId); // Set the target ID for the details view
-      setGameView("station_details"); // Switch to the details view
+      setViewTargetStationId(stationId);
+      setGameView("station_details");
     },
     [setGameView, setViewTargetStationId]
   );
@@ -65,11 +69,11 @@ const StationLogScreen: React.FC = () => {
     <div className="market-container station-log-screen">
       <div className="market-header">
         <div className="market-title">STATION LOG</div>
-        {/* Optional: Display total count */}
         <div className="market-credits">{logEntries.length} discovered</div>
       </div>
       <div className="market-instructions">
-        Stations discovered during your travels. Click to view details.
+        Stations discovered during your travels. Sorted by distance. Click to
+        view details.
       </div>
 
       {isLoading ? (
@@ -81,8 +85,8 @@ const StationLogScreen: React.FC = () => {
               <tr>
                 <th>STATION NAME</th>
                 <th>DISTANCE</th>
+                <th>COORDS</th>
                 {/* Hide other columns */}
-                <th style={{ display: "none" }}></th>
                 <th style={{ display: "none" }}></th>
               </tr>
             </thead>
@@ -93,23 +97,26 @@ const StationLogScreen: React.FC = () => {
                   onClick={() => handleStationClick(station.id)}
                 >
                   <td>{station.name}</td>
-                  <td>{`${station.distance.toFixed(0)} (${Math.floor(
-                    station.coordinates.x
-                  )}, ${Math.floor(station.coordinates.y)})`}</td>
-                  {/* Hide other columns */}
-                  <td style={{ display: "none" }}></td>
+                  <td
+                    style={{
+                      color: station.distance === 0 ? "#FFFF00" : "#00aaff",
+                    }}
+                  >
+                    {" "}
+                    {/* Highlight current station */}
+                    {station.distance.toFixed(0)}
+                  </td>
+                  <td>
+                    {`(${Math.floor(station.coordinates.x)}, ${Math.floor(
+                      station.coordinates.y
+                    )})`}
+                  </td>
                   <td style={{ display: "none" }}></td>
                 </tr>
               ))}
               {logEntries.length === 0 && !isLoading && (
                 <tr>
-                  <td
-                    colSpan={4} // Match original table structure even if columns hidden
-                    style={{ textAlign: "center", color: "#888" }}
-                  >
-                    No stations discovered yet. Dock at a station to add it to
-                    the log.
-                  </td>
+                  <td colSpan={4}>No stations discovered yet.</td>
                 </tr>
               )}
             </tbody>
