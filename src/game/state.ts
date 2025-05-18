@@ -95,7 +95,8 @@ export const initialGameState: IGameColdState = {
   questInventory: {}, // Initialize empty quest inventory
   // --- Chat System ---
   chatLog: [], // Start with an empty chat log
-  lastProcessedDialogId: -1, // No dialog entries processed yet
+  lastProcessedDialogId: -1,
+  viewTargetCommodityKey: null
 };
 
 // updateCamera function remains the same
