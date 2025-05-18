@@ -14,12 +14,6 @@ const MAX_ROTATION_SPEED_RAD_PER_SEC = Math.PI * 1.5; // Max radians per second 
 const ROTATION_INPUT_SCALE_FACTOR = 1.2; // Adjusts sensitivity of swipe X to rotation speed
 const THRUST_INPUT_SCALE_FACTOR = 1.0; // Adjusts sensitivity of swipe Y to thrust percentage
 
-// Consider if PLAYER_SPEED needs to be adjusted. If it was units/frame before, it might need to be scaled up.
-// For now, we assume PLAYER_SPEED is units/second.
-// Example: If old speed was 2.5 units/frame @60fps, new PLAYER_SPEED could be 2.5 * 60 = 150 units/second.
-// Let's use a potentially higher speed for testing.
-const EFFECTIVE_PLAYER_SPEED = 100; // Or keep PLAYER_SPEED and adjust its value in config.ts
-
 export class Player extends GameObject implements IPlayer {
   angle: number;
   vx: number; // Velocity component (units per second)
@@ -69,8 +63,7 @@ export class Player extends GameObject implements IPlayer {
         )
       );
 
-      const currentBaseSpeed = PLAYER_SPEED * (1 + engineBoosterLevel * 0.2); // Using PLAYER_SPEED from config
-      // const currentBaseSpeed = EFFECTIVE_PLAYER_SPEED * (1 + engineBoosterLevel * 0.2); // Alternative if testing higher speed
+      const currentBaseSpeed = PLAYER_SPEED * (1 + engineBoosterLevel * 0.2);
 
       const effectiveSpeed = currentBaseSpeed * thrustInputNormalized; // This is now units per second
 

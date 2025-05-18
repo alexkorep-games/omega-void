@@ -1,5 +1,4 @@
 // src/game/config.ts
-// src/game/config.ts
 export const GAME_WIDTH = 360;
 export const GAME_HEIGHT = 640;
 export const HUD_HEIGHT = 120;
@@ -36,7 +35,7 @@ export const MIN_STAR_SIZE = 0.5;
 export const MAX_STAR_SIZE = 1.8;
 
 // Speeds
-export const PLAYER_SPEED = 2.5;
+export const PLAYER_SPEED = 100; // Adjusted for units per second
 export const ENEMY_SPEED = 1;
 export const PROJECTILE_SPEED = 5;
 
