@@ -44,7 +44,7 @@ const canvasStyleBase: React.CSSProperties = {
 };
 
 const PLAYER_SCREEN_X = C.GAME_WIDTH / 2;
-const PLAYER_SCREEN_Y = C.GAME_VIEW_HEIGHT * 0.75; // Player rendered towards bottom-center
+const PLAYER_SCREEN_Y = C.GAME_VIEW_HEIGHT * 0.75;
 
 const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
   const stageStyle: React.CSSProperties = {
@@ -86,19 +86,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
   }
 
   const playerAngleRad = gameState.player.angle;
-  // World rotates inversely to player's angle to keep player looking "up" (-90 deg visual)
-  // If player.angle is -PI/2 (up), worldRotationDeg should be 0.
-  // If player.angle is 0 (right), worldRotationDeg should be 90.
-  // If player.angle is PI/2 (down), worldRotationDeg should be 180.
-  // If player.angle is PI (left), worldRotationDeg should be 270 or -90.
   const worldRotationDeg =
     (-((playerAngleRad * 180) / Math.PI) - 90 + 360) % 360;
 
-  const playerVisualRotationDeg = -90; // Player ship sprite always points up on screen
+  // Player sprite (designed pointing "up" locally with nose at (0,-r))
+  // needs 0 rotation to point "up" on screen.
+  const playerVisualRotationDeg = 0;
 
   return (
     <Stage width={C.GAME_WIDTH} height={C.GAME_HEIGHT} style={stageStyle}>
-      {/* Layer for all transformed world elements (background, entities, effects) */}
       <Layer
         clipX={0}
         clipY={0}
@@ -107,20 +103,18 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
         perfectDrawEnabled={false}
         listening={false}
       >
-        <Group /* This is the GameWorldGroup */
-          x={PLAYER_SCREEN_X} // Pivot point for rotation is player's screen position
+        <Group
+          x={PLAYER_SCREEN_X}
           y={PLAYER_SCREEN_Y}
-          offsetX={gameState.player.x} // World coordinate that aligns with pivot's origin
+          offsetX={gameState.player.x}
           offsetY={gameState.player.y}
           rotation={worldRotationDeg}
         >
-          {/* Stars */}
           {gameState.visibleBackgroundObjects
             .filter((obj) => obj.type === "star")
             .map((star) => (
               <KonvaStar key={star.id} star={star as IStar} />
             ))}
-          {/* Stations */}
           {gameState.visibleBackgroundObjects
             .filter((obj) => obj.type === "station")
             .map((station) => (
@@ -130,7 +124,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
                 isNavTarget={station.id === gameState.navTargetStationId}
               />
             ))}
-          {/* Asteroids */}
           {gameState.visibleBackgroundObjects
             .filter((obj) => obj.type === "asteroid")
             .map((asteroid) => (
@@ -139,25 +132,19 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
                 asteroid={asteroid as IAsteroid}
               />
             ))}
-          {/* Beacons */}
           {gameState.visibleBackgroundObjects
             .filter((obj) => obj.type === "beacon")
             .map((beacon) => (
               <KonvaBeacon key={beacon.id} beacon={beacon as IBeacon} />
             ))}
-
-          {/* Enemies (conditionally rendered) */}
           {gameState.gameView !== "destroyed" &&
             gameState.enemies.map((enemy) => (
               <KonvaEnemy key={enemy.id} enemy={enemy} />
             ))}
-          {/* Projectiles (conditionally rendered) */}
           {gameState.gameView !== "destroyed" &&
             gameState.projectiles.map((proj) => (
               <KonvaProjectile key={proj.id} proj={proj} />
             ))}
-
-          {/* Destruction Animations */}
           {gameState.activeDestructionAnimations.map((anim) => (
             <Group key={anim.id}>
               {anim.particles.map((p) => (
@@ -171,10 +158,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
             </Group>
           ))}
         </Group>
-        {/* End of GameWorldGroup */}
       </Layer>
 
-      {/* Station Names Layer (Translates with player, DOES NOT ROTATE) */}
       <Layer
         listening={false}
         perfectDrawEnabled={false}
@@ -184,11 +169,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
         clipHeight={C.GAME_VIEW_HEIGHT}
       >
         <Group
-          x={PLAYER_SCREEN_X} // Same translation pivot as world
+          x={PLAYER_SCREEN_X}
           y={PLAYER_SCREEN_Y}
           offsetX={gameState.player.x}
           offsetY={gameState.player.y}
-          // NO rotation for this group, so names stay upright
         >
           {gameState.visibleBackgroundObjects
             .filter(
@@ -199,12 +183,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
                 gameState.discoveredStations.includes(obj.id)
             )
             .map((station) => {
-              const textWidthApprox = station.name.length * 10 * 0.6; // Crude approximation: char_count * font_size * aspect_ratio
+              const textWidthApprox = station.name.length * 10 * 0.6;
               return (
                 <Text
                   key={`${station.id}-name`}
-                  x={station.x} // World X
-                  y={station.y - station.radius - 18} // World Y, offset above station object's center
+                  x={station.x}
+                  y={station.y - station.radius - 18}
                   text={station.name}
                   fontSize={10}
                   fontFamily="monospace"
@@ -216,15 +200,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
                   align="center"
                   listening={false}
                   perfectDrawEnabled={false}
-                  offsetX={textWidthApprox / 2} // Offset X to center the text
-                  offsetY={5} // Adjust vertical alignment if needed (half font size)
+                  offsetX={textWidthApprox / 2}
+                  offsetY={5}
                 />
               );
             })}
         </Group>
       </Layer>
 
-      {/* Player Layer (Fixed on screen, specific visual rotation, drawn on top of world and names) */}
       {gameState.gameView !== "destroyed" && gameState.player && (
         <Layer listening={false} perfectDrawEnabled={false}>
           <KonvaPlayer
@@ -236,7 +219,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
         </Layer>
       )}
 
-      {/* HUD Layer (static on screen) */}
       {gameState.gameView !== "destroyed" ? (
         <Layer perfectDrawEnabled={false} listening={false}>
           <KonvaHUD
@@ -248,7 +230,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
         </Layer>
       ) : null}
 
-      {/* Touch Controls Layer (static on screen) */}
       {gameState.gameView === "playing" ? (
         <Layer perfectDrawEnabled={false} listening={false}>
           <KonvaTouchControls touchState={touchState} />
