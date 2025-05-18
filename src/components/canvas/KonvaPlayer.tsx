@@ -1,23 +1,24 @@
+// src/components/canvas/KonvaPlayer.tsx
 import React from "react";
 import { Group, Line } from "react-konva";
 import { IPlayer } from "../../game/types";
 
 interface KonvaPlayerProps {
   player: IPlayer;
-  offsetX: number;
-  offsetY: number;
+  screenX: number; // Player's fixed X position on screen
+  screenY: number; // Player's fixed Y position on screen
+  fixedRotation: number; // Player's fixed visual rotation in degrees
 }
 
 const KonvaPlayer: React.FC<KonvaPlayerProps> = ({
   player,
-  offsetX,
-  offsetY,
+  screenX,
+  screenY,
+  fixedRotation,
 }) => {
-  const screenX = player.x - offsetX;
-  const screenY = player.y - offsetY;
   const r = player.radius;
-  const angleDegrees = (player.angle + Math.PI / 2) * (180 / Math.PI); // Konva uses degrees, adjust angle
 
+  // Shape points remain relative to (0,0)
   const mainBodyPoints = [
     0,
     -r,
@@ -33,10 +34,10 @@ const KonvaPlayer: React.FC<KonvaPlayerProps> = ({
 
   return (
     <Group
-      x={screenX}
+      x={screenX} // Use direct screen coordinates
       y={screenY}
-      rotation={angleDegrees}
-      listening={false} // Player shape doesn't need clicks
+      rotation={fixedRotation} // Use the fixed visual rotation
+      listening={false}
     >
       <Line
         points={mainBodyPoints}

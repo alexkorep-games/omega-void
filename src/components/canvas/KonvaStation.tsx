@@ -1,30 +1,24 @@
-/* src/components/canvas/KonvaStation.tsx */
+// src/components/canvas/KonvaStation.tsx
 import React from "react";
 import { Group, Line, Rect } from "react-konva";
 import { IStation } from "../../game/types";
-import * as C from "../../game/config"; // Import config for colors
+import * as C from "../../game/config";
 
 interface KonvaStationProps {
   station: IStation;
-  offsetX: number;
-  offsetY: number;
-  isNavTarget: boolean; // New prop
+  isNavTarget: boolean;
+  // offsetX and offsetY are removed
 }
 
 const KonvaStation: React.FC<KonvaStationProps> = ({
   station,
-  offsetX,
-  offsetY,
   isNavTarget,
 }) => {
-  const screenX = station.x - offsetX;
-  const screenY = station.y - offsetY;
   const r = station.radius;
-  const angleDegrees = station.angle * (180 / Math.PI); // Konva uses degrees
-  const color = isNavTarget ? C.NAV_TARGET_COLOR : station.color; // Use nav color if target
+  const angleDegrees = station.angle * (180 / Math.PI);
+  const color = isNavTarget ? C.NAV_TARGET_COLOR : station.color;
 
   const points = [
-    // Relative points for the octagon shape
     { x: -r, y: -r * 0.5 },
     { x: -r * 0.5, y: -r },
     { x: r * 0.5, y: -r },
@@ -43,14 +37,10 @@ const KonvaStation: React.FC<KonvaStationProps> = ({
 
   return (
     <Group
-      x={screenX}
-      y={screenY}
+      x={station.x} // Use direct world coordinate
+      y={station.y} // Use direct world coordinate
       rotation={angleDegrees}
-      // Offset needed if rotation should be around the center
-      offsetX={0}
-      offsetY={0}
       listening={false}
-      // Optional: Add glow effect for nav target
       shadowColor={isNavTarget ? C.NAV_TARGET_COLOR : undefined}
       shadowBlur={isNavTarget ? 10 : 0}
       shadowOpacity={isNavTarget ? 0.8 : 0}
@@ -58,8 +48,8 @@ const KonvaStation: React.FC<KonvaStationProps> = ({
       {/* Main Octagon */}
       <Line
         points={flatPoints}
-        stroke={color} // Use dynamic color
-        strokeWidth={isNavTarget ? 2.5 : 2} // Slightly thicker if nav target
+        stroke={color}
+        strokeWidth={isNavTarget ? 2.5 : 2}
         closed={true}
         perfectDrawEnabled={false}
       />
@@ -71,7 +61,7 @@ const KonvaStation: React.FC<KonvaStationProps> = ({
           points[3].x,
           points[3].y,
         ]}
-        stroke={color} // Use dynamic color
+        stroke={color}
         strokeWidth={1}
         perfectDrawEnabled={false}
       />
@@ -82,7 +72,7 @@ const KonvaStation: React.FC<KonvaStationProps> = ({
           points[4].x,
           points[4].y,
         ]}
-        stroke={color} // Use dynamic color
+        stroke={color}
         strokeWidth={1}
         perfectDrawEnabled={false}
       />
@@ -91,7 +81,7 @@ const KonvaStation: React.FC<KonvaStationProps> = ({
         y={points[3].y * innerScale}
         width={(points[4].x - points[3].x) * innerScale}
         height={(points[4].y - points[3].y) * innerScale}
-        stroke={color} // Use dynamic color
+        stroke={color}
         strokeWidth={1}
         perfectDrawEnabled={false}
       />
@@ -102,7 +92,7 @@ const KonvaStation: React.FC<KonvaStationProps> = ({
           points[1].x,
           points[1].y,
         ]}
-        stroke={color} // Use dynamic color
+        stroke={color}
         strokeWidth={1}
         perfectDrawEnabled={false}
       />
@@ -113,7 +103,7 @@ const KonvaStation: React.FC<KonvaStationProps> = ({
           points[2].x,
           points[2].y,
         ]}
-        stroke={color} // Use dynamic color
+        stroke={color}
         strokeWidth={1}
         perfectDrawEnabled={false}
       />
@@ -124,7 +114,7 @@ const KonvaStation: React.FC<KonvaStationProps> = ({
           points[5].x,
           points[5].y,
         ]}
-        stroke={color} // Use dynamic color
+        stroke={color}
         strokeWidth={1}
         perfectDrawEnabled={false}
       />
@@ -135,7 +125,7 @@ const KonvaStation: React.FC<KonvaStationProps> = ({
           points[6].x,
           points[6].y,
         ]}
-        stroke={color} // Use dynamic color
+        stroke={color}
         strokeWidth={1}
         perfectDrawEnabled={false}
       />

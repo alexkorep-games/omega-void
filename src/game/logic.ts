@@ -86,7 +86,7 @@ function shootProjectile(state: IGameColdState): IGameColdState {
     const newProjectile = new Projectile(
       state.player.x,
       state.player.y,
-      state.player.angle
+      state.player.angle // Projectile angle matches player's current facing angle
     );
     return {
       ...state,
@@ -366,7 +366,6 @@ function handleCollisions(
           }
         }
       } else if (bgObj.type === "beacon") {
-        // This logic remains, but if no beacons are generated, it won't trigger for the removed ones.
         const beacon = bgObj as IBeacon;
         const player = playerInstance;
         const distToBeacon = distance(player.x, player.y, beacon.x, beacon.y);
@@ -416,7 +415,6 @@ function handleCollisions(
   };
 }
 
-// This function should also recieve the hot state and return updated cold and hot state
 export function updateGameStateLogic(
   currentState: IGameColdState,
   touchState: ITouchState | undefined,
@@ -436,7 +434,7 @@ export function updateGameStateLogic(
     newState.respawnTimer -= deltaTime;
     if (newState.respawnTimer <= 0) {
       const respawnStationId =
-        newState.lastDockedStationId ?? C.WORLD_ORIGIN_STATION_ID; // Use config for origin
+        newState.lastDockedStationId ?? C.WORLD_ORIGIN_STATION_ID;
       const respawnStation = worldManager.getStationById(respawnStationId);
       let respawnX = 50;
       let respawnY = 50;
@@ -458,7 +456,7 @@ export function updateGameStateLogic(
       newState = {
         ...newState,
         player: respawnedPlayer,
-        cargoHold: {}, // When ship is destroyed, cargo is lost
+        cargoHold: {},
         gameView: "playing",
         respawnTimer: 0,
         enemies: [],
@@ -468,10 +466,9 @@ export function updateGameStateLogic(
     } else {
       const deadPlayer = currentState.player;
       if (deadPlayer) {
-        newState.camera = {
-          x: deadPlayer.x - C.GAME_WIDTH / 2,
-          y: deadPlayer.y - C.GAME_VIEW_HEIGHT / 2,
-        };
+        // Camera remains centered on destruction point, world rotates around it
+        // No specific change to camera logic needed here due to new rendering.
+        // It will still be based on player's last known position for world offset.
       }
     }
     return { newState, activatedBeaconId: null };
@@ -515,13 +512,22 @@ export function updateGameStateLogic(
     }
 
     if (touchState?.shoot.active) newState = shootProjectile(newState);
-    if (touchState && newState.player instanceof Player) {
-      newState.player.update(touchState, newState.engineBoosterLevel);
+
+    if (newState.player instanceof Player) {
+      newState.player.update(
+        touchState,
+        newState.engineBoosterLevel,
+        deltaTime
+      );
     }
 
+    // Camera logic is now implicit in GameCanvas through offsetX/offsetY of the GameWorldGroup
+    // No explicit camera update needed here for rendering the world relative to player.
+    // However, worldManager still needs a camera-like view box to decide what to load.
+    // This camera state can still represent the logical center of the view.
     newState.camera = {
       x: newState.player.x - C.GAME_WIDTH / 2,
-      y: newState.player.y - C.GAME_VIEW_HEIGHT / 2,
+      y: newState.player.y - C.GAME_VIEW_HEIGHT / 2, // Centered on player's logical position
     };
 
     newState.visibleBackgroundObjects = worldManager.getObjectsInView(
@@ -561,14 +567,12 @@ export function updateGameStateLogic(
       );
     }
 
-    // --- Dynamic Max Enemies Calculation ---
     const dynamicMaxEnemies = getDynamicMaxEnemies(
       newState.cargoHold,
       COMMODITIES,
       newState.lastDockedStationId,
       worldManager
     );
-    // --- End Dynamic Max Enemies Calculation ---
 
     const isPlayerNearStation = newState.visibleBackgroundObjects.some(
       (obj) => {
@@ -588,7 +592,7 @@ export function updateGameStateLogic(
     if (
       !isPlayerNearStation &&
       now - newState.lastEnemySpawnTime > C.ENEMY_SPAWN_INTERVAL &&
-      newState.enemies.length < dynamicMaxEnemies // Use dynamicMaxEnemies here
+      newState.enemies.length < dynamicMaxEnemies
     ) {
       newState = spawnEnemyNearPlayer(newState);
     }
@@ -618,12 +622,7 @@ export function updateGameStateLogic(
       newState.dockingStationId = collisionResult.dockingTriggerStationId;
     }
 
-    if (newState.player) {
-      newState.camera = {
-        x: newState.player.x - C.GAME_WIDTH / 2,
-        y: newState.player.y - C.GAME_VIEW_HEIGHT / 2,
-      };
-    }
+    // Camera logic updated after player moves (already handled above)
   }
 
   if (newState.navTargetCoordinates && newState.player) {
@@ -695,40 +694,11 @@ export function handleBeaconActivationAndUpdateQuest(
   console.log(
     `[handleBeaconActivation] Beacon Activation Detected: ${activatedBeaconId}`
   );
-  // Since worldManager.getBeaconById and updateBeaconState are removed,
-  // this function can't interact with beacon world state directly anymore.
-  // const beacon = worldManager.getBeaconById(activatedBeaconId); // This would be null or error
-
-  // For the removed quests, beaconToReachObjectiveMap would be empty or not contain these beacon IDs.
-  // So, the quest update logic below would not trigger for the removed beacon quests.
-  // If other quests were to use beacons, this function would need adjustment.
-  // For now, it will largely be a no-op for the removed beacon-related quests.
-
   const questStateModified = false;
   const nextQuestState = currentState.questState;
 
-  // Check if beacon exists and is NOT already active in the world state
-  // This check is now problematic as getBeaconById is removed from worldManager.
-  // We'll assume for now that if a beacon ID is passed, it's intended for activation.
-  // However, without specific beacon generation, this path won't be hit for the removed beacons.
-
-  // Original logic for direct quest modification:
-  /*
-  const reachObjectiveId = beaconToReachObjectiveMap[activatedBeaconId]; 
-  if (!reachObjectiveId) {
-    console.warn(
-      `[handleBeaconActivation] No matching reach objective found for beacon ID: ${activatedBeaconId}`
-    );
-  } else {
-    // ... (quest state modification logic) ...
-    // This part will not be reached for the removed beacons if beaconToReachObjectiveMap is cleared.
-  }
-  */
-
-  // If no specific beacon quests are active or the map is empty, this function
-  // might still be called but won't modify quest state for those.
-  // If beacon entities are entirely removed, then `activatedBeaconId` in `handleCollisions`
-  // will never be set, and this function won't be called with those IDs.
+  // Quest logic related to beacons would go here if any existed.
+  // For now, it's a no-op for the removed beacon-related quests.
 
   return {
     updatedState: { ...currentState, questState: nextQuestState },
@@ -804,74 +774,51 @@ function handleGameViewTransitions(
     let marketForSession: MarketSnapshot | null = null;
 
     if (stationId && station) {
-      // Generate market data (prices are fixed, initial quantities are fixed)
-      const generatedMarket = MarketGenerator.generate(station, WORLD_SEED, 0); // Use fixed seed suffix 0
-
+      const generatedMarket = MarketGenerator.generate(station, WORLD_SEED, 0);
       const currentStationPrices = newKnownPrices[stationId] ?? {};
       const currentStationQuantities = newKnownQuantities[stationId] ?? {};
-
       let pricesWereUpdated = false;
       let quantitiesWereUpdated = false;
 
-      // Ensure prices and initial quantities are known for all items this station generates
-      // Iterate over items defined in the deterministic market generation for this station
       for (const commKey in generatedMarket.table) {
         if (
           Object.prototype.hasOwnProperty.call(generatedMarket.table, commKey)
         ) {
           const generatedItemData = generatedMarket.table[commKey];
-          // Prices are fixed, so they are set once if not known.
           if (currentStationPrices[commKey] === undefined) {
             currentStationPrices[commKey] = generatedItemData.price;
             pricesWereUpdated = true;
           }
-          // Initial quantities are also fixed. If we don't have a quantity stored for this item yet,
-          // it means this is likely the first time or data was reset, so use the generated initial quantity.
-          // This ensures `knownStationQuantities` is populated for all items the station trades.
           if (currentStationQuantities[commKey] === undefined) {
             currentStationQuantities[commKey] = generatedItemData.quantity;
             quantitiesWereUpdated = true;
           }
         }
       }
-
-      if (pricesWereUpdated) {
-        newKnownPrices[stationId] = currentStationPrices;
-      }
-      if (quantitiesWereUpdated) {
+      if (pricesWereUpdated) newKnownPrices[stationId] = currentStationPrices;
+      if (quantitiesWereUpdated)
         newKnownQuantities[stationId] = currentStationQuantities;
-      }
 
-      // Construct the market snapshot for *this specific docking session*.
-      // It uses the fixed prices and the *current, persistent* quantities from newKnownQuantities.
       const tableForSessionSnapshot: CommodityTable = {};
       const pricesToUseForSession = newKnownPrices[stationId]!;
       const quantitiesToUseForSession = newKnownQuantities[stationId]!;
-
-      // Iterate over all commodities for which prices are known at this station.
-      // These are all the commodities this station is designed to trade.
       for (const commKey in pricesToUseForSession) {
         if (
           Object.prototype.hasOwnProperty.call(pricesToUseForSession, commKey)
         ) {
           const quantity = quantitiesToUseForSession[commKey];
-          // A commodity with a price must also have a quantity entry in knownStationQuantities
-          // (it would have been initialized above if it was missing).
           if (quantity !== undefined) {
             tableForSessionSnapshot[commKey] = {
               price: pricesToUseForSession[commKey],
               quantity: quantity,
             };
           } else {
-            // This state (price known, quantity undefined in knownStationQuantities)
-            // should ideally not be reached due to the initialization loop above.
-            // If it does, it indicates an inconsistency.
             console.warn(
-              `[Docking] Station ${stationId} has price for ${commKey} but its quantity is undefined in knownStationQuantities. Listing with Qty 0.`
+              `[Docking] Station ${stationId} has price for ${commKey} but its quantity is undefined. Listing Qty 0.`
             );
             tableForSessionSnapshot[commKey] = {
               price: pricesToUseForSession[commKey],
-              quantity: 0, // Fallback for safety, though should be avoided
+              quantity: 0,
             };
           }
         }
@@ -880,7 +827,6 @@ function handleGameViewTransitions(
         Date.now(),
         tableForSessionSnapshot
       );
-
       setTimeout(() => emitQuestEvent({ type: "DOCK_FINISH", stationId }), 0);
     }
 
@@ -920,26 +866,27 @@ function handleGameViewTransitions(
       const exitAngle = station.angle + Math.PI;
       playerX = station.x + Math.cos(exitAngle) * undockDist;
       playerY = station.y + Math.sin(exitAngle) * undockDist;
-      playerAngle = exitAngle;
+      playerAngle = exitAngle; // Player faces away from station on undock
     }
     let updatedPlayer = stateToReturn.player;
     if (!(updatedPlayer instanceof Player) && updatedPlayer) {
-      const shieldLevel = previousGameState.shieldCapacitorLevel;
-      updatedPlayer = createPlayer(playerX, playerY, shieldLevel);
+      updatedPlayer = createPlayer(
+        playerX,
+        playerY,
+        previousGameState.shieldCapacitorLevel
+      );
     } else if (!updatedPlayer) {
-      const shieldLevel = previousGameState.shieldCapacitorLevel;
-      updatedPlayer = createPlayer(playerX, playerY, shieldLevel);
+      updatedPlayer = createPlayer(
+        playerX,
+        playerY,
+        previousGameState.shieldCapacitorLevel
+      );
     }
     updatedPlayer.x = playerX;
     updatedPlayer.y = playerY;
     updatedPlayer.vx = 0;
     updatedPlayer.vy = 0;
     updatedPlayer.angle = playerAngle;
-    // Restore shields on undock - consider if this is desired behavior or should be part of a service
-    // if (updatedPlayer.maxShield > 0) {
-    //   // only if maxShield is positive
-    //   updatedPlayer.shieldLevel = updatedPlayer.maxShield;
-    // }
 
     stateToReturn = {
       ...stateToReturn,
