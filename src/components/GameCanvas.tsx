@@ -160,7 +160,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
         {gameState.visibleBackgroundObjects
           .filter(
             (obj): obj is IStation =>
-              obj.type === "station" && !!obj.name && obj.radius > 5
+              obj.type === "station" &&
+              !!obj.name &&
+              obj.radius > 5 &&
+              // Only show names for stations that have been discovered
+              gameState.discoveredStations.includes(obj.id)
           )
           .map((station) => (
             <Text
