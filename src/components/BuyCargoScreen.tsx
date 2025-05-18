@@ -1,3 +1,4 @@
+// src/components/BuyCargoScreen.tsx
 import React from "react";
 import { useTradeCargoLogic } from "../hooks/useTradeCargoLogic";
 import { getCommodityUnit, getTonnesPerUnit } from "../game/Market";
@@ -8,8 +9,8 @@ const BuyCargoScreen: React.FC = () => {
   const {
     market,
     tradeItems,
-    handleBuyOne, // New handler
-    handleSellOne, // New handler
+    handleBuyOne,
+    handleSellOne,
     cargoSpaceLeft,
     playerCash,
     statusMessage,
@@ -49,7 +50,7 @@ const BuyCargoScreen: React.FC = () => {
               <th>PRICE</th>
               <th>AVAIL</th>
               <th>HELD</th>
-              <th className="market-actions-header-cell">ACTIONS</th>
+              {/* ACTIONS header removed */}
             </tr>
           </thead>
           <tbody>
@@ -61,69 +62,81 @@ const BuyCargoScreen: React.FC = () => {
                   cargoSpaceLeft >= 1 * getTonnesPerUnit(key);
                 const stationHasOne = marketQuantity >= 1;
                 const playerHasOne = playerHolding >= 1;
-                const stationBuysItem = marketPrice > 0; // Assuming price > 0 means station trades it
+                const stationBuysItem = marketPrice > 0;
 
                 return (
-                  <tr
-                    key={key}
-                    onClick={() => handleViewCommodityStations(key)}
-                  >
-                    <td>{key}</td>
-                    <td>{unit}</td>
-                    <td>{marketPrice.toFixed(1)}</td>
-                    <td>
-                      {marketQuantity > 0 ? `${marketQuantity}${unit}` : "-"}
-                    </td>
-                    <td>
-                      {playerHolding > 0 ? `${playerHolding}${unit}` : "-"}
-                    </td>
-                    <td className="market-actions-cell">
-                      <button
-                        className="market-action-button buy"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleBuyOne(key);
-                        }}
-                        disabled={
-                          !canAffordOne || !hasSpaceForOne || !stationHasOne
-                        }
-                        title={
-                          !canAffordOne
-                            ? "Insufficient credits"
-                            : !hasSpaceForOne
-                            ? "Insufficient cargo space"
-                            : !stationHasOne
-                            ? "Station out of stock"
-                            : `Buy 1 ${unit} for ${marketPrice.toFixed(1)} CR`
-                        }
-                      >
-                        BUY (1)
-                      </button>
-                      <button
-                        className="market-action-button sell"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleSellOne(key);
-                        }}
-                        disabled={!playerHasOne || !stationBuysItem}
-                        title={
-                          !playerHasOne
-                            ? "You don't have this item"
-                            : !stationBuysItem
-                            ? "Station doesn't buy this"
-                            : `Sell 1 ${unit} for ${marketPrice.toFixed(1)} CR`
-                        }
-                      >
-                        SELL (1)
-                      </button>
-                    </td>
-                  </tr>
+                  <React.Fragment key={`${key}-fragment`}>
+                    <tr
+                      key={`${key}-info`}
+                      className="commodity-info-row"
+                      onClick={() => handleViewCommodityStations(key)}
+                    >
+                      <td className="product-name-cell">{key}</td>
+                      <td>{unit}</td>
+                      <td>{marketPrice.toFixed(1)}</td>
+                      <td>
+                        {marketQuantity > 0 ? `${marketQuantity}${unit}` : "-"}
+                      </td>
+                      <td>
+                        {playerHolding > 0 ? `${playerHolding}${unit}` : "-"}
+                      </td>
+                    </tr>
+                    <tr
+                      key={`${key}-actions`}
+                      className="commodity-actions-row"
+                    >
+                      <td colSpan={5}>
+                        {" "}
+                        {/* Spans all 5 original data columns */}
+                        <button
+                          className="market-action-button buy"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleBuyOne(key);
+                          }}
+                          disabled={
+                            !canAffordOne || !hasSpaceForOne || !stationHasOne
+                          }
+                          title={
+                            !canAffordOne
+                              ? "Insufficient credits"
+                              : !hasSpaceForOne
+                              ? "Insufficient cargo space"
+                              : !stationHasOne
+                              ? "Station out of stock"
+                              : `Buy 1 ${unit} for ${marketPrice.toFixed(1)} CR`
+                          }
+                        >
+                          BUY (1)
+                        </button>
+                        <button
+                          className="market-action-button sell"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSellOne(key);
+                          }}
+                          disabled={!playerHasOne || !stationBuysItem}
+                          title={
+                            !playerHasOne
+                              ? "You don't have this item"
+                              : !stationBuysItem
+                              ? "Station doesn't buy this"
+                              : `Sell 1 ${unit} for ${marketPrice.toFixed(
+                                  1
+                                )} CR`
+                          }
+                        >
+                          SELL (1)
+                        </button>
+                      </td>
+                    </tr>
+                  </React.Fragment>
                 );
               }
             )}
             {tradeItems.length === 0 && (
               <tr>
-                <td colSpan={6} style={{ textAlign: "center", color: "#888" }}>
+                <td colSpan={5} style={{ textAlign: "center", color: "#888" }}>
                   No commodities available to buy at this station.
                 </td>
               </tr>

@@ -122,9 +122,10 @@
 
 .market-table th,
 .market-table td {
-  padding: 4px 8px; /* Slightly more padding */
+  padding: 4px 8px;
   text-align: left;
-  white-space: nowrap;
+  /* white-space: nowrap; /* REMOVE THIS for general case, apply specifically */
+  white-space: normal; /* Allow wrapping by default */
   border-bottom: 1px solid #005555; /* Darker cyan separator */
 }
 
@@ -160,65 +161,131 @@
   ); /* Match commodity stations screen bg */
 }
 
-/* Align columns for Buy/Sell screens */
-.buy-screen .market-table th:nth-child(1),
-.buy-screen .market-table td:nth-child(1),
-.sell-screen .market-table th:nth-child(1),
-.sell-screen .market-table td:nth-child(1) {
-  width: 25%;
-} /* PRODUCT */
-.buy-screen .market-table th:nth-child(2),
-.buy-screen .market-table td:nth-child(2),
-.sell-screen .market-table th:nth-child(2),
-.sell-screen .market-table td:nth-child(2) {
+/* --- ADJUSTED COLUMN WIDTHS START --- */
+
+/* Common UNIT column for both Buy and Sell screens (first data rows) */
+.buy-screen .market-table .commodity-info-row td:nth-child(2),
+.sell-screen .market-table .commodity-info-row td:nth-child(2) {
   width: 10%;
   text-align: center;
+  white-space: nowrap;
 } /* UNIT */
-.buy-screen .market-table th:nth-child(3),
-.buy-screen .market-table td:nth-child(3),
-.sell-screen .market-table th:nth-child(3),
-.sell-screen .market-table td:nth-child(3) {
-  width: 15%;
-  text-align: right;
-} /* PRICE / SELL PRICE */
-.buy-screen .market-table th:nth-child(4),
-.buy-screen .market-table td:nth-child(4),
-.sell-screen .market-table th:nth-child(4),
-.sell-screen .market-table td:nth-child(4) {
-  width: 15%;
-  text-align: right;
-} /* AVAIL / IN HOLD */
-.buy-screen .market-table th:nth-child(5),
-.buy-screen .market-table td:nth-child(5) {
-  width: 15%;
-  text-align: right;
-} /* HELD (Buy Screen only) */
-.buy-screen .market-table th:nth-child(6),
-.buy-screen .market-table td:nth-child(6),
-.sell-screen .market-table th:nth-child(5),
-.sell-screen .market-table td:nth-child(5) {
-  width: 20%;
-  text-align: center;
-} /* ACTIONS */
 
-/* Styling for action cells and buttons */
-.market-actions-header-cell {
-  text-align: center !important;
+/* Buy Screen Column Widths (5 columns in info row) */
+.buy-screen .market-table .commodity-info-row td:nth-child(1) {
+  width: 35%;
+} /* PRODUCT */
+.buy-screen .market-table .commodity-info-row td:nth-child(3) {
+  width: 20%;
+  text-align: right;
+  white-space: nowrap;
+} /* PRICE */
+.buy-screen .market-table .commodity-info-row td:nth-child(4) {
+  width: 20%;
+  text-align: right;
+  white-space: nowrap;
+} /* AVAIL */
+.buy-screen .market-table .commodity-info-row td:nth-child(5) {
+  width: 15%;
+  text-align: right;
+  white-space: nowrap;
+} /* HELD */
+
+/* Buy Screen Table Headers */
+.buy-screen .market-table th:nth-child(1) {
+  width: 35%;
 }
-.market-actions-cell {
+.buy-screen .market-table th:nth-child(2) {
+  width: 10%;
   text-align: center;
-  padding: 2px 4px; /* Reduce padding for buttons */
 }
+.buy-screen .market-table th:nth-child(3) {
+  width: 20%;
+  text-align: right;
+}
+.buy-screen .market-table th:nth-child(4) {
+  width: 20%;
+  text-align: right;
+}
+.buy-screen .market-table th:nth-child(5) {
+  width: 15%;
+  text-align: right;
+}
+
+/* Sell Screen Column Widths (4 columns in info row) */
+.sell-screen .market-table .commodity-info-row td:nth-child(1) {
+  width: 40%;
+} /* PRODUCT */
+.sell-screen .market-table .commodity-info-row td:nth-child(3) {
+  width: 25%;
+  text-align: right;
+  white-space: nowrap;
+} /* SELL PRICE */
+.sell-screen .market-table .commodity-info-row td:nth-child(4) {
+  width: 25%;
+  text-align: right;
+  white-space: nowrap;
+} /* IN HOLD */
+
+/* Sell Screen Table Headers */
+.sell-screen .market-table th:nth-child(1) {
+  width: 40%;
+}
+.sell-screen .market-table th:nth-child(2) {
+  width: 10%;
+  text-align: center;
+}
+.sell-screen .market-table th:nth-child(3) {
+  width: 25%;
+  text-align: right;
+}
+.sell-screen .market-table th:nth-child(4) {
+  width: 25%;
+  text-align: right;
+}
+
+/* --- ADJUSTED COLUMN WIDTHS END --- */
+
+/* Styling for new two-row commodity display */
+.market-table .commodity-info-row td {
+  border-bottom: none; /* Remove bottom border for the first row of a two-row item */
+  vertical-align: top; /* Align content to top if product name wraps */
+}
+
+.market-table .commodity-info-row .product-name-cell {
+  white-space: normal; /* Allow wrapping, overrides td's nowrap if any */
+  word-break: break-word; /* Break long words */
+}
+
+.market-table .commodity-actions-row td {
+  /* This is the td with colspan */
+  border-bottom: 1px solid #005555; /* Ensure this row has the bottom separator */
+  text-align: center; /* Center buttons */
+  padding: 6px 0; /* Adjust padding */
+}
+
+/* Hover effect: Apply to info row as it's clickable */
+.market-table tbody .commodity-info-row:hover {
+  background-color: rgba(0, 255, 255, 0.1);
+  cursor: pointer;
+}
+/* Prevent direct hover on action row as it's not clickable itself */
+.market-table tbody .commodity-actions-row:hover {
+  background-color: transparent;
+  cursor: default;
+}
+
+/* Styling for action buttons (remains largely the same) */
 .market-action-button {
   font-family: monospace;
   font-size: 10px;
   padding: 3px 6px;
-  margin: 0 2px;
+  margin: 0 3px; /* Slightly more margin for buttons */
   border: 1px solid;
   border-radius: 2px;
   cursor: pointer;
   text-transform: uppercase;
-  min-width: 50px;
+  min-width: 55px; /* Slightly increased min-width */
   transition: background-color 0.1s, color 0.1s, border-color 0.1s;
 }
 .market-action-button.buy {
@@ -249,28 +316,19 @@
   opacity: 0.7;
 }
 
-.market-table tbody tr {
-  transition: background-color 0.15s ease-in-out;
-}
-
-.market-table tbody tr:hover {
-  background-color: rgba(0, 255, 255, 0.1); /* Subtle cyan hover */
-  cursor: pointer;
-}
-
+/* Colspan for empty messages */
 .market-table tbody tr td[colspan="4"],
-.market-table tbody tr td[colspan="5"],
-.market-table tbody tr td[colspan="6"] {
+.market-table tbody tr td[colspan="5"] {
+  /* Adjusted possible colspans */
   text-align: center;
   font-style: italic;
   color: #aaaaaa;
   padding: 20px 0;
-  border-bottom: none;
+  border-bottom: none; /* No border for this message row */
   cursor: default;
 }
 .market-table tbody tr td[colspan="4"]:hover,
-.market-table tbody tr td[colspan="5"]:hover,
-.market-table tbody tr td[colspan="6"]:hover {
+.market-table tbody tr td[colspan="5"]:hover {
   background-color: transparent; /* No hover for empty message */
 }
 
