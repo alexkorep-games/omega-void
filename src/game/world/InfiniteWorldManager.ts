@@ -1,5 +1,6 @@
 // src/game/world/InfiniteWorldManager.ts
 import { SeedablePRNG } from "./SeedablePRNG";
+import { normalRandom } from "../../utils/normalRandom";
 import { Asteroid } from "../entities/Asteroid";
 import {
   IWorldManagerConfig,
@@ -158,7 +159,7 @@ export class InfiniteWorldManager {
       starColor: config.starColor ?? STAR_COLOR,
       stationProbability: config.stationProbability ?? STATION_PROBABILITY,
       minStationSize: config.minStationSize ?? MIN_STATION_SIZE,
-      maxStationSize: config.maxStationSize ?? MAX_STATION_SIZE,
+      averageStationSize: config.averageStationSize ?? MAX_STATION_SIZE,
       stationColor: config.stationColor ?? STATION_COLOR,
       stationTypes: config.stationTypes ?? ["coriolis"],
       viewBufferFactor: config.viewBufferFactor ?? 3,
@@ -229,10 +230,15 @@ export class InfiniteWorldManager {
       const offsetY = cellPrng.randomFloat(0.3, 0.7) * this.config.cellSize;
       const stationX = cellWorldX + offsetX;
       const stationY = cellWorldY + offsetY;
-      const size = cellPrng.randomFloat(
-        this.config.minStationSize,
-        this.config.maxStationSize
-      );
+      // Use shared normal distribution for station size
+      const min = this.config.minStationSize;
+      const mean = this.config.averageStationSize;
+      const stddev = (mean - min) / 2;
+      let size: number;
+      do {
+        size = min + normalRandom(cellPrng) * stddev;
+        console.log(`Station size: ${size}`);
+      } while (size < min);
       const stationType =
         this.config.stationTypes[
           cellPrng.randomInt(0, this.config.stationTypes.length)

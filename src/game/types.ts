@@ -244,7 +244,7 @@ export interface IWorldManagerConfig {
   starColor?: string;
   stationProbability?: number;
   minStationSize?: number;
-  maxStationSize?: number;
+  averageStationSize?: number;
   stationColor?: string;
   stationTypes?: string[];
   viewBufferFactor?: number;
