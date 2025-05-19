@@ -1,6 +1,7 @@
 // src/game/Market.ts
 
 // Import types from the single source of truth
+import { MIN_STATION_SIZE } from "./config";
 import {
   IStation,
   EconomyType,
@@ -417,15 +418,22 @@ export class MarketGenerator {
       const techLevelNum = getTechLevelNumber(station.techLevel);
       const techAdj = (techLevelNum - 3) * (c.basePrice * 0.02);
 
-      // Calculate base price and quantity for this station
+      // Calculate base price for this station
       let price = Math.max(1, c.basePrice + dPrice - techAdj);
-      let quantity = c.baseQuantity * qMult;
 
+      // --- New: Quantity mean is proportional to station.size^2 ---
+      // Default to 1 if station.size is missing
+      const stationSize = station.size || 1;
+      // Mean quantity is baseQuantity * qMult * (station.size^2)
+      const meanQuantity = c.baseQuantity * qMult * (stationSize / MIN_STATION_SIZE) ** 2;
+      // Standard deviation: 20% of mean (adjust as needed)
+      const stddevQuantity = meanQuantity * 0.2;
+      // Draw from normal distribution (clamp to >= 0)
+      let quantity = Math.max(0, Math.round(meanQuantity + normalRandom(rng) * stddevQuantity));
+
+      // Price jitter as before
       const priceJitter = normalRandom(rng) * 0.20 * price; // stddev = 20% of price
-      const qtyJitter = (rng.random() - 0.5) * 0.4 * quantity;
-
       price = Math.max(1, Math.round(price + priceJitter));
-      quantity = Math.max(0, Math.round(quantity + qtyJitter));
 
       // Filtering Logic
       if (c.baseQuantity === 0 && qMult <= 1 && quantity > 0) {
