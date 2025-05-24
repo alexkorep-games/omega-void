@@ -88,7 +88,7 @@ const StationInfoScreen: React.FC = () => {
         {/* Removed Quest Actions Section for Fragments */}
 
         {/* Standard Action Buttons Area */}
-        <div className="station-info-actions">
+        <div className="station-info-actions vertical">
           <button
             className="station-info-button"
             onClick={handleContractLogClick}

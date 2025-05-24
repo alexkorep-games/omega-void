@@ -209,7 +209,7 @@ const StationDetailsScreen: React.FC<StationDetailsScreenProps> = ({
             </div>
           )}
 
-        <div className="station-info-actions">
+        <div className="station-info-actions vertical">
           <button className="station-info-button" onClick={handleLogClick}>
             BACK TO LOG
           </button>

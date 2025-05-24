@@ -425,6 +425,14 @@
   border-top: 1px solid rgba(255, 255, 0, 0.2);
 }
 
+.station-info-actions.vertical {
+  flex-direction: column;
+  gap: 10px;
+  align-items: stretch;
+  justify-content: flex-start;
+  margin-top: 18px;
+}
+
 .station-info-button,
 .station-info-toggle-button,
 .global-market-action-button {
