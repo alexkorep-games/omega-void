@@ -270,9 +270,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, touchState }) => {
         </Layer>
       ) : null}
 
-      {/* Touch Controls Layer */}
-      {/* Render only if playing */}
-      {gameState.gameView === "playing" ? (
+      {/* Touch Controls Layer (hide on desktop) */}
+      {gameState.gameView === "playing" && (typeof window !== 'undefined' && ('ontouchstart' in window || navigator.userAgent.match(/Mobi|Android/i))) ? (
         <Layer perfectDrawEnabled={false} listening={false}>
           <KonvaTouchControls touchState={touchState} />
         </Layer>

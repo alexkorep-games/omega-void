@@ -1,5 +1,5 @@
 // src/hooks/useTouchInput.ts
-import { useState, useCallback, useEffect, RefObject } from "react";
+import { useState, useCallback, useEffect, RefObject, useRef } from "react";
 import { ITouchState } from "../game/types";
 import { initialTouchState } from "../game/state";
 import { GAME_WIDTH, GAME_HEIGHT } from "../game/config";
@@ -26,8 +26,132 @@ function isEventTargetButton(target: EventTarget | null): boolean {
 export function useTouchInput(
   containerRef: RefObject<HTMLDivElement | null>
 ): UseTouchStateResult {
+
   const [touchState, setTouchState] = useState<ITouchState>(initialTouchState);
   const [enabled, setEnabled] = useState(false);
+
+  // --- Keyboard input state ---
+  const keyboardState = useRef({
+    up: false,
+    down: false,
+    left: false,
+    right: false,
+    space: false,
+    lastMove: { x: 0, y: 0 },
+  });
+
+  // Helper: is desktop (not touch device)
+  function isDesktop() {
+    return !('ontouchstart' in window) && !navigator.userAgent.match(/Mobi|Android/i);
+  }
+  // Keyboard event handlers
+  useEffect(() => {
+    if (!enabled || !isDesktop()) return;
+
+    function handleKeyDown(e: KeyboardEvent) {
+      let changed = false;
+      switch (e.code) {
+        case 'ArrowUp':
+          if (!keyboardState.current.up) { keyboardState.current.up = true; changed = true; }
+          break;
+        case 'ArrowDown':
+          if (!keyboardState.current.down) { keyboardState.current.down = true; changed = true; }
+          break;
+        case 'ArrowLeft':
+          if (!keyboardState.current.left) { keyboardState.current.left = true; changed = true; }
+          break;
+        case 'ArrowRight':
+          if (!keyboardState.current.right) { keyboardState.current.right = true; changed = true; }
+          break;
+        case 'Space':
+          if (!keyboardState.current.space) { keyboardState.current.space = true; changed = true; }
+          break;
+        default:
+          break;
+      }
+      if (changed) updateFromKeyboard();
+    }
+
+    function handleKeyUp(e: KeyboardEvent) {
+      let changed = false;
+      switch (e.code) {
+        case 'ArrowUp':
+          if (keyboardState.current.up) { keyboardState.current.up = false; changed = true; }
+          break;
+        case 'ArrowDown':
+          if (keyboardState.current.down) { keyboardState.current.down = false; changed = true; }
+          break;
+        case 'ArrowLeft':
+          if (keyboardState.current.left) { keyboardState.current.left = false; changed = true; }
+          break;
+        case 'ArrowRight':
+          if (keyboardState.current.right) { keyboardState.current.right = false; changed = true; }
+          break;
+        case 'Space':
+          if (keyboardState.current.space) { keyboardState.current.space = false; changed = true; }
+          break;
+        default:
+          break;
+      }
+      if (changed) updateFromKeyboard();
+    }
+
+    function updateFromKeyboard() {
+      // Map arrow keys to a virtual joystick direction
+      const { up, down, left, right, space } = keyboardState.current;
+      let dx = 0, dy = 0;
+      if (up) dy -= 1;
+      if (down) dy += 1;
+      if (left) dx -= 1;
+      if (right) dx += 1;
+      // Normalize
+      if (dx !== 0 || dy !== 0) {
+        const len = Math.sqrt(dx * dx + dy * dy);
+        dx /= len;
+        dy /= len;
+      }
+      // Center of the game area for virtual joystick
+      const centerX = GAME_WIDTH / 2;
+      const centerY = GAME_HEIGHT / 2;
+      const moveRadius = 35; // less than TOUCH_MOVE_MAX_DIST for smoothness
+      const moveActive = dx !== 0 || dy !== 0;
+      const move = moveActive
+        ? {
+            active: true,
+            id: -1,
+            startX: centerX,
+            startY: centerY,
+            currentX: centerX + dx * moveRadius,
+            currentY: centerY + dy * moveRadius,
+          }
+        : { ...initialTouchState.move };
+
+      // Shooting: spacebar
+      const shoot = space
+        ? { active: true, id: -1, x: centerX, y: centerY }
+        : { ...initialTouchState.shoot };
+
+      setTouchState((prev) => {
+        // Only update if changed
+        if (
+          prev.move.active !== move.active ||
+          prev.move.currentX !== move.currentX ||
+          prev.move.currentY !== move.currentY ||
+          prev.shoot.active !== shoot.active
+        ) {
+          return { ...prev, move, shoot };
+        }
+        return prev;
+      });
+    }
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [enabled]);
 
   const enableTouchTracking = useCallback((value: boolean) => {
     if (!value) {
