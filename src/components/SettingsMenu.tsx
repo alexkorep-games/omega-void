@@ -5,7 +5,24 @@ import "./SettingsMenu.css"; // We'll create this next
 
 const SettingsMenu: React.FC = () => {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
-  const { startNewGame } = useGameState();
+  // Use updatePlayerState to modify cash (credits)
+  const { startNewGame, updatePlayerState } = useGameState();
+  // Cheat: track title clicks
+  const [, setTitleClickCount] = useState(0);
+
+  // Cheat: handle Settings title click
+  const handleTitleClick = useCallback(() => {
+    setTitleClickCount((prev) => {
+      const next = prev + 1;
+      if (next === 6) {
+        updatePlayerState((oldState) => ({
+          cash: (oldState.cash || 0) + 5000,
+        }));
+        setTimeout(() => setTitleClickCount(0), 200); // Reset after cheat
+      }
+      return next === 6 ? 0 : next;
+    });
+  }, [updatePlayerState]);
 
   const togglePopup = () => {
     setIsPopupOpen(!isPopupOpen);
@@ -35,7 +52,7 @@ const SettingsMenu: React.FC = () => {
             className="settings-popup-content"
             onClick={(e) => e.stopPropagation()} // Prevent overlay click when clicking inside popup
           >
-            <h2 className="settings-popup-title">Settings</h2>
+            <h2 className="settings-popup-title" onClick={handleTitleClick} style={{ cursor: "pointer" }}>Settings</h2>
             <div className="settings-popup-options">
               <button
                 className="settings-popup-button"
