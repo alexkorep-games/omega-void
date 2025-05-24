@@ -27,6 +27,7 @@ const Game: React.FC = () => {
     isInitialized,
     initializeGameState,
     emancipationScore,
+    startNewGame,
   } = useGameState();
 
   const { touchState, enableTouchTracking, resetKeyboardState } =
@@ -107,6 +108,23 @@ const Game: React.FC = () => {
       <p style={{ marginTop: "20px", fontSize: "0.8em", color: "#888888" }}>
         (Further objectives pending system update...)
       </p>
+      <button
+        style={{
+          marginTop: "40px",
+          padding: "12px 32px",
+          fontSize: "1.2em",
+          fontFamily: "monospace",
+          background: "#003300",
+          color: "#00FF00",
+          border: "2px solid #00FF00",
+          borderRadius: "8px",
+          cursor: "pointer",
+          transition: "background 0.2s, color 0.2s",
+        }}
+        onClick={startNewGame}
+      >
+        Start New Game
+      </button>
     </div>
   );
 

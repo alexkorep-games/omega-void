@@ -9,15 +9,20 @@ const SettingsMenu: React.FC = () => {
   const { startNewGame, updatePlayerState } = useGameState();
   // Cheat: track title clicks
   const [, setTitleClickCount] = useState(0);
+  // Cheat: show effect
+  const [cheatCashEffect, setCheatCashEffect] = useState<null | number>(null);
 
   // Cheat: handle Settings title click
   const handleTitleClick = useCallback(() => {
     setTitleClickCount((prev) => {
       const next = prev + 1;
       if (next === 6) {
-        updatePlayerState((oldState) => ({
-          cash: (oldState.cash || 0) + 5000,
-        }));
+        updatePlayerState((oldState) => {
+          const newCash = (oldState.cash || 0) + 5000;
+          setCheatCashEffect(newCash);
+          setTimeout(() => setCheatCashEffect(null), 2200);
+          return { cash: newCash };
+        });
         setTimeout(() => setTitleClickCount(0), 200); // Reset after cheat
       }
       return next === 6 ? 0 : next;
@@ -51,8 +56,15 @@ const SettingsMenu: React.FC = () => {
           <div
             className="settings-popup-content"
             onClick={(e) => e.stopPropagation()} // Prevent overlay click when clicking inside popup
+            style={{ position: "relative" }}
           >
-            <h2 className="settings-popup-title" onClick={handleTitleClick} style={{ cursor: "pointer" }}>Settings</h2>
+            <h2
+              className="settings-popup-title"
+              onClick={handleTitleClick}
+              style={{ cursor: "pointer" }}
+            >
+              Settings
+            </h2>
             <div className="settings-popup-options">
               <button
                 className="settings-popup-button"
@@ -62,9 +74,25 @@ const SettingsMenu: React.FC = () => {
               </button>
               {/* Add more settings options here later */}
             </div>
-            <button className="settings-popup-close-button" onClick={togglePopup}>
+            <button
+              className="settings-popup-close-button"
+              onClick={togglePopup}
+            >
               Close
             </button>
+            {/* Cheat cash effect visual */}
+            {cheatCashEffect !== null && (
+              <div className="cheat-cash-effect">
+                <span>+5,000 CR!</span>
+                <div className="cheat-cash-amount">
+                  Total:{" "}
+                  {cheatCashEffect.toLocaleString(undefined, {
+                    maximumFractionDigits: 1,
+                  })}{" "}
+                  CR
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

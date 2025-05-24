@@ -1,3 +1,72 @@
+/* Cheat cash effect visual */
+.cheat-cash-effect {
+  position: absolute;
+  left: 50%;
+  top: 30px;
+  transform: translateX(-50%);
+  background: linear-gradient(90deg, #00ffea 0%, #fff700 100%);
+  color: #222;
+  border: 2px solid #fff700;
+  border-radius: 12px;
+  padding: 18px 32px 10px 32px;
+  font-size: 2.1em;
+  font-family: inherit;
+  font-weight: bold;
+  box-shadow: 0 0 32px 8px #00fff7cc, 0 0 0 2px #fff70099;
+  z-index: 100;
+  animation: cheat-cash-pop 1.2s cubic-bezier(0.23, 1.1, 0.32, 1) 0s 1,
+    cheat-cash-fade 1s 1.2s forwards;
+  pointer-events: none;
+  text-align: center;
+}
+
+.cheat-cash-effect span {
+  display: block;
+  font-size: 1.2em;
+  color: #00bfae;
+  text-shadow: 0 2px 8px #fff, 0 0 2px #00fff7;
+  margin-bottom: 4px;
+  letter-spacing: 1px;
+}
+
+.cheat-cash-amount {
+  font-size: 0.7em;
+  color: #fff700;
+  text-shadow: 0 2px 8px #fff700, 0 0 2px #fff;
+  margin-top: 2px;
+}
+
+@keyframes cheat-cash-pop {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.7);
+    filter: blur(6px);
+  }
+  30% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1.12);
+    filter: blur(0px);
+  }
+  60% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+    filter: blur(0px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+    filter: blur(0px);
+  }
+}
+
+@keyframes cheat-cash-fade {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
 /* src/components/SettingsMenu.css */
 
 .settings-icon-button {
