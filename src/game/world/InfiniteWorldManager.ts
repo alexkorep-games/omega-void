@@ -10,6 +10,7 @@ import {
   TechLevel,
   IStation,
 } from "../types";
+import { COMMODITIES, CommodityKey } from "../Market";
 import {
   WORLD_CELL_SIZE,
   STAR_BASE_DENSITY,
@@ -294,6 +295,12 @@ export class InfiniteWorldManager {
       const rotationSpeed =
         cellPrng.randomFloat(0.1, 1.6) * (cellPrng.random() < 0.5 ? 1 : -1);
 
+      // 10% chance to be an outlier for a random commodity
+      let outlierCommodityKey: CommodityKey | undefined = undefined;
+      if (cellPrng.random() < 0.1) {
+        outlierCommodityKey =
+          COMMODITIES[cellPrng.randomInt(0, COMMODITIES.length)].key;
+      }
       objects.push({
         id: id,
         type: "station",
@@ -311,6 +318,7 @@ export class InfiniteWorldManager {
         economyType: economyType,
         techLevel: techLevel,
         coordinates: { x: stationX, y: stationY },
+        outlierCommodityKey,
       });
     }
 

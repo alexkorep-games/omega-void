@@ -12,9 +12,34 @@ import {
 import { SeedablePRNG } from "./world/SeedablePRNG"; // Use Game 2 PRNG
 
 // CommodityDefinition remains the same
+export type CommodityKey =
+  | "Water"
+  | "Food"
+  | "Minerals"
+  | "Alloys"
+  | "Rare Gases"
+  | "Radioactives"
+  | "Textiles"
+  | "Liquor"
+  | "Furs"
+  | "Machinery"
+  | "Medicines"
+  | "Robots"
+  | "Computers"
+  | "Adv Components"
+  | "Luxuries"
+  | "Gem-Stones"
+  | "Gold"
+  | "Platinum"
+  | "Firearms"
+  | "Controlled Substances"
+  | "Alien Items"
+  | "Bio-Samples"
+  | "Antimatter";
+
 export interface CommodityDefinition {
   /** Unique key / name */
-  key: string;
+  key: CommodityKey;
   /** Base average price in credits */
   basePrice: number;
   /** Base average quantity available */
@@ -425,14 +450,22 @@ export class MarketGenerator {
       // Default to 1 if station.size is missing
       const stationSize = station.size || 1;
       // Mean quantity is baseQuantity * qMult * (station.size^2)
-      const meanQuantity = c.baseQuantity * qMult * (stationSize / MIN_STATION_SIZE) ** 2;
+      let meanQuantity =
+        c.baseQuantity * qMult * (stationSize / MIN_STATION_SIZE) ** 2;
+      // Outlier: 10x quantity for the chosen commodity
+      if (station.outlierCommodityKey === c.key) {
+        meanQuantity *= 10;
+      }
       // Standard deviation: 20% of mean (adjust as needed)
       const stddevQuantity = meanQuantity * 0.2;
       // Draw from normal distribution (clamp to >= 0)
-      let quantity = Math.max(0, Math.round(meanQuantity + normalRandom(rng) * stddevQuantity));
+      let quantity = Math.max(
+        0,
+        Math.round(meanQuantity + normalRandom(rng) * stddevQuantity)
+      );
 
       // Price jitter as before
-      const priceJitter = normalRandom(rng) * 0.20 * price; // stddev = 20% of price
+      const priceJitter = normalRandom(rng) * 0.2 * price; // stddev = 20% of price
       price = Math.max(1, Math.round(price + priceJitter));
 
       // Filtering Logic

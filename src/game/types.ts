@@ -61,6 +61,8 @@ export interface IStar extends IPosition {
   color: string;
 }
 
+import type { CommodityKey } from "./Market";
+
 export interface IStation extends IPosition {
   id: string;
   type: "station";
@@ -76,6 +78,7 @@ export interface IStation extends IPosition {
   techLevel: TechLevel;
   coordinates: IPosition;
   isFixed?: boolean;
+  outlierCommodityKey?: CommodityKey;
 }
 
 export interface IBeacon extends IPosition {
