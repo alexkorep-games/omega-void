@@ -156,17 +156,24 @@ export function useGameState() {
     (newView: GameView) => {
       setGameStateInternal((prev) => {
         if (prev.gameView === newView) return prev;
-        const nextViewTargetStationId =
+        let newPrev = prev.previousGameView;
+        if (newView === "system_map" && prev.gameView !== "system_map") {
+          newPrev = prev.gameView;
+        } else if (newView !== "system_map") {
+          newPrev = null;
+        }
+        const nextStationId =
           newView === "station_details" ? prev.viewTargetStationId : null;
-        const nextViewTargetCommodityKey =
+        const nextCommodityKey =
           newView === "commodity_stations_list"
             ? prev.viewTargetCommodityKey
             : null;
         return {
           ...prev,
+          previousGameView: newPrev,
           gameView: newView,
-          viewTargetStationId: nextViewTargetStationId,
-          viewTargetCommodityKey: nextViewTargetCommodityKey,
+          viewTargetStationId: nextStationId,
+          viewTargetCommodityKey: nextCommodityKey,
           animationState:
             newView === "playing" || newView === "trade_select"
               ? { ...prev.animationState, type: null, progress: 0 }
@@ -175,6 +182,13 @@ export function useGameState() {
       });
     },
     [setGameStateInternal]
+  );
+
+  // helper for MapScreen to fetch background objects
+  const getObjectsInRegion = useCallback(
+    (x: number, y: number, w: number, h: number) =>
+      worldManager.getObjectsInView(x, y, w, h),
+    [worldManager]
   );
 
   const setViewTargetStationId = useCallback(
@@ -709,5 +723,6 @@ export function useGameState() {
     questEngine: questEngine,
     emancipationScore,
     getOrInitializeStationMarketData,
+    getObjectsInRegion,
   };
 }

@@ -96,7 +96,8 @@ export const initialGameState: IGameColdState = {
   // --- Chat System ---
   chatLog: [], // Start with an empty chat log
   lastProcessedDialogId: -1,
-  viewTargetCommodityKey: null
+  viewTargetCommodityKey: null,
+  previousGameView: null,
 };
 
 // updateCamera function remains the same

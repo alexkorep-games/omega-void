@@ -134,7 +134,8 @@ export type GameView =
   | "destroyed"
   | "chat_log"
   | "contract_log"
-  | "commodity_stations_list" // New view
+  | "commodity_stations_list"
+  | "system_map"
   | "won";
 
 export interface IAnimationState {
@@ -234,6 +235,7 @@ export interface IGameColdState {
   questInventory: QuestInventory;
   chatLog: ChatMessage[];
   lastProcessedDialogId: number;
+  previousGameView: GameView | null;
 }
 
 export interface IWorldManagerConfig {

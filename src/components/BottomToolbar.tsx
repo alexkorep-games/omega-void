@@ -33,8 +33,9 @@ const ToolbarButton: React.FC<ToolbarButtonProps> = ({
       currentView === "sell_cargo" ||
       currentView === "upgrade_ship";
   } else if (targetView === "chat_log") {
-    // Added chat log active state check
     isActive = currentView === "chat_log";
+  } else if (targetView === "system_map") {
+    isActive = currentView === "system_map";
   } else if (targetView === "station_log") {
     isActive = true;
   }
@@ -63,27 +64,21 @@ const BottomToolbar: React.FC = () => {
   const { gameState, setGameView, initiateUndocking } = useGameState();
 
   const handleNavigate = useCallback(
-    (targetViewOrAction: GameView | (() => void)) => {
-      if (typeof targetViewOrAction === "function") {
-        targetViewOrAction(); // Call action function (e.g., undock)
+    (targetOrAction: GameView | (() => void)) => {
+      if (typeof targetOrAction === "function") {
+        targetOrAction();
       } else {
-        // Handle view navigation
-        if (targetViewOrAction === "station_info") setGameView("station_info");
-        else if (targetViewOrAction === "trade_select")
-          setGameView("trade_select");
-        // Add other primary views if needed (like chat_log if it behaves similarly)
-        else setGameView(targetViewOrAction); // Default navigation
+        if (targetOrAction === "station_info")      setGameView("station_info");
+        else if (targetOrAction === "trade_select") setGameView("trade_select");
+        else if (targetOrAction === "system_map")  setGameView("system_map");
+        else                                      setGameView(targetOrAction);
       }
     },
-    [setGameView] // No need for initiateUndocking here, passed directly
+    [setGameView]
   );
 
   // Define the buttons and their target game views or actions
-  const buttons: Array<{
-    label: string;
-    targetView: GameView | (() => void); // Keep union type
-    title?: string;
-  }> = [
+  const buttons = [
     {
       label: "Market",
       targetView: "trade_select",
@@ -99,20 +94,15 @@ const BottomToolbar: React.FC = () => {
       targetView: "chat_log",
       title: "View Communications Log", // Added title
     },
+    { label: "Map",    targetView: "system_map", title: "View System Map" },
     { label: "Undock", targetView: initiateUndocking, title: "Leave Station" }, // Pass action directly
   ];
 
   // Determine which views show the toolbar
   const toolbarVisibleViews: GameView[] = [
-    "trade_select",
-    "buy_cargo",
-    "sell_cargo",
-    "station_info",
-    "chat_log",
-    "station_log",
-    "station_details",
-    "upgrade_ship",
-    "contract_log",
+    "trade_select","buy_cargo","sell_cargo","station_info","chat_log",
+    "station_log","station_details","upgrade_ship","contract_log",
+    "system_map",
   ];
   // Only render if the current gameView is one where the toolbar should be visible
   if (!toolbarVisibleViews.includes(gameState.gameView)) {

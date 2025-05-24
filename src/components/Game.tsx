@@ -17,6 +17,7 @@ import TradeScreen from "./TradeScreen";
 import ChatScreen from "./ChatScreen";
 import QuestPanel from "./QuestPanel";
 import CommodityStationsScreen from "./CommodityStationsScreen"; // Import new screen
+import MapScreen from "./MapScreen";
 
 const Game: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -137,6 +138,8 @@ const Game: React.FC = () => {
             commodityKey={gameState.viewTargetCommodityKey}
           />
         );
+      case "system_map":
+        return <MapScreen />;
       default:
         return null;
     }
@@ -152,6 +155,7 @@ const Game: React.FC = () => {
     "upgrade_ship",
     "chat_log",
     "commodity_stations_list", // Add new view to list
+    "system_map",
   ].includes(gameState.gameView);
 
   const showBottomToolbar = [
@@ -165,6 +169,7 @@ const Game: React.FC = () => {
     "chat_log",
     "contract_log",
     "commodity_stations_list", // Add new view to list
+    "system_map",
   ].includes(gameState.gameView);
 
   return (
