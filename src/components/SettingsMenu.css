@@ -15,7 +15,7 @@
   box-shadow: 0 0 32px 8px #00fff7cc, 0 0 0 2px #fff70099;
   z-index: 100;
   animation: cheat-cash-pop 1.2s cubic-bezier(0.23, 1.1, 0.32, 1) 0s 1,
-    cheat-cash-fade 1s 1.2s forwards;
+    cheat-cash-fade 3s 1.2s forwards;
   pointer-events: none;
   text-align: center;
 }

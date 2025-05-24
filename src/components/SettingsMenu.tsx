@@ -20,7 +20,7 @@ const SettingsMenu: React.FC = () => {
         updatePlayerState((oldState) => {
           const newCash = (oldState.cash || 0) + 5000;
           setCheatCashEffect(newCash);
-          setTimeout(() => setCheatCashEffect(null), 2200);
+          setTimeout(() => setCheatCashEffect(null), 3000);
           return { cash: newCash };
         });
         setTimeout(() => setTitleClickCount(0), 200); // Reset after cheat
