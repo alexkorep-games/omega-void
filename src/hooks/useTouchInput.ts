@@ -7,6 +7,7 @@ import { GAME_WIDTH, GAME_HEIGHT } from "../game/config";
 type UseTouchStateResult = {
   touchState: ITouchState;
   enableTouchTracking: (value: boolean) => void;
+  resetKeyboardState: () => void;
 };
 
 // Helper function to check if an element or its ancestor is a button
@@ -26,9 +27,19 @@ function isEventTargetButton(target: EventTarget | null): boolean {
 export function useTouchInput(
   containerRef: RefObject<HTMLDivElement | null>
 ): UseTouchStateResult {
-
   const [touchState, setTouchState] = useState<ITouchState>(initialTouchState);
   const [enabled, setEnabled] = useState(false);
+
+  // Expose a function to reset all keyboard flags
+  const resetKeyboardState = useCallback(() => {
+    keyboardState.current.up = false;
+    keyboardState.current.down = false;
+    keyboardState.current.left = false;
+    keyboardState.current.right = false;
+    keyboardState.current.space = false;
+    keyboardState.current.lastMove = { x: 0, y: 0 };
+    setTouchState(initialTouchState);
+  }, []);
 
   // --- Keyboard input state ---
   const keyboardState = useRef({
@@ -42,7 +53,9 @@ export function useTouchInput(
 
   // Helper: is desktop (not touch device)
   function isDesktop() {
-    return !('ontouchstart' in window) && !navigator.userAgent.match(/Mobi|Android/i);
+    return (
+      !("ontouchstart" in window) && !navigator.userAgent.match(/Mobi|Android/i)
+    );
   }
   // Keyboard event handlers
   useEffect(() => {
@@ -51,20 +64,35 @@ export function useTouchInput(
     function handleKeyDown(e: KeyboardEvent) {
       let changed = false;
       switch (e.code) {
-        case 'ArrowUp':
-          if (!keyboardState.current.up) { keyboardState.current.up = true; changed = true; }
+        case "ArrowUp":
+          if (!keyboardState.current.up) {
+            keyboardState.current.up = true;
+            changed = true;
+          }
           break;
-        case 'ArrowDown':
-          if (!keyboardState.current.down) { keyboardState.current.down = true; changed = true; }
+        case "ArrowDown":
+          if (!keyboardState.current.down) {
+            keyboardState.current.down = true;
+            changed = true;
+          }
           break;
-        case 'ArrowLeft':
-          if (!keyboardState.current.left) { keyboardState.current.left = true; changed = true; }
+        case "ArrowLeft":
+          if (!keyboardState.current.left) {
+            keyboardState.current.left = true;
+            changed = true;
+          }
           break;
-        case 'ArrowRight':
-          if (!keyboardState.current.right) { keyboardState.current.right = true; changed = true; }
+        case "ArrowRight":
+          if (!keyboardState.current.right) {
+            keyboardState.current.right = true;
+            changed = true;
+          }
           break;
-        case 'Space':
-          if (!keyboardState.current.space) { keyboardState.current.space = true; changed = true; }
+        case "Space":
+          if (!keyboardState.current.space) {
+            keyboardState.current.space = true;
+            changed = true;
+          }
           break;
         default:
           break;
@@ -75,20 +103,35 @@ export function useTouchInput(
     function handleKeyUp(e: KeyboardEvent) {
       let changed = false;
       switch (e.code) {
-        case 'ArrowUp':
-          if (keyboardState.current.up) { keyboardState.current.up = false; changed = true; }
+        case "ArrowUp":
+          if (keyboardState.current.up) {
+            keyboardState.current.up = false;
+            changed = true;
+          }
           break;
-        case 'ArrowDown':
-          if (keyboardState.current.down) { keyboardState.current.down = false; changed = true; }
+        case "ArrowDown":
+          if (keyboardState.current.down) {
+            keyboardState.current.down = false;
+            changed = true;
+          }
           break;
-        case 'ArrowLeft':
-          if (keyboardState.current.left) { keyboardState.current.left = false; changed = true; }
+        case "ArrowLeft":
+          if (keyboardState.current.left) {
+            keyboardState.current.left = false;
+            changed = true;
+          }
           break;
-        case 'ArrowRight':
-          if (keyboardState.current.right) { keyboardState.current.right = false; changed = true; }
+        case "ArrowRight":
+          if (keyboardState.current.right) {
+            keyboardState.current.right = false;
+            changed = true;
+          }
           break;
-        case 'Space':
-          if (keyboardState.current.space) { keyboardState.current.space = false; changed = true; }
+        case "Space":
+          if (keyboardState.current.space) {
+            keyboardState.current.space = false;
+            changed = true;
+          }
           break;
         default:
           break;
@@ -99,7 +142,8 @@ export function useTouchInput(
     function updateFromKeyboard() {
       // Map arrow keys to a virtual joystick direction
       const { up, down, left, right, space } = keyboardState.current;
-      let dx = 0, dy = 0;
+      let dx = 0,
+        dy = 0;
       if (up) dy -= 1;
       if (down) dy += 1;
       if (left) dx -= 1;
@@ -145,11 +189,11 @@ export function useTouchInput(
       });
     }
 
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
     };
   }, [enabled]);
 
@@ -384,7 +428,7 @@ export function useTouchInput(
         }
         return prevState;
       });
-      
+
       if (gameTouchEnded) {
         event.preventDefault();
       }
@@ -423,5 +467,6 @@ export function useTouchInput(
   return {
     touchState,
     enableTouchTracking,
+    resetKeyboardState,
   };
 }

@@ -28,7 +28,8 @@ const Game: React.FC = () => {
     emancipationScore,
   } = useGameState();
 
-  const { touchState, enableTouchTracking } = useTouchInput(containerRef);
+  const { touchState, enableTouchTracking, resetKeyboardState } =
+    useTouchInput(containerRef);
 
   useEffect(() => {
     if (!isInitialized) {
@@ -39,7 +40,12 @@ const Game: React.FC = () => {
   useEffect(() => {
     const isActionScreen = gameState.gameView === "playing";
     enableTouchTracking(isActionScreen);
-  }, [gameState.gameView, enableTouchTracking]);
+
+    // Reset keyboard state when entering any docked/non-action view
+    if (!isActionScreen) {
+      resetKeyboardState();
+    }
+  }, [gameState.gameView, enableTouchTracking, resetKeyboardState]);
 
   const gameLoopUpdate = useCallback(
     (deltaTime: number, now: number) => {
