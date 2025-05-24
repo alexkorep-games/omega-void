@@ -66,7 +66,7 @@ const TradeScreen: React.FC = () => {
           SELL CARGO
         </button>
         <button
-          className="trade-select-button upgrade-button" // New class for potential styling
+          className="trade-select-button upgrade-button"
           onClick={() => setGameView("upgrade_ship")}
         >
           SHIP UPGRADES
@@ -80,6 +80,13 @@ const TradeScreen: React.FC = () => {
           title={replenishButtonTitle}
         >
           REPLENISH SHIELDS ({replenishCost.toFixed(1)} CR)
+        </button>
+        <button
+          className="trade-select-button map-button"
+          onClick={() => setGameView("system_map")}
+          title="View System Map"
+        >
+          MAP
         </button>
       </div>
       <div className="market-footer">

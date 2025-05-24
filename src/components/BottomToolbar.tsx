@@ -68,17 +68,23 @@ const BottomToolbar: React.FC = () => {
       if (typeof targetOrAction === "function") {
         targetOrAction();
       } else {
-        if (targetOrAction === "station_info")      setGameView("station_info");
+        if (targetOrAction === "station_info") setGameView("station_info");
         else if (targetOrAction === "trade_select") setGameView("trade_select");
-        else if (targetOrAction === "system_map")  setGameView("system_map");
-        else                                      setGameView(targetOrAction);
+        else if (targetOrAction === "system_map") setGameView("system_map");
+        else setGameView(targetOrAction);
       }
     },
     [setGameView]
   );
 
-  // Define the buttons and their target game views or actions
-  const buttons = [
+  type Button = {
+    label: string;
+    targetView: GameView | (() => void);
+    title?: string;
+    disabled?: boolean;
+  };
+
+  const buttons: Button[] = [
     {
       label: "Market",
       targetView: "trade_select",
@@ -92,16 +98,22 @@ const BottomToolbar: React.FC = () => {
     {
       label: "Comms",
       targetView: "chat_log",
-      title: "View Communications Log", // Added title
+      title: "View Communications Log",
     },
-    { label: "Map",    targetView: "system_map", title: "View System Map" },
-    { label: "Undock", targetView: initiateUndocking, title: "Leave Station" }, // Pass action directly
+    { label: "Undock", targetView: initiateUndocking, title: "Leave Station" },
   ];
 
   // Determine which views show the toolbar
   const toolbarVisibleViews: GameView[] = [
-    "trade_select","buy_cargo","sell_cargo","station_info","chat_log",
-    "station_log","station_details","upgrade_ship","contract_log",
+    "trade_select",
+    "buy_cargo",
+    "sell_cargo",
+    "station_info",
+    "chat_log",
+    "station_log",
+    "station_details",
+    "upgrade_ship",
+    "contract_log",
     "system_map",
   ];
   // Only render if the current gameView is one where the toolbar should be visible
@@ -116,7 +128,7 @@ const BottomToolbar: React.FC = () => {
           key={button.label}
           label={button.label}
           // Pass the targetView or action function to onClick handler
-          targetView={button.targetView} // Pass target/action directly
+          targetView={button.targetView}
           currentView={gameState.gameView}
           onClick={handleNavigate} // Use the navigation handler
           title={button.title}
