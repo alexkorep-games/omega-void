@@ -27,6 +27,7 @@ const MapScreen: React.FC = () => {
 
   const [stations, setStations] = useState<IStation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedStationId, setSelectedStationId] = useState<string | null>(null);
 
   const center = useMemo(() => {
     if (dockingStationId) {
@@ -111,6 +112,7 @@ const MapScreen: React.FC = () => {
                 : disc
                 ? "map-station-dot discovered"
                 : "map-station-dot undiscovered";
+              const isSelected = st.id === selectedStationId;
               return (
                 <g key={st.id}>
                   <circle
@@ -118,8 +120,12 @@ const MapScreen: React.FC = () => {
                     cy={st.coordinates.y}
                     r={DOT_R}
                     className={cls}
+                    style={{ cursor: disc ? "pointer" : "default" }}
+                    onClick={() => {
+                      if (disc) setSelectedStationId(st.id);
+                    }}
                   />
-                  {disc && (
+                  {disc && isSelected && (
                     <text
                       x={st.coordinates.x}
                       y={st.coordinates.y - DOT_R - 400}
