@@ -98,6 +98,7 @@ export const initialGameState: IGameColdState = {
   lastProcessedDialogId: -1,
   viewTargetCommodityKey: null,
   previousGameView: null,
+  hasUnreadCommanderMessages: false,
 };
 
 // updateCamera function remains the same

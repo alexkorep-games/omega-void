@@ -31,6 +31,7 @@ export interface SaveData {
   // --- Chat Data ---
   chatLog: ChatMessage[];
   lastProcessedDialogId: number;
+  hasUnreadCommanderMessages: boolean;
 }
 
 // --- Save Game State ---
@@ -123,6 +124,8 @@ export function loadGameState(): SaveData {
         typeof loadedData.lastProcessedDialogId === "number"
           ? loadedData.lastProcessedDialogId
           : -1;
+      const hasUnreadCommanderMessages =
+        !!loadedData.hasUnreadCommanderMessages;
 
       console.log("Game state loaded and validated.");
       return {
@@ -142,6 +145,7 @@ export function loadGameState(): SaveData {
         questInventory,
         chatLog,
         lastProcessedDialogId,
+        hasUnreadCommanderMessages,
       };
     }
   } catch (error) {
@@ -166,6 +170,29 @@ export function loadGameState(): SaveData {
     questInventory: {},
     chatLog: [],
     lastProcessedDialogId: -1,
+    hasUnreadCommanderMessages: false,
+  };
+}
+
+export function getDefaultSaveData(): SaveData {
+  return {
+    coordinates: { x: 0, y: 0 },
+    cash: DEFAULT_STARTING_CASH,
+    cargoHold: {},
+    lastDockedStationId: null,
+    discoveredStations: [],
+    knownStationPrices: {},
+    knownStationQuantities: {},
+    cargoPodLevel: 0,
+    shieldCapacitorLevel: 0,
+    engineBoosterLevel: 0,
+    hasAutoloader: false,
+    hasNavComputer: false,
+    questState: initialQuestState,
+    questInventory: {},
+    chatLog: [],
+    lastProcessedDialogId: -1,
+    hasUnreadCommanderMessages: false,
   };
 }
 

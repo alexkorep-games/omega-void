@@ -85,6 +85,7 @@ const updateChatLogInternal = (
   currentState: IGameColdState
 ): IGameColdState => {
   const newChatLog = [...currentState.chatLog];
+  const newHasUnreadMessages = currentState.hasUnreadCommanderMessages;
   let newLastProcessedDialogId = currentState.lastProcessedDialogId;
   let changesMade = false;
 
@@ -128,12 +129,17 @@ const updateChatLogInternal = (
 
   if (changesMade)
     newChatLog.sort((a, b) => (a.id as number) - (b.id as number));
-  if (changesMade)
+  if (
+    changesMade ||
+    newHasUnreadMessages !== currentState.hasUnreadCommanderMessages
+  ) {
     return {
       ...currentState,
       chatLog: newChatLog,
       lastProcessedDialogId: newLastProcessedDialogId,
+      hasUnreadCommanderMessages: newHasUnreadMessages,
     };
+  }
   return currentState;
 };
 
@@ -168,12 +174,17 @@ export function useGameState() {
           newView === "commodity_stations_list"
             ? prev.viewTargetCommodityKey
             : null;
+        let updatedHasUnreadCommanderMessages = prev.hasUnreadCommanderMessages;
+        if (newView === "chat_log" && prev.hasUnreadCommanderMessages) {
+          updatedHasUnreadCommanderMessages = false;
+        }
         return {
           ...prev,
           previousGameView: newPrev,
           gameView: newView,
           viewTargetStationId: nextStationId,
           viewTargetCommodityKey: nextCommodityKey,
+          hasUnreadCommanderMessages: updatedHasUnreadCommanderMessages,
           animationState:
             newView === "playing" || newView === "trade_select"
               ? { ...prev.animationState, type: null, progress: 0 }
@@ -539,6 +550,8 @@ export function useGameState() {
           progress: 0,
         },
         viewTargetCommodityKey: null, // Initialize new state
+        hasUnreadCommanderMessages:
+          loadedData.hasUnreadCommanderMessages ?? false,
       };
       return updateChatLogInternal(intermediateState);
     });
@@ -570,6 +583,8 @@ export function useGameState() {
             questInventory: currentSyncState.questInventory,
             chatLog: currentSyncState.chatLog,
             lastProcessedDialogId: currentSyncState.lastProcessedDialogId,
+            hasUnreadCommanderMessages:
+              currentSyncState.hasUnreadCommanderMessages,
           };
           saveGameState(dataToSave);
         }
@@ -641,6 +656,7 @@ export function useGameState() {
           duration: prev.animationState.duration,
         },
         viewTargetCommodityKey: null, // Reset new state
+        hasUnreadCommanderMessages: false, // Reset for new game
       };
       return updateChatLogInternal(intermediateState);
     });
@@ -665,6 +681,8 @@ export function useGameState() {
         questInventory: currentFreshState.questInventory,
         chatLog: currentFreshState.chatLog,
         lastProcessedDialogId: currentFreshState.lastProcessedDialogId,
+        hasUnreadCommanderMessages:
+          currentFreshState.hasUnreadCommanderMessages,
       };
       saveGameState(dataToSave);
       return currentFreshState;
@@ -695,6 +713,8 @@ export function useGameState() {
             questInventory: currentSyncState.questInventory,
             chatLog: currentSyncState.chatLog,
             lastProcessedDialogId: currentSyncState.lastProcessedDialogId,
+            hasUnreadCommanderMessages:
+              currentSyncState.hasUnreadCommanderMessages,
           };
           saveGameState(dataToSave);
         }

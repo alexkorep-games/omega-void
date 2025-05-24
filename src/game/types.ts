@@ -236,6 +236,7 @@ export interface IGameColdState {
   chatLog: ChatMessage[];
   lastProcessedDialogId: number;
   previousGameView: GameView | null;
+  hasUnreadCommanderMessages: boolean;
 }
 
 export interface IWorldManagerConfig {

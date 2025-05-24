@@ -11,6 +11,7 @@ interface ToolbarButtonProps {
   onClick: (targetViewOrAction: GameView | (() => void)) => void;
   disabled?: boolean;
   title?: string;
+  showIndicator?: boolean;
 }
 
 const ToolbarButton: React.FC<ToolbarButtonProps> = ({
@@ -20,6 +21,7 @@ const ToolbarButton: React.FC<ToolbarButtonProps> = ({
   onClick,
   disabled = false,
   title = "",
+  showIndicator = false,
 }) => {
   // Determine if active based on related views
   let isActive = false;
@@ -48,9 +50,9 @@ const ToolbarButton: React.FC<ToolbarButtonProps> = ({
 
   return (
     <button
-      className={`toolbar-button ${isActive ? "active" : ""} ${
-        disabled ? "disabled" : ""
-      }`}
+      className={`toolbar-button${isActive ? " active" : ""}${
+        disabled ? " disabled" : ""
+      }${showIndicator ? " has-indicator" : ""}`}
       onClick={handleClick}
       disabled={disabled}
       title={title || label}
@@ -123,17 +125,22 @@ const BottomToolbar: React.FC = () => {
 
   return (
     <div className="bottom-toolbar">
-      {buttons.map((button) => (
-        <ToolbarButton
-          key={button.label}
-          label={button.label}
-          // Pass the targetView or action function to onClick handler
-          targetView={button.targetView}
-          currentView={gameState.gameView}
-          onClick={handleNavigate} // Use the navigation handler
-          title={button.title}
-        />
-      ))}
+      {buttons.map((button) => {
+        const isCommsButton = button.label === "Comms";
+        const indicatorActive =
+          isCommsButton && gameState.hasUnreadCommanderMessages;
+        return (
+          <ToolbarButton
+            key={button.label}
+            label={button.label}
+            targetView={button.targetView}
+            currentView={gameState.gameView}
+            onClick={handleNavigate}
+            title={button.title}
+            showIndicator={indicatorActive}
+          />
+        );
+      })}
     </div>
   );
 };
